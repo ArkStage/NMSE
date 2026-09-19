@@ -2743,6 +2743,7 @@ internal class ChestsSubPanel : UserControl
     private TabPage _allChestsPage = null!;
     private ComboBox _allChestsSortCombo = null!;
     private NumericUpDown _allChestsPaddingInput = null!;
+    private CheckBox _allChestsMergeOnlyCheckbox = null!;
     private Button _allChestsSortButton = null!;
     private Label _allChestsStatusLabel = null!;
     private Label _allChestsSortLabel = null!;
@@ -2802,7 +2803,8 @@ internal class ChestsSubPanel : UserControl
             Anchor = AnchorStyles.Left,
         };
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
-        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_category"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_rarity"));
         _allChestsSortCombo.SelectedIndex = 0;
 
         _allChestsPaddingLabel = new Label
@@ -2819,6 +2821,22 @@ internal class ChestsSubPanel : UserControl
             Value = 0,
             Width = 70,
             Anchor = AnchorStyles.Left,
+        };
+
+        _allChestsMergeOnlyCheckbox = new CheckBox
+        {
+            Text = UiStrings.Get("base.all_chests_merge_only"),
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Padding = new Padding(0, 6, 0, 0),
+        };
+        _allChestsMergeOnlyCheckbox.CheckedChanged += (_, _) =>
+        {
+            bool mergeOnly = _allChestsMergeOnlyCheckbox.Checked;
+            // Merge Only keeps every surviving stack in its current chest/slot - there's no
+            // resort order and no front-to-back repacking, so neither control applies to it.
+            _allChestsSortCombo.Enabled = !mergeOnly;
+            _allChestsPaddingInput.Enabled = !mergeOnly;
         };
 
         _allChestsSortButton = new Button
@@ -2845,7 +2863,7 @@ internal class ChestsSubPanel : UserControl
         {
             AutoSize = true,
             ColumnCount = 2,
-            RowCount = 3,
+            RowCount = 4,
             Dock = DockStyle.Top,
         };
         allChestsForm.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -2854,7 +2872,8 @@ internal class ChestsSubPanel : UserControl
         allChestsForm.Controls.Add(_allChestsSortCombo, 1, 0);
         allChestsForm.Controls.Add(_allChestsPaddingLabel, 0, 1);
         allChestsForm.Controls.Add(_allChestsPaddingInput, 1, 1);
-        allChestsForm.Controls.Add(_allChestsSortButton, 1, 2);
+        allChestsForm.Controls.Add(_allChestsMergeOnlyCheckbox, 1, 2);
+        allChestsForm.Controls.Add(_allChestsSortButton, 1, 3);
 
         var allChestsPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
         // Reverse add-order for Dock=Top children (see WinForms docking note above):
@@ -3159,41 +3178,57 @@ internal class ChestsSubPanel : UserControl
         _allChestsInfoLabel.Text = UiStrings.Get("base.all_chests_info");
         _allChestsSortLabel.Text = UiStrings.Get("base.all_chests_sort_label");
         _allChestsPaddingLabel.Text = UiStrings.Get("base.all_chests_padding_label");
+        _allChestsMergeOnlyCheckbox.Text = UiStrings.Get("base.all_chests_merge_only");
         _allChestsSortButton.Text = UiStrings.Get("base.all_chests_sort_button");
 
         int prevSelection = _allChestsSortCombo.SelectedIndex;
         _allChestsSortCombo.Items.Clear();
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
-        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_category"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_rarity"));
         _allChestsSortCombo.SelectedIndex = prevSelection >= 0 ? prevSelection : 0;
     }
 
     /// <summary>
-    /// Sorts items across all 10 chests as a single pool: matching items are merged into the
-    /// fewest stacks possible (respecting each item's max stack size), sorted by the selected
-    /// field, and laid back out across Chest 0-9 in order, reserving the requested number of
-    /// empty slots at the end of each chest.
+    /// Runs the selected All Chests operation: either a full sort (merges matching stacks,
+    /// sorts by the selected field, and repacks across Chest 0-9 with the requested padding),
+    /// or - when Merge Only is checked - an in-place merge that leaves every surviving stack in
+    /// its current chest/slot and only removes now-redundant duplicate slots.
     /// </summary>
     private void OnSortAllChestsClicked(object? sender, EventArgs e)
     {
         if (_playerState == null || _database == null) return;
 
-        var mode = _allChestsSortCombo.SelectedIndex == 1 ? ChestSortMode.Category : ChestSortMode.Name;
-        int padding = (int)_allChestsPaddingInput.Value;
-
-        var result = InventoryBulkActions.SortAllChests(_playerState, _database, mode, padding);
-
-        if (!result.Success)
+        if (_allChestsMergeOnlyCheckbox.Checked)
         {
-            _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.ErrorRed : Color.Red;
-            _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_insufficient", result.StacksPlaced, result.SlotsAvailable);
-            return;
+            var mergeResult = InventoryBulkActions.MergeAllChestsInPlace(_playerState, _database);
+            _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.SuccessGreen : Color.Green;
+            _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_success", mergeResult.StacksRemaining, mergeResult.SlotsFreed);
+        }
+        else
+        {
+            var mode = _allChestsSortCombo.SelectedIndex switch
+            {
+                1 => ChestSortMode.Type,
+                2 => ChestSortMode.Rarity,
+                _ => ChestSortMode.Name,
+            };
+            int padding = (int)_allChestsPaddingInput.Value;
+
+            var result = InventoryBulkActions.SortAllChests(_playerState, _database, mode, padding);
+
+            if (!result.Success)
+            {
+                _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.ErrorRed : Color.Red;
+                _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_insufficient", result.StacksPlaced, result.SlotsAvailable);
+                return;
+            }
+
+            _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.SuccessGreen : Color.Green;
+            _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_success", result.StacksPlaced, result.SlotsFreed);
         }
 
-        _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.SuccessGreen : Color.Green;
-        _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_success", result.StacksPlaced, result.ChestsTouched, padding);
-
-        // Force every chest tab to reload from the freshly sorted data the next time it's
+        // Force every chest tab to reload from the freshly updated data the next time it's
         // shown, and refresh whichever one is active right now so the change is visible
         // immediately without switching tabs away and back.
         for (int i = 0; i < 10; i++)
