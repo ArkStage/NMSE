@@ -1238,7 +1238,12 @@ internal static class InventoryBulkActions
             }
 
             int neededStacks = (total + max - 1) / max; // ceiling division
-            if (neededStacks >= entries.Count) continue; // no slots to reclaim - leave untouched
+
+            // neededStacks can only exceed entries.Count if the resolved max is smaller than
+            // what's already crammed into an existing slot (only possible via the authoritative
+            // fallback above, not the normal per-entry-derived max) - rebalancing would lose
+            // quantity in that case, so leave everything untouched rather than risk data loss.
+            if (neededStacks > entries.Count) continue;
 
             int remaining = total;
             for (int i = 0; i < entries.Count; i++)
