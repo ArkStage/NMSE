@@ -14131,6 +14131,39 @@ public class LogicTests
     }
 
     [Fact]
+    public void BulkActions_SortAllChests_SortsByTypeThenRarityThenName()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // ^FUEL2 (Uncommon) and ^CATALYST2 (Rare) are both ItemType "Raw Materials".
+        // ^FARMPROD1 (Acid) is ItemType "Products" - "Products" sorts before "Raw Materials"
+        // alphabetically, so it must come first regardless of its own rarity. Within the
+        // Raw Materials bucket, Uncommon must come before Rare.
+        var fuel2 = db.GetItem("^FUEL2");
+        var catalyst2 = db.GetItem("^CATALYST2");
+        var farmprod1 = db.GetItem("^FARMPROD1");
+        Assert.NotNull(fuel2);
+        Assert.NotNull(catalyst2);
+        Assert.NotNull(farmprod1);
+        Assert.Equal("Uncommon", fuel2!.Rarity);
+        Assert.Equal("Rare", catalyst2!.Rarity);
+        Assert.Equal(fuel2.ItemType, catalyst2.ItemType);
+        Assert.NotEqual(fuel2.ItemType, farmprod1!.ItemType);
+
+        var chest1 = BuildChestInventory(5, 2, ("^CATALYST2", 5, 9999), ("^FUEL2", 5, 9999), ("^FARMPROD1", 2, 20));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.TypeThenRarity, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal("^FARMPROD1", slots.GetObject(0)!.GetString("Id")); // Products bucket first
+        Assert.Equal("^FUEL2", slots.GetObject(1)!.GetString("Id"));     // Raw Materials, Uncommon
+        Assert.Equal("^CATALYST2", slots.GetObject(2)!.GetString("Id")); // Raw Materials, Rare
+    }
+
+    [Fact]
     public void BulkActions_SortAllChests_RespectsMaxStackSizeWhenMerging()
     {
         var db = BuildTestDatabase();

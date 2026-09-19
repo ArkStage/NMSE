@@ -2805,6 +2805,7 @@ internal class ChestsSubPanel : UserControl
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type"));
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_rarity"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type_then_rarity"));
         _allChestsSortCombo.SelectedIndex = 0;
 
         _allChestsPaddingLabel = new Label
@@ -3186,6 +3187,7 @@ internal class ChestsSubPanel : UserControl
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type"));
         _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_rarity"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_type_then_rarity"));
         _allChestsSortCombo.SelectedIndex = prevSelection >= 0 ? prevSelection : 0;
     }
 
@@ -3211,6 +3213,7 @@ internal class ChestsSubPanel : UserControl
             {
                 1 => ChestSortMode.Type,
                 2 => ChestSortMode.Rarity,
+                3 => ChestSortMode.TypeThenRarity,
                 _ => ChestSortMode.Name,
             };
             int padding = (int)_allChestsPaddingInput.Value;

@@ -12,6 +12,7 @@ internal enum ChestSortMode
     Name,
     Type,
     Rarity,
+    TypeThenRarity,
 }
 
 /// <summary>Outcome of a <see cref="InventoryBulkActions.SortAllChests"/> call.</summary>
@@ -1002,12 +1003,12 @@ internal static class InventoryBulkActions
     /// Sorts items across all 10 standard Chest inventories as a single pool: matching items
     /// (same item ID, including any procedural seed) are first merged into as few stacks as
     /// possible (never exceeding each item's max stack size), the resulting stacks are sorted
-    /// by name, type, or rarity, and then laid out across Chest 1-10 in order, filling one
+    /// by name, type, rarity, or type then rarity, and then laid out across Chest 1-10 in order, filling one
     /// chest's slots before spilling into the next.
     /// </summary>
     /// <param name="playerState">The PlayerStateData JSON object.</param>
     /// <param name="database">Game item database, used to resolve names/categories for sorting.</param>
-    /// <param name="mode">Whether to sort by item name, type, or rarity.</param>
+    /// <param name="mode">Whether to sort by item name, type, rarity, or type then rarity.</param>
     /// <param name="paddingPerChest">Number of trailing slots to leave empty at the end of each chest.</param>
     /// <returns>
     /// A <see cref="ChestSortResult"/> describing what happened. If there isn't enough room to
@@ -1044,6 +1045,15 @@ internal static class InventoryBulkActions
             case ChestSortMode.Rarity:
                 sortedGroups.Sort((a, b) =>
                 {
+                    int byRarity = a.SortRarityRank.CompareTo(b.SortRarityRank);
+                    return byRarity != 0 ? byRarity : string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
+                });
+                break;
+            case ChestSortMode.TypeThenRarity:
+                sortedGroups.Sort((a, b) =>
+                {
+                    int byType = string.Compare(a.SortType, b.SortType, StringComparison.OrdinalIgnoreCase);
+                    if (byType != 0) return byType;
                     int byRarity = a.SortRarityRank.CompareTo(b.SortRarityRank);
                     return byRarity != 0 ? byRarity : string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
                 });
