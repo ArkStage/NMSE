@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using NMSE.Data;
 using NMSE.Core.Utilities;
 using NMSE.Models;
@@ -922,6 +923,32 @@ internal static class InventoryBulkActions
         return InventoryStackDatabase.GetMaxAmount(gameItem, invType, "Chest");
     }
 
+    private static readonly Regex TechPackHashPattern = new(@"^\^[0-9A-Fa-f]{12}$", RegexOptions.Compiled);
+
+    /// <summary>Checks whether the given ID (without any #variant suffix) is a TechPack hash.</summary>
+    private static bool IsTechPackHash(string baseId) => baseId.Length == 13 && TechPackHashPattern.IsMatch(baseId);
+
+    /// <summary>
+    /// Resolves a chest item ID to its <see cref="GameItem"/>, mirroring
+    /// InventoryGridPanel.ResolveGameItem: strips any procedural #seed suffix, tries a direct
+    /// database lookup, and falls back to the TechPacks hash table for IDs like
+    /// "^808002C15CB6" that only resolve indirectly (e.g. certain upgrade modules). Without
+    /// this fallback such items resolve to nothing, get an empty sort Type, and end up
+    /// clustered at the very front of the sort instead of grouped with their real type.
+    /// </summary>
+    private static GameItem? ResolveChestGameItem(string itemId, GameItemDatabase database)
+    {
+        string baseId = ProceduralSeedHelper.Strip(itemId).baseId;
+
+        var gameItem = database.GetItem(baseId);
+        if (gameItem != null) return gameItem;
+
+        if (IsTechPackHash(baseId) && TechPacks.Dictionary.TryGetValue(baseId, out var techPack))
+            return database.GetItem(techPack.Id);
+
+        return null;
+    }
+
     /// <summary>
     /// Scans all 10 standard Chest inventories and groups every occupied slot by exact item ID
     /// (including any procedural #seed suffix, so distinct variants stay distinct), resolving
@@ -974,8 +1001,7 @@ internal static class InventoryBulkActions
 
         foreach (var group in groups.Values)
         {
-            string lookupId = ProceduralSeedHelper.Strip(group.ItemId).baseId;
-            var gameItem = database.GetItem(lookupId);
+            var gameItem = ResolveChestGameItem(group.ItemId, database);
             group.SortName = gameItem?.Name ?? group.ItemId;
 
             // ItemType is the item's database file/bucket (Products, Curiosities, Raw
@@ -1206,8 +1232,7 @@ internal static class InventoryBulkActions
             int max = entries.Max(e => e.maxAmount);
             if (max <= 0)
             {
-                string lookupId = ProceduralSeedHelper.Strip(itemId).baseId;
-                var gameItem = database.GetItem(lookupId);
+                var gameItem = ResolveChestGameItem(itemId, database);
                 max = ResolveAuthoritativeMaxAmount(entries[0].slot, gameItem);
                 if (max <= 0) max = total;
             }

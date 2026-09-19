@@ -14164,6 +14164,35 @@ public class LogicTests
     }
 
     [Fact]
+    public void BulkActions_SortAllChests_ResolvesTechPackHashIds()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // "^808002C15CB6" is a TechPack hash that only resolves indirectly via
+        // TechPacks.Dictionary -> "^UP_SNSUIT" (ItemType "Upgrades"). A plain database
+        // lookup on the hash itself returns nothing; without the TechPacks fallback this
+        // item gets an empty sort Type and clusters at the very front instead of grouping
+        // with its real "Upgrades" type.
+        Assert.Null(db.GetItem("^808002C15CB6"));
+        var resolved = db.GetItem("^UP_SNSUIT");
+        Assert.NotNull(resolved);
+        Assert.Equal("Upgrades", resolved!.ItemType);
+
+        // ^CASING (Metal Plating) is ItemType "Products" - "Products" sorts before
+        // "Upgrades" alphabetically, so it must come first if the hash resolved correctly.
+        var chest1 = BuildChestInventory(5, 2, ("^808002C15CB6", 1, 20), ("^CASING", 5, 40));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Type, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal("^CASING", slots.GetObject(0)!.GetString("Id"));         // Products
+        Assert.Equal("^808002C15CB6", slots.GetObject(1)!.GetString("Id"));   // Upgrades (via hash)
+    }
+
+    [Fact]
     public void BulkActions_SortAllChests_RespectsMaxStackSizeWhenMerging()
     {
         var db = BuildTestDatabase();
