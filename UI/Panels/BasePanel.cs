@@ -27,6 +27,7 @@ public partial class BasePanel : UserControl
         _basesSubPanel.GoToJsonRequested += (s, e) => GoToJsonRequested?.Invoke(this, e);
         _storageSubPanel.GoToJsonRequested += (s, e) => GoToJsonRequested?.Invoke(this, e);
         _chestsSubPanel.GoToJsonRequested += (s, e) => GoToJsonRequested?.Invoke(this, e);
+        _chestsSubPanel.DataModified += (s, e) => DataModified?.Invoke(this, EventArgs.Empty);
         _spaceStationSubPanel.DataModified += (s, e) => DataModified?.Invoke(this, EventArgs.Empty);
         _spaceStationSubPanel.GoToJsonRequested += (s, e) => GoToJsonRequested?.Invoke(this, e);
         _spaceStationSubPanel.GoToBaseRequested += (s, dataIndex) =>
@@ -2738,8 +2739,23 @@ internal class ChestsSubPanel : UserControl
     // Tracks the current custom name per chest (empty = default)
     private readonly string[] _chestNames = new string[10];
 
+    // "All Chests" tab: sorts items across all 10 chests as one pool
+    private TabPage _allChestsPage = null!;
+    private ComboBox _allChestsSortCombo = null!;
+    private NumericUpDown _allChestsPaddingInput = null!;
+    private Button _allChestsSortButton = null!;
+    private Label _allChestsStatusLabel = null!;
+    private Label _allChestsSortLabel = null!;
+    private Label _allChestsPaddingLabel = null!;
+    private Label _allChestsInfoLabel = null!;
+
+    private JsonObject? _playerState;
+
     /// <summary>Raised when the user requests navigation to a JSON path in the Raw JSON Editor.</summary>
     internal event EventHandler<GoToJsonEventArgs>? GoToJsonRequested;
+
+    /// <summary>Raised when a bulk edit (e.g. Sort All Chests) directly modifies the underlying save data.</summary>
+    internal event EventHandler? DataModified;
 
     public ChestsSubPanel()
     {
@@ -2763,6 +2779,93 @@ internal class ChestsSubPanel : UserControl
         _chestNameFields = new TextBox[10];
         _chestRenameButtons = new Button[10];
         _chestClearButtons = new Button[10];
+
+        // --- "All Chests" tab: cross-chest sort (must be added first so it lands at index 0) ---
+        _allChestsInfoLabel = new Label
+        {
+            Text = UiStrings.Get("base.all_chests_info"),
+            AutoSize = true,
+            Dock = DockStyle.Top,
+            Padding = new Padding(0, 0, 0, 10),
+        };
+        _allChestsSortLabel = new Label
+        {
+            Text = UiStrings.Get("base.all_chests_sort_label"),
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Padding = new Padding(0, 6, 4, 0),
+        };
+        _allChestsSortCombo = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Width = 200,
+            Anchor = AnchorStyles.Left,
+        };
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_category"));
+        _allChestsSortCombo.SelectedIndex = 0;
+
+        _allChestsPaddingLabel = new Label
+        {
+            Text = UiStrings.Get("base.all_chests_padding_label"),
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Padding = new Padding(0, 6, 4, 0),
+        };
+        _allChestsPaddingInput = new NumericUpDown
+        {
+            Minimum = 0,
+            Maximum = 119,
+            Value = 0,
+            Width = 70,
+            Anchor = AnchorStyles.Left,
+        };
+
+        _allChestsSortButton = new Button
+        {
+            Text = UiStrings.Get("base.all_chests_sort_button"),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(160, 28),
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 14, 0, 0),
+        };
+        _allChestsSortButton.Click += OnSortAllChestsClicked;
+
+        _allChestsStatusLabel = new Label
+        {
+            Text = "",
+            AutoSize = true,
+            MaximumSize = new Size(560, 0),
+            Dock = DockStyle.Top,
+            Padding = new Padding(0, 10, 0, 0),
+        };
+
+        var allChestsForm = new TableLayoutPanel
+        {
+            AutoSize = true,
+            ColumnCount = 2,
+            RowCount = 3,
+            Dock = DockStyle.Top,
+        };
+        allChestsForm.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        allChestsForm.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        allChestsForm.Controls.Add(_allChestsSortLabel, 0, 0);
+        allChestsForm.Controls.Add(_allChestsSortCombo, 1, 0);
+        allChestsForm.Controls.Add(_allChestsPaddingLabel, 0, 1);
+        allChestsForm.Controls.Add(_allChestsPaddingInput, 1, 1);
+        allChestsForm.Controls.Add(_allChestsSortButton, 1, 2);
+
+        var allChestsPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
+        // Reverse add-order for Dock=Top children (see WinForms docking note above):
+        // status label goes in last-visually so it's added first.
+        allChestsPanel.Controls.Add(_allChestsStatusLabel);
+        allChestsPanel.Controls.Add(allChestsForm);
+        allChestsPanel.Controls.Add(_allChestsInfoLabel);
+
+        _allChestsPage = new TabPage(UiStrings.Get("base.all_chests_tab"));
+        _allChestsPage.Controls.Add(allChestsPanel);
+        _storageTabs.TabPages.Add(_allChestsPage);
 
         for (int i = 0; i < 10; i++)
         {
@@ -2924,11 +3027,22 @@ internal class ChestsSubPanel : UserControl
         _chestPages[idx].Text = BaseLogic.FormatChestTabTitle(baseLabel, _chestNames[idx]);
     }
 
+    /// <summary>
+    /// Maps a raw <see cref="_storageTabs"/> tab index to a chest index (0-9), or -1 if the
+    /// raw index refers to the "All Chests" tab (index 0) or is out of range.
+    /// Tab 0 is "All Chests" (no grid to load); Chest 0-9 occupy raw tab indices 1-10.
+    /// </summary>
+    private static int ChestIndexFromRawTabIndex(int rawTabIndex)
+    {
+        int idx = rawTabIndex - 1;
+        return idx >= 0 && idx < 10 ? idx : -1;
+    }
+
     private void EnsureActiveTabLoaded()
     {
-        int idx = _storageTabs.SelectedIndex;
-        if (idx < 0) idx = 0; // Default to first tab before handle is created
-        if (idx < 10 && !_chestLoaded[idx])
+        int idx = ChestIndexFromRawTabIndex(_storageTabs.SelectedIndex);
+        if (idx < 0) return;
+        if (!_chestLoaded[idx])
         {
             _chestLoaded[idx] = true;
             _chestGrids[idx].LoadInventory(_pendingInventories[idx]);
@@ -2937,8 +3051,8 @@ internal class ChestsSubPanel : UserControl
 
     private void OnTabSelected(object? sender, EventArgs e)
     {
-        int idx = _storageTabs.SelectedIndex;
-        if (idx >= 0 && idx < 10 && !_chestLoaded[idx])
+        int idx = ChestIndexFromRawTabIndex(_storageTabs.SelectedIndex);
+        if (idx >= 0 && !_chestLoaded[idx])
         {
             SuspendLayout();
             try
@@ -2974,10 +3088,14 @@ internal class ChestsSubPanel : UserControl
             _chestNames[i] = "";
         }
 
+        _playerState = null;
+        _allChestsStatusLabel.Text = "";
+
         try
         {
             var playerState = saveData.GetObject("PlayerStateData");
             if (playerState == null) return;
+            _playerState = playerState;
 
             for (int i = 0; i < 10; i++)
             {
@@ -3036,6 +3154,53 @@ internal class ChestsSubPanel : UserControl
         }
         for (int i = 0; i < 10; i++)
             new ToolTip().SetToolTip(_chestGotoBtns[i], UiStrings.Format("goto_json.tooltip_section", _chestPages[i].Text));
+
+        _allChestsPage.Text = UiStrings.Get("base.all_chests_tab");
+        _allChestsInfoLabel.Text = UiStrings.Get("base.all_chests_info");
+        _allChestsSortLabel.Text = UiStrings.Get("base.all_chests_sort_label");
+        _allChestsPaddingLabel.Text = UiStrings.Get("base.all_chests_padding_label");
+        _allChestsSortButton.Text = UiStrings.Get("base.all_chests_sort_button");
+
+        int prevSelection = _allChestsSortCombo.SelectedIndex;
+        _allChestsSortCombo.Items.Clear();
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_name"));
+        _allChestsSortCombo.Items.Add(UiStrings.Get("base.all_chests_sort_category"));
+        _allChestsSortCombo.SelectedIndex = prevSelection >= 0 ? prevSelection : 0;
+    }
+
+    /// <summary>
+    /// Sorts items across all 10 chests as a single pool: matching items are merged into the
+    /// fewest stacks possible (respecting each item's max stack size), sorted by the selected
+    /// field, and laid back out across Chest 0-9 in order, reserving the requested number of
+    /// empty slots at the end of each chest.
+    /// </summary>
+    private void OnSortAllChestsClicked(object? sender, EventArgs e)
+    {
+        if (_playerState == null || _database == null) return;
+
+        var mode = _allChestsSortCombo.SelectedIndex == 1 ? ChestSortMode.Category : ChestSortMode.Name;
+        int padding = (int)_allChestsPaddingInput.Value;
+
+        var result = InventoryBulkActions.SortAllChests(_playerState, _database, mode, padding);
+
+        if (!result.Success)
+        {
+            _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.ErrorRed : Color.Red;
+            _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_insufficient", result.StacksPlaced, result.SlotsAvailable);
+            return;
+        }
+
+        _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.SuccessGreen : Color.Green;
+        _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_success", result.StacksPlaced, result.ChestsTouched, padding);
+
+        // Refresh any already-visited chest grids so they reflect the new layout immediately.
+        for (int i = 0; i < 10; i++)
+        {
+            if (_chestLoaded[i])
+                _chestGrids[i].LoadInventory(_pendingInventories[i]);
+        }
+
+        DataModified?.Invoke(this, EventArgs.Empty);
     }
 }
 

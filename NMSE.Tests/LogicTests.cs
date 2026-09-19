@@ -13976,4 +13976,239 @@ public class LogicTests
         }
         return null;
     }
+
+    // --- InventoryBulkActions.SortAllChests ---------------------------
+
+    /// <summary>
+    /// Builds a chest inventory JSON object with a full-grid ValidSlotIndices covering
+    /// (width x height) and the given items placed in the first N sequential positions.
+    /// </summary>
+    private static JsonObject BuildChestInventory(int width, int height, params (string id, int amount, int maxAmount)[] occupied)
+    {
+        var inv = JsonObject.Parse("{ \"Slots\": [], \"ValidSlotIndices\": [], \"SpecialSlots\": [] }");
+        var slots = inv.GetArray("Slots")!;
+        var validSlots = inv.GetArray("ValidSlotIndices")!;
+
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+                validSlots.Add(JsonObject.Parse($"{{ \"X\": {x}, \"Y\": {y} }}"));
+
+        for (int i = 0; i < occupied.Length; i++)
+        {
+            var (id, amount, maxAmount) = occupied[i];
+            int x = i % width, y = i / width;
+            var slot = JsonObject.Parse($@"{{
+                ""Id"": ""{id}"",
+                ""Amount"": {amount},
+                ""MaxAmount"": {maxAmount},
+                ""Type"": {{ ""InventoryType"": ""Substance"" }},
+                ""Index"": {{ ""X"": {x}, ""Y"": {y} }}
+            }}");
+            slots.Add(slot);
+        }
+        return inv;
+    }
+
+    /// <summary>Builds a PlayerStateData JSON object with the given chests assigned to Chest1Inventory..Chest10Inventory in order.</summary>
+    private static JsonObject BuildPlayerStateWithChests(params JsonObject?[] chests)
+    {
+        var ps = JsonObject.Parse("{}");
+        for (int i = 0; i < BaseLogic.ChestInventoryKeys.Length && i < chests.Length; i++)
+        {
+            if (chests[i] != null)
+                ps.Add(BaseLogic.ChestInventoryKeys[i], chests[i]!);
+        }
+        return ps;
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_MergesMatchingStacksAndSortsByName()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // FUEL1=Carbon, LAND1=Ferrite Dust, WATER1=Salt - alphabetical by name: Carbon, Ferrite Dust, Salt.
+        var chest1 = BuildChestInventory(5, 2, ("^WATER1", 20, 9999), ("^FUEL1", 30, 9999));
+        var chest2 = BuildChestInventory(5, 2, ("^FUEL1", 40, 9999), ("^LAND1", 15, 9999));
+        var ps = BuildPlayerStateWithChests(chest1, chest2);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(3, result.StacksPlaced); // Carbon (merged 30+40), Ferrite Dust, Salt
+
+        var slots1 = chest1.GetArray("Slots")!;
+        Assert.Equal(3, slots1.Length);
+        Assert.Equal("^FUEL1", slots1.GetObject(0)!.GetString("Id"));
+        Assert.Equal(70, slots1.GetObject(0)!.GetInt("Amount")); // merged stack
+        Assert.Equal("^LAND1", slots1.GetObject(1)!.GetString("Id"));
+        Assert.Equal("^WATER1", slots1.GetObject(2)!.GetString("Id"));
+
+        // Everything fit in chest1; chest2 should be emptied out.
+        Assert.Equal(0, chest2.GetArray("Slots")!.Length);
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_SortsByCategoryThenName()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // Categories: WATER1=Salt/Earth, FUEL1=Carbon/Fuel, LAND1=Ferrite Dust/Metal.
+        // Category order (alphabetical): Earth, Fuel, Metal -> Salt, Carbon, Ferrite Dust.
+        var chest1 = BuildChestInventory(5, 2, ("^FUEL1", 10, 9999), ("^LAND1", 10, 9999), ("^WATER1", 10, 9999));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Category, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal("^WATER1", slots.GetObject(0)!.GetString("Id"));
+        Assert.Equal("^FUEL1", slots.GetObject(1)!.GetString("Id"));
+        Assert.Equal("^LAND1", slots.GetObject(2)!.GetString("Id"));
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_RespectsMaxStackSizeWhenMerging()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // Same item split across two chests, total exceeds MaxAmount - must split back into
+        // multiple stacks, never exceeding MaxAmount in a single slot.
+        var chest1 = BuildChestInventory(5, 2, ("^FUEL1", 800, 1000));
+        var chest2 = BuildChestInventory(5, 2, ("^FUEL1", 500, 1000));
+        var ps = BuildPlayerStateWithChests(chest1, chest2);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StacksPlaced); // 1300 total / 1000 max -> 2 stacks (1000 + 300)
+
+        var slots1 = chest1.GetArray("Slots")!;
+        Assert.Equal(2, slots1.Length);
+        Assert.Equal(1000, slots1.GetObject(0)!.GetInt("Amount"));
+        Assert.Equal(300, slots1.GetObject(1)!.GetInt("Amount"));
+        foreach (var s in new[] { slots1.GetObject(0)!, slots1.GetObject(1)! })
+            Assert.True(s.GetInt("Amount") <= s.GetInt("MaxAmount"));
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_FallsBackToAuthoritativeMaxAmountWhenSlotDataIsMissingIt()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // ^FUEL1 (Carbon) is a Substance, whose authoritative cap is always 9999
+        // (see InventoryStackDatabase.GetMaxAmount). Simulate a corrupted/hand-edited save
+        // where every slot's MaxAmount is missing (0) - the merge must not trust the pooled
+        // total (15000) as the cap; it should split at the real 9999 limit instead.
+        var chest1 = BuildChestInventory(5, 2, ("^FUEL1", 9000, 0));
+        var chest2 = BuildChestInventory(5, 2, ("^FUEL1", 6000, 0));
+        var ps = BuildPlayerStateWithChests(chest1, chest2);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StacksPlaced); // 15000 / 9999 -> two stacks, not one oversized stack
+
+        var slots1 = chest1.GetArray("Slots")!;
+        Assert.Equal(2, slots1.Length);
+        Assert.Equal(9999, slots1.GetObject(0)!.GetInt("Amount"));
+        Assert.Equal(9999, slots1.GetObject(0)!.GetInt("MaxAmount"));
+        Assert.Equal(5001, slots1.GetObject(1)!.GetInt("Amount"));
+        foreach (var s in new[] { slots1.GetObject(0)!, slots1.GetObject(1)! })
+            Assert.True(s.GetInt("Amount") <= s.GetInt("MaxAmount"));
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_SplittingMergedStackDoesNotAliasNestedId()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // Nested Id format ("Id": { "Id": "^ITEM" }) - not produced by the game, but the
+        // codebase explicitly supports it. Split a merged stack in two and verify each
+        // resulting slot owns an independent Id object rather than sharing one reference.
+        var inv = JsonObject.Parse("{ \"Slots\": [], \"ValidSlotIndices\": [], \"SpecialSlots\": [] }");
+        var validSlots = inv.GetArray("ValidSlotIndices")!;
+        for (int x = 0; x < 5; x++) validSlots.Add(JsonObject.Parse($"{{ \"X\": {x}, \"Y\": 0 }}"));
+
+        var slots = inv.GetArray("Slots")!;
+        slots.Add(JsonObject.Parse(@"{
+            ""Id"": { ""Id"": ""^FUEL1"" },
+            ""Amount"": 1300,
+            ""MaxAmount"": 1000,
+            ""Type"": { ""InventoryType"": ""Substance"" },
+            ""Index"": { ""X"": 0, ""Y"": 0 }
+        }"));
+
+        var ps = BuildPlayerStateWithChests(inv);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.StacksPlaced);
+
+        var resultSlots = inv.GetArray("Slots")!;
+        var id0 = resultSlots.GetObject(0)!.GetObject("Id")!;
+        var id1 = resultSlots.GetObject(1)!.GetObject("Id")!;
+        Assert.NotSame(id0, id1);
+        Assert.Equal("^FUEL1", id0.GetString("Id"));
+        Assert.Equal("^FUEL1", id1.GetString("Id"));
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_ReservesPaddingSlotsAtEndOfEachChest()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // 5x1 = 5 slots, 3 distinct items, padding=2 -> only 3 usable slots (exact fit).
+        var chest1 = BuildChestInventory(5, 1, ("^WATER1", 1, 9999), ("^FUEL1", 1, 9999), ("^LAND1", 1, 9999));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 2);
+
+        Assert.True(result.Success);
+        Assert.Equal(3, result.SlotsAvailable);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal(3, slots.Length);
+        foreach (var s in new[] { slots.GetObject(0)!, slots.GetObject(1)!, slots.GetObject(2)! })
+            Assert.True(s.GetObject("Index")!.GetInt("X") <= 2); // last 2 of 5 columns left empty
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_FailsAndLeavesDataUnchangedWhenNotEnoughSpace()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // 2x1 = 2 slots, but 3 distinct (non-mergeable) items - can't all fit.
+        var chest1 = BuildChestInventory(2, 1, ("^WATER1", 1, 9999), ("^FUEL1", 1, 9999), ("^LAND1", 1, 9999));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.False(result.Success);
+        Assert.Equal(3, result.StacksPlaced);
+        Assert.Equal(2, result.SlotsAvailable);
+
+        // Nothing should have been modified.
+        Assert.Equal(3, chest1.GetArray("Slots")!.Length);
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_NoItemsReturnsSuccessWithZeroStacks()
+    {
+        var db = BuildTestDatabase();
+
+        var chest1 = BuildChestInventory(5, 2);
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, result.StacksPlaced);
+    }
 }
