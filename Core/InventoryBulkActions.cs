@@ -952,7 +952,13 @@ internal static class InventoryBulkActions
             string lookupId = ProceduralSeedHelper.Strip(group.ItemId).baseId;
             var gameItem = database.GetItem(lookupId);
             group.SortName = gameItem?.Name ?? group.ItemId;
-            group.SortCategory = gameItem?.Category ?? "";
+
+            // Most raw materials and technology items carry a real Category (Fuel, Metal,
+            // Weapon, etc.), but crafted Products/Curiosities/parts generally don't - the
+            // game data simply omits the field for them. Fall back to the item's database
+            // file/type (Products, Curiosities, Buildings, ...) so Category mode still
+            // buckets those together instead of silently degrading to a name-only sort.
+            group.SortCategory = !string.IsNullOrEmpty(gameItem?.Category) ? gameItem.Category : gameItem?.ItemType ?? "";
 
             // If no source slot carried a usable MaxAmount (corrupted/hand-edited save),
             // fall back to the game's authoritative stack-size formula instead of the raw

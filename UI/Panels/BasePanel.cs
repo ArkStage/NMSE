@@ -3193,12 +3193,12 @@ internal class ChestsSubPanel : UserControl
         _allChestsStatusLabel.ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.SuccessGreen : Color.Green;
         _allChestsStatusLabel.Text = UiStrings.Format("base.all_chests_result_success", result.StacksPlaced, result.ChestsTouched, padding);
 
-        // Refresh any already-visited chest grids so they reflect the new layout immediately.
+        // Force every chest tab to reload from the freshly sorted data the next time it's
+        // shown, and refresh whichever one is active right now so the change is visible
+        // immediately without switching tabs away and back.
         for (int i = 0; i < 10; i++)
-        {
-            if (_chestLoaded[i])
-                _chestGrids[i].LoadInventory(_pendingInventories[i]);
-        }
+            _chestLoaded[i] = false;
+        EnsureActiveTabLoaded();
 
         DataModified?.Invoke(this, EventArgs.Empty);
     }

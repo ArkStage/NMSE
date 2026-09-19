@@ -14069,6 +14069,39 @@ public class LogicTests
     }
 
     [Fact]
+    public void BulkActions_SortAllChests_CategoryModeFallsBackToItemTypeWhenCategoryIsMissing()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // ^CASING (Metal Plating) and ^FARMPROD1 (Acid) are crafted Products with no
+        // "Category" field in the game data at all - they should fall back to grouping by
+        // ItemType ("Products"), sorted alphabetically within that bucket (Acid, Metal Plating).
+        // ^FUEL1 (Carbon) is a raw material with a real Category ("Fuel") - "Fuel" sorts
+        // before "Products" alphabetically, so it should come first.
+        var casing = db.GetItem("^CASING");
+        var farmprod1 = db.GetItem("^FARMPROD1");
+        var fuel1 = db.GetItem("^FUEL1");
+        Assert.NotNull(casing);
+        Assert.NotNull(farmprod1);
+        Assert.NotNull(fuel1);
+        Assert.True(string.IsNullOrEmpty(casing!.Category));
+        Assert.True(string.IsNullOrEmpty(farmprod1!.Category));
+        Assert.Equal("Fuel", fuel1!.Category);
+
+        var chest1 = BuildChestInventory(5, 2, ("^CASING", 5, 40), ("^FARMPROD1", 2, 20), ("^FUEL1", 10, 9999));
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Category, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal("^FUEL1", slots.GetObject(0)!.GetString("Id"));      // Fuel bucket
+        Assert.Equal("^FARMPROD1", slots.GetObject(1)!.GetString("Id"));  // Products bucket, "Acid" < "Metal Plating"
+        Assert.Equal("^CASING", slots.GetObject(2)!.GetString("Id"));
+    }
+
+    [Fact]
     public void BulkActions_SortAllChests_RespectsMaxStackSizeWhenMerging()
     {
         var db = BuildTestDatabase();
