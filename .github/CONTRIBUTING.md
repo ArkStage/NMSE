@@ -18,11 +18,13 @@ Thank you for your interest in contributing! This project is licensed under **AG
 - Favour small, efficient functions over bloated methods where applicable.
 - Reusable utility code should be in utility classes.
 - Keep changes small and focused.
+- If new Resources JSON is needed, it must be derived from the game and in the extractor.
 - Include tests for new behavior where appropriate.
 - Do not introduce external packages and libraries.
 - Do not include any code that is not compatible with the license.
 - Do not include any agent instructions, skills, etc. if the code used LLM assistance.
-- Any UI strings must pass through the localisation layer.
+- If LLM assisted, remove agent co-authorship or squash your commits. I don't want their co-authorship in my repo.
+- Any UI strings must pass through the localisation layer and be present and translated/transliterated for all languages.
 
 ## 📝 Pull Requests
 
@@ -40,7 +42,7 @@ Thank you for your interest in contributing! This project is licensed under **AG
 
 ## 📚 Documentation
 
-If your change affects public behavior, update docs in `docs/dev/` and any relevant README files.
+If your change affects public behavior, update docs in `docs/dev/`, `docs/user/` and any relevant README files.
 
 ## ❤️ Code of Conduct
 
