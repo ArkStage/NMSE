@@ -6,7 +6,8 @@ namespace NMSE.Tests;
 
 /// <summary>
 /// Tests for <see cref="CatalogueCompletionLogic"/> and the verified
-/// <see cref="CatalogueDatabase"/> loader.
+/// <see cref="CatalogueDatabase"/> loader: id completion, word groups, fishing records,
+/// wonders, discovery stats, account Seen arrays, Collected Knowledge and pack integration.
 /// </summary>
 [Collection("MutableStaticDatabases")]
 public class CatalogueCompletionLogicTests
@@ -184,9 +185,17 @@ public class CatalogueCompletionLogicTests
 
         Assert.Equal(1, added);
         var record = playerState.GetObject("FishingRecord")!;
-        Assert.Equal("^F_JELLYCHILD", record.GetArray("ProductList")!.GetString(0));
-        Assert.Equal(10, record.GetArray("ProductCountList")!.GetInt(0));
-        Assert.Equal(25.5, AsDouble(record.GetArray("LargestCatchList")!.Get(0)));
+        var ids = record.GetArray("ProductList")!;
+        var counts = record.GetArray("ProductCountList")!;
+        var largest = record.GetArray("LargestCatchList")!;
+        Assert.Equal(256, ids.Length);
+        Assert.Equal(256, counts.Length);
+        Assert.Equal(256, largest.Length);
+        Assert.Equal("^F_JELLYCHILD", ids.GetString(0));
+        Assert.Equal(10, counts.GetInt(0));
+        Assert.Equal(25.5, AsDouble(largest.Get(0)));
+        Assert.Equal("^", ids.GetString(1));
+        Assert.Equal("^", ids.GetString(255));
     }
 
     [Fact]
@@ -212,9 +221,102 @@ public class CatalogueCompletionLogicTests
         });
 
         Assert.Equal(1, added);
-        Assert.Equal(2, ids.Length);
+        Assert.Equal(256, ids.Length);
+        Assert.Equal("^F_JELLYCHILD", ids.GetString(0));
         Assert.Equal(3, counts.GetInt(0));
+        Assert.Equal(5.0, AsDouble(largest.Get(0)));
+        Assert.Equal("^F_OTHER", ids.GetString(1));
         Assert.Equal(1, counts.GetInt(1));
+        Assert.Equal(2.0, AsDouble(largest.Get(1)));
+    }
+
+    [Fact]
+    public void AddMissingFish_FillsStubSlotsInPlace()
+    {
+        var playerState = NewPlayerState();
+        var record = new JsonObject();
+        var ids = new JsonArray();
+        var counts = new JsonArray();
+        var largest = new JsonArray();
+        for (int i = 0; i < 256; i++)
+        {
+            ids.Add("^");
+            counts.Add(0);
+            largest.Add(0.0);
+        }
+        record.Set("ProductList", ids);
+        record.Set("ProductCountList", counts);
+        record.Set("LargestCatchList", largest);
+        playerState.Set("FishingRecord", record);
+
+        int added = CatalogueCompletionLogic.AddMissingFish(playerState, new[]
+        {
+            new CatalogueDatabase.FishEntry("F_JELLYCHILD", 10, 25.5)
+        });
+
+        Assert.Equal(1, added);
+        Assert.Equal(256, ids.Length);
+        Assert.Equal("^F_JELLYCHILD", ids.GetString(0));
+        Assert.Equal(10, counts.GetInt(0));
+        Assert.Equal(25.5, AsDouble(largest.Get(0)));
+        Assert.Equal("^", ids.GetString(1));
+        Assert.Equal(0, counts.GetInt(1));
+        Assert.Equal("^", ids.GetString(255));
+    }
+
+    [Fact]
+    public void AddMissingFish_RecoversEntriesAppendedBeyondCapacity()
+    {
+        var playerState = NewPlayerState();
+        var record = new JsonObject();
+        var ids = new JsonArray();
+        var counts = new JsonArray();
+        var largest = new JsonArray();
+        for (int i = 0; i < 256; i++)
+        {
+            ids.Add("^");
+            counts.Add(0);
+            largest.Add(0.0);
+        }
+        // Simulate the old build: species appended after the pre-allocated slots.
+        ids.Add("^F_JELLYCHILD");
+        counts.Add(7);
+        largest.Add(12.5);
+        record.Set("ProductList", ids);
+        record.Set("ProductCountList", counts);
+        record.Set("LargestCatchList", largest);
+        playerState.Set("FishingRecord", record);
+
+        int added = CatalogueCompletionLogic.AddMissingFish(playerState, new[]
+        {
+            new CatalogueDatabase.FishEntry("F_JELLYCHILD", 10, 25.5),
+            new CatalogueDatabase.FishEntry("F_OTHER", 1, 2.0)
+        });
+
+        Assert.Equal(2, added);
+        Assert.Equal(256, ids.Length);
+        Assert.Equal("^F_JELLYCHILD", ids.GetString(0));
+        Assert.Equal(10, counts.GetInt(0));
+        Assert.Equal("^F_OTHER", ids.GetString(1));
+        Assert.Equal(1, counts.GetInt(1));
+        Assert.Equal("^", ids.GetString(2));
+    }
+
+    [Fact]
+    public void AddMissingFish_RaisesFishGlobalStats()
+    {
+        var playerState = NewPlayerState();
+
+        CatalogueCompletionLogic.AddMissingFish(playerState, new[]
+        {
+            new CatalogueDatabase.FishEntry("F_JELLYCHILD", 10, 25.5)
+        });
+
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.True(globals.ContainsKey("FISH_CAUGHT"));
+        Assert.Equal(9738, CatalogueCompletionLogic.GetGlobalInt(globals["FISH_CAUGHT"]));
+        Assert.True(globals.ContainsKey("FISH_LEGEND"));
+        Assert.Equal(1, CatalogueCompletionLogic.GetGlobalInt(globals["FISH_LEGEND"]));
     }
 
     [Fact]
@@ -286,5 +388,563 @@ public class CatalogueCompletionLogicTests
 
         Assert.NotNull(item);
         Assert.Equal("BOBBLE_APOLLO", item!.Id);
+    }
+
+    // --- Wonders ---
+
+    private static JsonObject MakeDiscoveryRecord(string discoveryType, string address, string value)
+    {
+        var vp = new JsonArray();
+        vp.Add(value);
+
+        var dd = new JsonObject();
+        dd.Set("DT", discoveryType);
+        dd.Set("UA", address);
+        dd.Set("VP", vp);
+
+        var record = new JsonObject();
+        record.Set("DD", dd);
+        return record;
+    }
+
+    private static JsonObject MakeDiscoverySurrogate(string wonderKey, string discoveryType)
+    {
+        var surrogate = new JsonObject();
+
+        var gid = new JsonArray();
+        gid.Add("0x1111");
+        gid.Add("0x2222");
+        surrogate.Set("GenerationID", gid);
+        surrogate.Set("WonderStatValue", 12.5);
+
+        var species = MakeDiscoveryRecord(discoveryType, "0xAAAA", "0xBBBB");
+        if (discoveryType != "Planet")
+            surrogate.Set(discoveryType, species);
+
+        var planet = MakeDiscoveryRecord("Planet", "0xCCCC", "0xDDDD");
+        surrogate.Set("Planet", planet);
+
+        var planetStats = new JsonObject();
+        planetStats.Set("GroupId", "^PLANET_STATS");
+        planetStats.Set("Address", "0xCCCC");
+        surrogate.Set("PlanetStats", planetStats);
+
+        _ = wonderKey;
+        return surrogate;
+    }
+
+    [Fact]
+    public void GetWonderCompletion_DiscoveryCountsLiveFilledSlots()
+    {
+        var playerState = new JsonObject();
+        var slots = new JsonArray();
+
+        var filled = new JsonObject();
+        var gid = new JsonArray();
+        gid.Add("0x1");
+        gid.Add("0x2");
+        filled.Set("GenerationID", gid);
+        slots.Add(filled);
+
+        var empty = new JsonObject();
+        var zeroGid = new JsonArray();
+        zeroGid.Add(0);
+        zeroGid.Add(0);
+        empty.Set("GenerationID", zeroGid);
+        slots.Add(empty);
+
+        playerState.Set("WonderPlanetRecords", slots);
+
+        var fallback = new Dictionary<string, IReadOnlyList<JsonObject>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WonderPlanetRecords"] = new[] { MakeDiscoverySurrogate("WonderPlanetRecords", "Planet"), MakeDiscoverySurrogate("WonderPlanetRecords", "Planet") }
+        };
+
+        var (have, total) = CatalogueCompletionLogic.GetWonderCompletion(playerState, "WonderPlanetRecords", null, fallback);
+
+        Assert.Equal(1, have);
+        Assert.Equal(2, total);
+    }
+
+    [Fact]
+    public void FillWonderSlots_DiscoversDefersDependencyInjectionToSave()
+    {
+        var saveRoot = new JsonObject();
+        var playerState = new JsonObject();
+
+        var surrogate = MakeDiscoverySurrogate("WonderCreatureRecords", "Animal");
+        var fallback = new Dictionary<string, IReadOnlyList<JsonObject>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["WonderCreatureRecords"] = new[] { surrogate }
+        };
+
+        int filled = CatalogueCompletionLogic.FillWonderSlots(saveRoot, playerState, "WonderCreatureRecords", null, fallback);
+        Assert.Equal(15, filled); // creature slots target 15; the single surrogate repeats
+
+        var slots = playerState.GetArray("WonderCreatureRecords")!;
+        Assert.Equal(15, slots.Length);
+        Assert.True(CatalogueCompletionLogic.IsWonderSlotFilled(slots.GetObject(0)));
+        Assert.True(CatalogueCompletionLogic.IsWonderSlotFilled(slots.GetObject(14)));
+
+        // Dependencies are only injected when the save is written.
+        Assert.Null(saveRoot.GetObject("DiscoveryManagerData"));
+
+        int injected = CatalogueCompletionLogic.InjectWonderDependencies(saveRoot, playerState, fallback);
+        Assert.Equal(15, injected);
+
+        var records = saveRoot.GetObject("DiscoveryManagerData")!.GetObject("DiscoveryData-v1")!.GetObject("Store")!.GetArray("Record")!;
+        Assert.Equal(2, records.Length); // Animal + Planet
+
+        var stats = playerState.GetArray("Stats")!;
+        Assert.Equal(1, stats.Length);
+        Assert.Equal("^PLANET_STATS", stats.GetObject(0)!.GetString("GroupId"));
+
+        // Repeated injection is idempotent.
+        CatalogueCompletionLogic.InjectWonderDependencies(saveRoot, playerState, fallback);
+        Assert.Equal(2, records.Length);
+        Assert.Equal(1, stats.Length);
+    }
+
+    [Fact]
+    public void FillWonderSlots_PackRecordsCopiedIntoEmptySlots()
+    {
+        var playerState = new JsonObject();
+        var packRecord = new JsonObject();
+        var gid = new JsonArray();
+        gid.Add("0x4F4F");
+        gid.Add("0x5245");
+        packRecord.Set("GenerationID", gid);
+        packRecord.Set("WonderStatValue", 681324.0);
+
+        int filled = CatalogueCompletionLogic.FillWonderSlots(new JsonObject(), playerState, "WonderTreasureRecords",
+            new[] { packRecord }, new Dictionary<string, IReadOnlyList<JsonObject>>());
+
+        Assert.Equal(1, filled);
+        var slots = playerState.GetArray("WonderTreasureRecords")!;
+        Assert.True(slots.GetObject(0)!.GetBool("SeenInFrontend"));
+    }
+
+    [Fact]
+    public void ClearWonderSlot_ResetsDiscoverySlot()
+    {
+        var playerState = new JsonObject();
+        var slots = new JsonArray();
+        var record = new JsonObject();
+        var gid = new JsonArray();
+        gid.Add("0x1");
+        gid.Add("0x2");
+        record.Set("GenerationID", gid);
+        slots.Add(record);
+        playerState.Set("WonderPlanetRecords", slots);
+
+        Assert.True(CatalogueCompletionLogic.ClearWonderSlot(playerState, "WonderPlanetRecords", 0));
+        Assert.False(CatalogueCompletionLogic.IsWonderSlotFilled(slots.GetObject(0)));
+        Assert.False(CatalogueCompletionLogic.ClearWonderSlot(playerState, "WonderPlanetRecords", 0));
+    }
+
+    // --- Discovery stats ---
+
+    [Fact]
+    public void GlobalStatHelpers_CreateRaiseAndClear()
+    {
+        var playerState = new JsonObject();
+
+        Assert.True(CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, "DISC_PLANETS", 794));
+        var map = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.True(map.ContainsKey("DISC_PLANETS"));
+        Assert.Equal(794, CatalogueCompletionLogic.GetGlobalInt(map["DISC_PLANETS"]));
+
+        // Already at target: no change.
+        Assert.False(CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, "DISC_PLANETS", 794));
+
+        // Negative values are the game's "full" marker.
+        CatalogueCompletionLogic.SetGlobalInt(map["DISC_PLANETS"], -1);
+        Assert.False(CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, "DISC_PLANETS", 794));
+        Assert.True(CatalogueCompletionLogic.IsGlobalStatComplete(-1, 794));
+
+        Assert.True(CatalogueCompletionLogic.ClearGlobalStat(playerState, "DISC_PLANETS"));
+        Assert.Equal(0, CatalogueCompletionLogic.GetGlobalInt(map["DISC_PLANETS"]));
+    }
+
+    [Fact]
+    public void GetGlobalStatsCompletion_CountsCompleteTargets()
+    {
+        var playerState = new JsonObject();
+        CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, "A", 10);
+        CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, "B", 10);
+        var map = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        CatalogueCompletionLogic.SetGlobalInt(map["B"], 99);
+
+        var targets = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["A"] = 10,
+            ["B"] = 10,
+            ["C"] = 10,
+        };
+
+        var (have, total) = CatalogueCompletionLogic.GetGlobalStatsCompletion(playerState, targets);
+        Assert.Equal(2, have);
+        Assert.Equal(3, total);
+    }
+
+    // --- Account Seen arrays ---
+
+    [Fact]
+    public void AddMissingSeen_AndRemoveSeen()
+    {
+        var userSettings = new JsonObject();
+        var ids = new[] { "FOS_BI_BODY_AA", "FOS_BI_BODY_AB", "FOS_BI_BODY_AC" };
+
+        var (have, total) = CatalogueCompletionLogic.GetSeenCompletion(userSettings, "SeenProducts", ids);
+        Assert.Equal(0, have);
+        Assert.Equal(3, total);
+
+        int added = CatalogueCompletionLogic.AddMissingSeen(userSettings, "SeenProducts", ids);
+        Assert.Equal(3, added);
+
+        (have, total) = CatalogueCompletionLogic.GetSeenCompletion(userSettings, "SeenProducts", ids);
+        Assert.Equal(3, have);
+        Assert.Equal("^FOS_BI_BODY_AA", userSettings.GetArray("SeenProducts")!.GetString(0));
+
+        int removed = CatalogueCompletionLogic.RemoveSeen(userSettings, "SeenProducts", new[] { "FOS_BI_BODY_AB" });
+        Assert.Equal(1, removed);
+        Assert.Equal(2, userSettings.GetArray("SeenProducts")!.Length);
+    }
+
+    // --- Collected Knowledge ---
+
+    [Fact]
+    public void LastSeen_RoundTrips()
+    {
+        var playerState = new JsonObject();
+
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 0, 0));
+        Assert.True(CatalogueCompletionLogic.UpsertLastSeen(playerState, 0, 0, 29));
+        Assert.Equal(29, CatalogueCompletionLogic.GetLastSeen(playerState, 0, 0));
+        Assert.False(CatalogueCompletionLogic.UpsertLastSeen(playerState, 0, 0, 29));
+        Assert.True(CatalogueCompletionLogic.RemoveLastSeen(playerState, 0, 0));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 0, 0));
+    }
+
+    [Fact]
+    public void ApplyAndClearKnowledgePage_CounterPage()
+    {
+        var playerState = new JsonObject();
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [], []);
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_journey");
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePage(playerState, page, pack));
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(51, CatalogueCompletionLogic.GetGlobalInt(globals["CORE_LORE"]));
+        Assert.Equal(51, CatalogueCompletionLogic.GetLastSeen(playerState, page.Slot, page.PageIndex));
+
+        Assert.True(CatalogueCompletionLogic.ClearKnowledgePage(playerState, page));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, page.Slot, page.PageIndex));
+        Assert.Equal(0, CatalogueCompletionLogic.GetGlobalInt(globals["CORE_LORE"]));
+    }
+
+    [Fact]
+    public void ApplyAndClearKnowledgePage_InteractionPatchesSii()
+    {
+        var playerState = new JsonObject();
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [], []);
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "gek_mono");
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePage(playerState, page, pack));
+        var (races, looped) = CatalogueCompletionLogic.GetSiiStatus(playerState, 10);
+        foreach (int race in KnowledgeCatalogue.DefaultRaces)
+        {
+            Assert.Equal(20, races[race]);
+            Assert.True(looped[race]);
+        }
+
+        Assert.True(CatalogueCompletionLogic.ClearKnowledgePage(playerState, page));
+        (races, looped) = CatalogueCompletionLogic.GetSiiStatus(playerState, 10);
+        Assert.All(races, r => Assert.Equal(0, r));
+        Assert.All(looped, l => Assert.False(l));
+    }
+
+    [Fact]
+    public void GetKnowledgeStatus_TracksPageProgress()
+    {
+        var playerState = new JsonObject();
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "atlas_iface");
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+
+        var missing = CatalogueCompletionLogic.GetKnowledgeStatus(playerState, page, globals);
+        Assert.Equal("MISSING", missing.Status);
+
+        CatalogueCompletionLogic.UpsertLastSeen(playerState, page.Slot, page.PageIndex, page.TableMax);
+        globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        var complete = CatalogueCompletionLogic.GetKnowledgeStatus(playerState, page, globals);
+        Assert.Equal("OK", complete.Status);
+    }
+
+    [Fact]
+    public void KnowledgeCompleters_ApplyAndClearEverything()
+    {
+        var playerState = new JsonObject();
+        var patches = new[]
+        {
+            new CatalogueDatabase.SiiPatch(10, new[] { 20, 20, 20, 0, 0, 0, 20, 20, 4 }, new[] { true, true, true, false, false, false, true, true, true }),
+            new CatalogueDatabase.SiiPatch(55, new[] { 16, 16, 16, 0, 0, 0, 17, 17, 0 }, new[] { true, true, true, false, false, false, true, true, false }),
+        };
+        var missions = new[]
+        {
+            new CatalogueDatabase.MissionCompleter("ATLAS1", 12, 0),
+            new CatalogueDatabase.MissionCompleter("ATLAS2", 11, 0),
+        };
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, patches, missions);
+
+        int changed = CatalogueCompletionLogic.ApplyKnowledgeCompleters(playerState, pack);
+        Assert.True(changed > 0);
+        Assert.True(playerState.GetBool("BuildersKnown"));
+        Assert.True(playerState.GetBool("HasDiscoveredPurpleSystems"));
+        Assert.Equal(21, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 1));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(9, CatalogueCompletionLogic.GetGlobalInt(globals["ATLAS_PATH"]));
+        Assert.Equal(38, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // highest index, count 39
+        Assert.Equal(1, CatalogueCompletionLogic.GetLastSeen(playerState, 0, 3)); // language page marked present
+
+        var (races, _) = CatalogueCompletionLogic.GetSiiStatus(playerState, 55);
+        Assert.Equal(17, races[6]);
+
+        int cleared = CatalogueCompletionLogic.ClearKnowledgeCompleters(playerState, pack);
+        Assert.True(cleared > 0);
+        Assert.False(playerState.GetBool("BuildersKnown"));
+        Assert.False(playerState.GetBool("HasDiscoveredPurpleSystems"));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 1));
+        Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // -1 is the empty marker
+        Assert.Equal(-1, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
+    }
+
+    [Fact]
+    public void GetKnowledgeCompleterStatuses_IncludesMissionsAndFlags()
+    {
+        var playerState = new JsonObject();
+        var missions = new[]
+        {
+            new CatalogueDatabase.MissionCompleter("ATLAS1", 12, 0),
+        };
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [], missions);
+
+        var statuses = CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack);
+
+        Assert.Contains(statuses, s => s.Kind == KnowledgeCompleterKind.Flag && s.Id == "BuildersKnown");
+        Assert.Contains(statuses, s => s.Kind == KnowledgeCompleterKind.Mission && s.Id == "ATLAS1" && !s.Complete);
+    }
+
+    // --- Extended pack integration ---
+
+    [Fact]
+    public void Pack_LoadsExtendedTotals()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+
+        Assert.True(pack.DiscoveryStats.Count >= 40);
+        Assert.Equal(9738, pack.DiscoveryStats["FISH_CAUGHT"]);
+
+        Assert.True(pack.WonderFallbackSlots.ContainsKey("WonderPlanetRecords"));
+        Assert.Equal(11, pack.WonderFallbackSlots["WonderPlanetRecords"].Count);
+        Assert.Equal(15, pack.WonderFallbackSlots["WonderCreatureRecords"].Count);
+        Assert.Equal(8, pack.WonderFallbackSlots["WonderFloraRecords"].Count);
+        Assert.Equal(8, pack.WonderFallbackSlots["WonderMineralRecords"].Count);
+
+        Assert.Equal(143, pack.Fossils.Count);
+        Assert.Equal(103, pack.SeenSubstances.Count);
+
+        Assert.Equal(21, pack.StoryCompleters.BaseCompMax);
+        Assert.Equal(2, pack.StoryCompleters.SiiPatches.Count);
+        Assert.Equal(94, pack.StoryCompleters.Missions.Count);
+    }
+
+    [Fact]
+    public void KnowledgeCatalogue_MatchesReferencePageCount()
+    {
+        Assert.Equal(41, KnowledgeCatalogue.Pages.Length);
+        Assert.Equal(35, KnowledgeCatalogue.Pages.Count(p => p.Recipe != KnowledgeRecipe.Words));
+    }
+
+    [Fact]
+    public void Pack_AccessorIdsAreNormalisedWithoutCaret()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+
+        foreach (var list in new IReadOnlyList<string>[]
+        {
+            pack.KnownProducts, pack.KnownTech, pack.KnownSpecials, pack.KnownRefinerRecipes,
+            pack.SeenSubstances, pack.Fossils,
+        })
+        {
+            Assert.All(list, id => Assert.False(id.StartsWith("^", StringComparison.Ordinal), $"Unexpected caret in {id}"));
+        }
+
+        Assert.All(pack.Fishing, fish => Assert.False(fish.Id.StartsWith("^", StringComparison.Ordinal), $"Unexpected caret in {fish.Id}"));
+        Assert.All(pack.KnownWordGroups, group => Assert.False(group.Group.StartsWith("^", StringComparison.Ordinal), $"Unexpected caret in {group.Group}"));
+    }
+
+    [Fact]
+    public void Pack_ApplyAndClearAllCompletersWithRealData()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var playerState = new JsonObject();
+
+        int changed = CatalogueCompletionLogic.ApplyKnowledgeCompleters(playerState, pack.StoryCompleters);
+        Assert.True(changed >= pack.StoryCompleters.Missions.Count);
+
+        var statuses = CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack.StoryCompleters);
+        Assert.Equal(5 + 2 + 2 + 2 + pack.StoryCompleters.Missions.Count, statuses.Count);
+        Assert.All(statuses, s => Assert.True(s.Complete, $"{s.Id} should be complete"));
+
+        int cleared = CatalogueCompletionLogic.ClearKnowledgeCompleters(playerState, pack.StoryCompleters);
+        Assert.True(cleared > 0);
+        // Mission targets of -1 are already-complete sentinels in the pack and stay that way.
+        Assert.All(CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack.StoryCompleters),
+            s => Assert.True(!s.Complete || s.Target < 0, $"{s.Id} should be cleared"));
+    }
+
+    [Fact]
+    public void SetGlobalStatValue_SetsExactValue()
+    {
+        var playerState = new JsonObject();
+
+        Assert.True(CatalogueCompletionLogic.SetGlobalStatValue(playerState, "DISC_PLANETS", 5));
+        var map = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(5, CatalogueCompletionLogic.GetGlobalInt(map["DISC_PLANETS"]));
+
+        Assert.False(CatalogueCompletionLogic.SetGlobalStatValue(playerState, "DISC_PLANETS", 5));
+        Assert.True(CatalogueCompletionLogic.SetGlobalStatValue(playerState, "DISC_PLANETS", 0));
+        Assert.Equal(0, CatalogueCompletionLogic.GetGlobalInt(map["DISC_PLANETS"]));
+    }
+
+    [Fact]
+    public void ApplyKnowledgePageProgress_SetsPartialAndClears()
+    {
+        var playerState = new JsonObject();
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_journey"); // counter page, target 51, GLOBAL CORE_LORE
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 5));
+        Assert.Equal(5, CatalogueCompletionLogic.GetLastSeen(playerState, page.Slot, page.PageIndex));
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(5, CatalogueCompletionLogic.GetGlobalInt(globals["CORE_LORE"]));
+
+        Assert.False(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 5));
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 0));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, page.Slot, page.PageIndex));
+    }
+
+    [Fact]
+    public void ApplyKnowledgePageProgress_DeveloperCommentaryWritesIndexAndCount()
+    {
+        var playerState = new JsonObject();
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_devnotes");
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 5));
+        Assert.Equal(5, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(4, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // highest index, count 5
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, KnowledgeCatalogue.DevNotesTarget));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(38, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
+
+        var status = CatalogueCompletionLogic.GetKnowledgeStatus(playerState, page,
+            CatalogueCompletionLogic.GetGlobalStatsMap(playerState));
+        Assert.Equal("OK", status.Status);
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 0));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
+    }
+
+    [Fact]
+    public void ApplyKnowledgeCompleterProgress_SetsPartialAndClears()
+    {
+        var playerState = new JsonObject();
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [],
+            [new CatalogueDatabase.MissionCompleter("ATLAS1", 12, 0)]);
+        var status = CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack)
+            .Single(s => s.Kind == KnowledgeCompleterKind.Mission);
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgeCompleterProgress(playerState, status, 5));
+        Assert.Equal(5, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
+        Assert.False(status.Complete);
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgeCompleterProgress(playerState, status, 0));
+        Assert.Equal(-1, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
+    }
+
+    [Fact]
+    public void CatalogueDatabase_ReadsExtractedDataAndMergesWordFallbacks()
+    {
+        string extractedDir = Path.Combine(Path.GetTempPath(), $"nmse_pack_extracted_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(extractedDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(extractedDir, "Catalogue Pack.json"), """
+            {
+              "KnownRefinerRecipes": ["RECIPE_A", "RECIPE_B"],
+              "KnownWordGroups": [ { "Group": "^NEWGROUP", "Races": [true, false, false, false, false] } ],
+              "Fossils": ["FOS_X"],
+              "KnownPortalRunes": 65535
+            }
+            """);
+
+            var pack = new CatalogueDatabase(extractedDir);
+
+            Assert.True(pack.IsAvailable);
+            Assert.Equal(2, pack.KnownRefinerRecipes.Count);
+            Assert.Equal("RECIPE_A", pack.KnownRefinerRecipes[0]);
+            Assert.Single(pack.Fossils);
+            Assert.Equal("FOS_X", pack.Fossils[0]);
+            Assert.Equal(65535, pack.KnownPortalRunes);
+
+            // Extracted groups merge with the editor-known legacy groups.
+            Assert.Contains(pack.KnownWordGroups, g => g.Group == "NEWGROUP");
+            Assert.Contains(pack.KnownWordGroups, g => g.Group == "TRA_COLLECTION");
+        }
+        finally
+        {
+            try { Directory.Delete(extractedDir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void Pack_CompleteAllDiscoveryStatsWithRealData()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var playerState = new JsonObject();
+
+        int changed = 0;
+        foreach (var (id, target) in pack.DiscoveryStats)
+        {
+            if (CatalogueCompletionLogic.SetGlobalStatAtLeast(playerState, id, target)) changed++;
+        }
+        Assert.Equal(pack.DiscoveryStats.Count, changed);
+
+        var (have, total) = CatalogueCompletionLogic.GetGlobalStatsCompletion(playerState, pack.DiscoveryStats);
+        Assert.Equal(total, have);
+
+        int cleared = 0;
+        foreach (var (id, _) in pack.DiscoveryStats)
+        {
+            if (CatalogueCompletionLogic.ClearGlobalStat(playerState, id)) cleared++;
+        }
+        Assert.Equal(pack.DiscoveryStats.Count, cleared);
     }
 }

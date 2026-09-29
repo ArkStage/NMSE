@@ -215,6 +215,12 @@ internal static partial class CatalogueCompletionLogic
         return changed;
     }
 
+    /// <summary>
+    /// The game's fixed number of fishing record slots. The three FishingRecord lists are
+    /// paired by slot index and entries beyond this capacity are not read by the game.
+    /// </summary>
+    internal const int FishRecordCapacity = 256;
+
     /// <summary>Builds the set of fish species currently in FishingRecord.ProductList.</summary>
     /// <param name="playerState">The PlayerStateData object.</param>
     /// <returns>The set of normalised species IDs.</returns>
@@ -224,7 +230,9 @@ internal static partial class CatalogueCompletionLogic
         var ids = playerState.GetObject("FishingRecord")?.GetArray("ProductList");
         if (ids == null) return set;
 
-        for (int i = 0; i < ids.Length; i++)
+        // Only the game's fixed slots count; entries appended beyond the capacity are ignored.
+        int limit = Math.Min(ids.Length, FishRecordCapacity);
+        for (int i = 0; i < limit; i++)
         {
             string id = NormalizeId(ids.Get(i) as string);
             if (id.Length > 0) set.Add(id);
@@ -254,8 +262,11 @@ internal static partial class CatalogueCompletionLogic
     }
 
     /// <summary>
-    /// Adds missing fish species with the pack count and largest catch values,
-    /// keeping the three FishingRecord lists aligned.
+    /// Adds missing fish species into the game's pre-allocated fishing record slots and keeps
+    /// the three FishingRecord lists aligned. Existing catches keep their values; entries that
+    /// a previous build appended beyond the slot capacity are moved back into free slots, and
+    /// stub entries are dropped. Also raises the aggregate FISH_* GLOBAL stats used by the
+    /// fishing records UI.
     /// </summary>
     /// <param name="playerState">The PlayerStateData object.</param>
     /// <param name="packFish">The verified pack fish entries.</param>
@@ -274,21 +285,61 @@ internal static partial class CatalogueCompletionLogic
         var counts = EnsureArray(record, "ProductCountList");
         var largest = EnsureArray(record, "LargestCatchList");
 
-        while (counts.Length < ids.Length) counts.Add(0);
-        while (largest.Length < ids.Length) largest.Add(0.0);
+        // Keep the species already recorded in the game's slots, preserving the raw values so
+        // unmodified catches keep their exact serialised text.
+        var keptIds = new List<object?>();
+        var keptCounts = new List<object?>();
+        var keptLargest = new List<object?>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int limit = Math.Min(ids.Length, FishRecordCapacity);
+        for (int i = 0; i < limit; i++)
+        {
+            string id = NormalizeId(ids.Get(i) as string);
+            if (id.Length == 0 || !seen.Add(id)) continue;
+            keptIds.Add("^" + id);
+            keptCounts.Add(i < counts.Length ? counts.Get(i) : 0);
+            keptLargest.Add(i < largest.Length ? largest.Get(i) : 0.0);
+        }
 
-        var have = GetCurrentFishIdSet(playerState);
         int added = 0;
         foreach (var fish in packFish)
         {
             string id = NormalizeId(fish.Id);
-            if (id.Length == 0 || !have.Add(id)) continue;
-            ids.Add("^" + id);
-            counts.Add(fish.Count);
-            largest.Add(fish.Largest);
+            if (id.Length == 0 || !seen.Add(id)) continue;
+            keptIds.Add("^" + id);
+            keptCounts.Add(fish.Count);
+            keptLargest.Add(fish.Largest);
             added++;
         }
+
+        // Pad with stub slots so the record keeps the shape the game expects.
+        int length = Math.Max(FishRecordCapacity, keptIds.Count);
+        while (keptIds.Count < length)
+        {
+            keptIds.Add("^");
+            keptCounts.Add(0);
+            keptLargest.Add(0.0);
+        }
+
+        RebuildArray(ids, keptIds);
+        RebuildArray(counts, keptCounts);
+        RebuildArray(largest, keptLargest);
+
+        // Mirror the record into the aggregate GLOBAL stats used by the records UI.
+        foreach (var (statId, target) in CatalogueKnownValues.DiscoveryStats)
+        {
+            if (statId.StartsWith("FISH_", StringComparison.OrdinalIgnoreCase))
+                SetGlobalStatAtLeast(playerState, statId, target);
+        }
+
         return added;
+    }
+
+    private static void RebuildArray(JsonArray array, List<object?> values)
+    {
+        array.Clear();
+        foreach (var value in values)
+            array.Add(value);
     }
 
     private static JsonArray EnsureArray(JsonObject parent, string key)
