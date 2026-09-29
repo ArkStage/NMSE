@@ -172,6 +172,20 @@ public class AppConfig
         set => SetProperty("MainFrame.Height", value.ToString(CultureInfo.InvariantCulture));
     }
 
+    /// <summary>Raw JSON Editor view mode: "tree", "text" or "split".</summary>
+    public string RawJsonViewMode
+    {
+        get => GetProperty("RawJson.ViewMode") ?? "tree";
+        set => SetProperty("RawJson.ViewMode", value);
+    }
+
+    /// <summary>True when the Raw JSON Editor split view should restore Isolate Node.</summary>
+    public bool RawJsonIsolateNode
+    {
+        get => string.Equals(GetProperty("RawJson.IsolateNode"), "true", StringComparison.OrdinalIgnoreCase);
+        set => SetProperty("RawJson.IsolateNode", value ? "true" : "false");
+    }
+
     public static string BuildSaveScopeKey(string? saveFilePath)
     {
         if (string.IsNullOrWhiteSpace(saveFilePath))
