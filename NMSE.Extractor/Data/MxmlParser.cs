@@ -23,16 +23,6 @@ public class MxmlParser
     };
 
     private static readonly Regex MarkupTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
-    private static readonly Regex FeTokenRegex = new(@"\bFE_[A-Z0-9_]+\b", RegexOptions.Compiled);
-
-    // FE_* control token -> keyboard/mouse readable label mapping (from controllerLookup.generated.json, Win platform).
-    // Icon paths are converted to readable keys.
-    private static readonly Dictionary<string, string> FeTokenMap = new()
-    {
-        ["FE_ALT1"] = "[E]",     // KEYBOARD/INTERACT.E.png
-        ["FE_SELECT"] = "[LMB]", // MOUSE/KEY.MOUSELEFT.png
-        // FE_BACK has no icon -> stays unchanged
-    };
 
     private static Dictionary<string, string>? _localisation;
     private static readonly object _localisationLock = new();
@@ -119,17 +109,9 @@ public class MxmlParser
     }
 
     /// <summary>
-    /// Convert FE_* control placeholders to readable keyboard/mouse labels.
-    /// e.g. "Use FE_ALT1" -> "Use [E]"
+    /// Strips markup tags (for example <c>&lt;IMG&gt;</c>) from game text. Control tokens
+    /// such as <c>FE_ALT1</c> are left in place; the app resolves them at display time.
     /// </summary>
-    public static string NormalizeControlTokens(string text)
-    {
-        if (string.IsNullOrEmpty(text) || !text.Contains("FE_"))
-            return text;
-        return FeTokenRegex.Replace(text, m =>
-            FeTokenMap.TryGetValue(m.Value, out var label) ? label : m.Value);
-    }
-
     public static string StripMarkupTags(string text)
     {
         if (string.IsNullOrEmpty(text) || !text.Contains('<'))

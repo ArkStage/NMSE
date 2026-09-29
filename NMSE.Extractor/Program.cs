@@ -639,7 +639,8 @@ public class Program
                 // Copy tech-specific fields (including charge fields for correct Amount/MaxAmount)
                 bool enriched = false;
                 foreach (string field in new[] { "Category", "Upgrade", "Core", "Procedural",
-                                                  "Chargeable", "ChargeAmount", "BuildFullyCharged" })
+                                                  "Chargeable", "ChargeAmount", "BuildFullyCharged",
+                                                  "BaseStat" })
                 {
                     if (source.TryGetValue(field, out var srcVal) && srcVal != null)
                     {

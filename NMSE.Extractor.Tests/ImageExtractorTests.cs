@@ -124,4 +124,86 @@ public class ImageExtractorTests
                 Directory.Delete(tempRoot, recursive: true);
         }
     }
+
+    [Fact]
+    public void CollectIdIconPairs_ScansNonPreferredJsonFiles()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            string json = """[{"Id":"STA_00","IconPath":"textures/buildable.sta_00.dds"}]""";
+            File.WriteAllText(Path.Combine(tempDir, "Station.json"), json);
+
+            var result = ImageExtractor.CollectIdIconPairs(tempDir);
+            Assert.Single(result);
+            Assert.Equal("STA_00", result[0].Id);
+            Assert.Equal("textures/buildable.sta_00.dds", result[0].IconPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void CollectIdIconPairs_PreservesPreferredFilePriority()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            // "Aaa.json" sorts before "Products.json" but Products.json is preferred, so
+            // its icon must win for the duplicate ID.
+            File.WriteAllText(Path.Combine(tempDir, "Aaa.json"),
+                """[{"Id":"DUPE","IconPath":"textures/aaa.dds"}]""");
+            File.WriteAllText(Path.Combine(tempDir, "Products.json"),
+                """[{"Id":"DUPE","IconPath":"textures/products.dds"}]""");
+
+            var result = ImageExtractor.CollectIdIconPairs(tempDir);
+            Assert.Single(result);
+            Assert.Equal("textures/products.dds", result[0].IconPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    [Fact]
+    public void CollectCuratedIconPairs_IncludesProceduralMappings()
+    {
+        var result = ImageExtractor.CollectCuratedIconPairs(Path.GetTempPath());
+
+        var loot = Assert.Single(result.Where(p => p.Id == "PROC_LOOT"));
+        Assert.Equal("textures/ui/frontend/icons/update3/treasureprod.coincrate.dds", loot.IconPath);
+        Assert.Contains(result, p => p.Id == "PROC_STAR");
+        Assert.Contains(result, p => p.Id == "PROC_DARK");
+    }
+
+    [Fact]
+    public void CollectCuratedIconPairs_EnumeratesTechBoxIcons()
+    {
+        string tempRoot = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid()}");
+        try
+        {
+            string proctechDir = Path.Combine(tempRoot, "textures", "ui", "frontend", "icons", "u4products", "proctech");
+            Directory.CreateDirectory(proctechDir);
+            File.WriteAllBytes(Path.Combine(proctechDir, "techbox.binocs.dds"), [0x01]);
+            File.WriteAllBytes(Path.Combine(proctechDir, "techbox.vehicleboost.dds"), [0x02]);
+            File.WriteAllBytes(Path.Combine(proctechDir, "proctech.a.binocs.dds"), [0x03]);
+
+            var result = ImageExtractor.CollectCuratedIconPairs(tempRoot);
+
+            var binocs = Assert.Single(result.Where(p => p.Id == "TECHBOX_BINOCS"));
+            Assert.Equal("textures/ui/frontend/icons/u4products/proctech/techbox.binocs.dds", binocs.IconPath);
+            Assert.Contains(result, p => p.Id == "TECHBOX_VEHICLEBOOST");
+            Assert.DoesNotContain(result, p => p.Id == "PROCTECH.A.BINOCS");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+                Directory.Delete(tempRoot, recursive: true);
+        }
+    }
 }

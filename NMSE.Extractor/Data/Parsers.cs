@@ -399,7 +399,7 @@ public static class Parsers
                 string iconPath = !string.IsNullOrEmpty(iconFilename) ? MxmlParser.NormalizeGameIconPath(iconFilename) : "";
                 if (string.IsNullOrEmpty(iconPath)) continue;
 
-                // StatBonuses
+                // StatBonuses: raw stat type, bonus value and level.
                 var statBonuses = new List<Dictionary<string, object>>();
                 var statProp = elem.Descendants("Property").FirstOrDefault(e => e.Attribute("name")?.Value == "StatBonuses");
                 if (statProp != null)
@@ -410,14 +410,14 @@ public static class Parsers
                             .FirstOrDefault(e => e.Attribute("name")?.Value == "StatsType");
                         string statType = statTypeProp?.Attribute("value")?.Value ?? "";
                         string bonus = MxmlParser.GetPropertyValue(statElem, "Bonus", "0");
+                        string level = MxmlParser.GetPropertyValue(statElem, "Level", "0");
                         if (!string.IsNullOrEmpty(statType))
                         {
                             statBonuses.Add(new()
                             {
-                                ["Name"] = MxmlParser.FormatStatTypeName(statType, "Suit_"),
-                                ["LocaleKeyTemplate"] = "enabled",
-                                ["Image"] = statType.Contains('_') ? statType.ToLower().Split('_').Last() : "enabled",
-                                ["Value"] = ((int)double.Parse(bonus, System.Globalization.CultureInfo.InvariantCulture)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                ["Stat"] = statType,
+                                ["Bonus"] = ProductLookup.AsDouble(MxmlParser.ParseValue(bonus)),
+                                ["Level"] = (int)ProductLookup.AsDouble(MxmlParser.ParseValue(level))
                             });
                         }
                     }
@@ -506,6 +506,7 @@ public static class Parsers
                     ["BlueprintSource"] = 0,
                     ["RequiredItems"] = requiredItems,
                     ["StatBonuses"] = statBonuses,
+                    ["BaseStat"] = NullIfEmpty(MxmlParser.GetNestedEnum(elem, "BaseStat", "StatsType")),
                     ["ConsumableRewardTexts"] = new List<object>(),
                     ["Category"] = NullIfEmpty(MxmlParser.GetNestedEnum(elem, "Category", "TechnologyCategory")),
                     ["Category_LocStr"] = TryGetCategoryLocKey(localisation, MxmlParser.GetNestedEnum(elem, "Category", "TechnologyCategory")),
@@ -1374,6 +1375,7 @@ public static class Parsers
         var templateChargeable = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         var templateChargeAmount = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var templateBuildFullyCharged = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        var templateBaseStats = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         string techTablePath = Path.Combine(mbinDir, "nms_reality_gctechnologytable.MXML");
         if (File.Exists(techTablePath))
         {
@@ -1394,6 +1396,9 @@ public static class Parsers
                     templateChargeAmount[tid] = MxmlParser.ParseValue(MxmlParser.GetPropertyValue(te, "ChargeAmount", "0"));
                     bool buildFC = MxmlParser.ParseValue(MxmlParser.GetPropertyValue(te, "BuildFullyCharged", "false")) is true;
                     templateBuildFullyCharged[tid] = buildFC;
+
+                    string templateBaseStat = MxmlParser.GetNestedEnum(te, "BaseStat", "StatsType");
+                    if (!string.IsNullOrEmpty(templateBaseStat)) templateBaseStats[tid] = templateBaseStat;
                 }
         }
 
@@ -1493,6 +1498,7 @@ public static class Parsers
                     ["NumStatsMax"] = MxmlParser.ParseValue(MxmlParser.GetPropertyValue(elem, "NumStatsMax", "0")),
                     ["WeightingCurve"] = MxmlParser.GetNestedEnum(elem, "WeightingCurve", "WeightingCurve"),
                     ["StatLevels"] = statLevels,
+                    ["BaseStat"] = NullIfEmpty(templateBaseStats.GetValueOrDefault(templateId) ?? ""),
                     ["SourceTable"] = "Technology",
                 });
             }

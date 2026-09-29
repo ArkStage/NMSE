@@ -11,7 +11,13 @@ namespace NMSE.Extractor.Data;
 /// </summary>
 public static class ImageExtractor
 {
-    private static readonly string[] IconJsonFiles =
+    /// <summary>
+    /// JSON files scanned first for item icons. The order is kept from the original
+    /// hardcoded list so duplicate IDs resolve to the same icon as before; every other
+    /// *.json file in the directory is scanned afterwards, so new database files (for
+    /// example Station.json) are picked up automatically.
+    /// </summary>
+    private static readonly string[] PreferredIconJsonFiles =
     {
         "Buildings.json", "Constructed Technology.json", "Food.json", "Corvette.json",
         "Curiosities.json", "Exocraft.json", "Fish.json",
@@ -20,10 +26,99 @@ public static class ImageExtractor
         "none.json"
     };
 
+    /// <summary>
+    /// Editor-only icons that are not item database entries: procedural product icons
+    /// (referenced by Data/ProceduralStubs.cs) and tech box icons (referenced by
+    /// Data/TechPackDatabase.cs). Output names match the editor's C# table references.
+    /// Tech box icons are enumerated from the extracted game textures at runtime.
+    /// </summary>
+    private static readonly (string OutputId, string TexturePath)[] CuratedIconMappings =
+    {
+        ("PROC_LOOT", "textures/ui/frontend/icons/update3/treasureprod.coincrate.dds"),
+        ("PROC_BIO", "textures/ui/frontend/icons/update3/treasureprod.weirdseeds.dds"),
+        ("PROC_FOSS", "textures/ui/frontend/icons/update3/treasureprod.fossil.dds"),
+        ("PROC_SEA", "textures/ui/frontend/icons/update3/treasureprod.waterloot.dds"),
+        ("PROC_LUMP", "textures/ui/frontend/icons/update3/treasure.lump.dds"),
+        ("PROC_COG", "textures/ui/frontend/icons/update3/treasure.cog.dds"),
+        ("PROC_DATA", "textures/ui/frontend/icons/update3/treasure.datapack.dds"),
+        ("PROC_FEAR", "textures/ui/frontend/icons/u4products/product.horrificartifact.dds"),
+        ("PROC_DARK", "textures/ui/frontend/icons/u4products/product.horrificartifact.dds"),
+        ("PROC_SALV", "textures/ui/frontend/icons/u4products/product.salvage.common.dds"),
+        ("PROC_BONE", "textures/ui/frontend/icons/u4products/product.bones.dds"),
+        ("PROC_STAR", "textures/ui/frontend/icons/u4products/product.bones.dds"),
+        ("PROC_PASS", "textures/ui/frontend/icons/products/product.procfreighter.pass.dds"),
+        ("PROC_CAPT", "textures/ui/frontend/icons/products/product.procfreighter.capt.dds"),
+        ("PROC_CREW", "textures/ui/frontend/icons/products/product.procfreighter.crew.dds")
+    };
+
+    // Icons that are maintained by hand in the repository and are never extracted:
+    // UI-* (editor chrome), CLASSMINI.* (class badges), and legacy icons for items that no
+    // longer exist in the game (SWARM_TROPHY_G/R, CHART_PB_CHALNX). Keep these when
+    // syncing extraction output into Resources/images.
+
     public static string SanitizeFilename(string idStr)
     {
         if (string.IsNullOrEmpty(idStr)) return "unknown";
         return Regex.Replace(idStr, @"[\\/:*?""<>|]", "_").Trim();
+    }
+
+    /// <summary>
+    /// Enumerates the JSON files to scan for icons: the preferred files first (preserving
+    /// resolution priority), then any remaining *.json files alphabetically.
+    /// </summary>
+    public static IEnumerable<string> EnumerateIconJsonFiles(string jsonDir)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string filename in PreferredIconJsonFiles)
+        {
+            string path = Path.Combine(jsonDir, filename);
+            if (File.Exists(path) && seen.Add(Path.GetFileName(path)))
+                yield return path;
+        }
+
+        foreach (string path in Directory.EnumerateFiles(jsonDir, "*.json").OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            if (seen.Add(Path.GetFileName(path)))
+                yield return path;
+        }
+    }
+
+    /// <summary>
+    /// Enumerates the editor-only icons that are not part of the item database: the fixed
+    /// procedural product mappings and every tech box icon found in the extracted textures.
+    /// </summary>
+    public static List<(string Id, string IconPath)> CollectCuratedIconPairs(string extractedRoot)
+    {
+        var pairs = new List<(string, string)>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (outputId, texturePath) in CuratedIconMappings)
+        {
+            if (seen.Add(outputId))
+                pairs.Add((outputId, texturePath));
+        }
+
+        string proctechDir = Path.Combine(extractedRoot, "textures", "ui", "frontend", "icons", "u4products", "proctech");
+        if (Directory.Exists(proctechDir))
+        {
+            foreach (string file in Directory.EnumerateFiles(proctechDir).OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
+            {
+                string name = Path.GetFileName(file);
+                if (!name.StartsWith("techbox.", StringComparison.OrdinalIgnoreCase)
+                    || !name.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                string suffix = Path.GetFileNameWithoutExtension(name)["techbox.".Length..];
+                if (suffix.Length == 0) continue;
+                string outputId = "TECHBOX_" + suffix.ToUpperInvariant();
+                if (seen.Add(outputId))
+                    pairs.Add((outputId, Path.GetRelativePath(extractedRoot, file).Replace('\\', '/')));
+            }
+        }
+
+        return pairs;
     }
 
     public static List<(string Id, string IconPath)> CollectIdIconPairs(string jsonDir)
@@ -31,11 +126,8 @@ public static class ImageExtractor
         var seenIds = new HashSet<string>();
         var pairs = new List<(string, string)>();
 
-        foreach (string filename in IconJsonFiles)
+        foreach (string path in EnumerateIconJsonFiles(jsonDir))
         {
-            string path = Path.Combine(jsonDir, filename);
-            if (!File.Exists(path)) continue;
-
             try
             {
                 string json = File.ReadAllText(path);
@@ -61,7 +153,7 @@ public static class ImageExtractor
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] Skip {filename}: {ex.Message}");
+                Console.WriteLine($"[WARN] Skip {Path.GetFileName(path)}: {ex.Message}");
             }
         }
         return pairs;
@@ -88,7 +180,9 @@ public static class ImageExtractor
             var psi = new ProcessStartInfo
             {
                 FileName = magickPath,
-                Arguments = $"\"{source}\" \"{dest}\"",
+                // Downsize to the size the editor actually caches (128 px). The ">" flag
+                // prevents upscaling of smaller source icons.
+                Arguments = $"\"{source}\" -thumbnail 128x128> \"{dest}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -155,13 +249,26 @@ public static class ImageExtractor
         string jsonDir, string extractedRoot, string outputDir, string toolsDir)
     {
         var pairs = CollectIdIconPairs(jsonDir);
+        int jsonCount = pairs.Count;
+
+        var curated = CollectCuratedIconPairs(extractedRoot);
+        if (curated.Count > 0)
+        {
+            var seen = new HashSet<string>(pairs.Select(p => p.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in curated)
+            {
+                if (seen.Add(pair.Id))
+                    pairs.Add(pair);
+            }
+        }
+
         if (pairs.Count == 0)
         {
             Console.WriteLine("[WARN] No id+icon pairs found in JSON files.");
             return (0, 0);
         }
 
-        Console.WriteLine($"[INFO] Found {pairs.Count} items with icons");
+        Console.WriteLine($"[INFO] Found {pairs.Count} items with icons ({jsonCount} database, {pairs.Count - jsonCount} curated)");
         Directory.CreateDirectory(outputDir);
 
         string? magickPath = FindMagickExe(toolsDir);
