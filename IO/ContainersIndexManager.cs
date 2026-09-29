@@ -220,12 +220,10 @@ public static class ContainersIndexManager
     }
 
     /// <summary>
-    /// Load a save file from an Xbox blob directory.
+    /// Load a save file from an Xbox blob file.
     /// Returns the decompressed JSON string, or null if not found.
-    /// Xbox saves can use three compression formats:
-    ///   1. HGSAVEV2 - "HGSAVEV2\0" header followed by multi-frame LZ4 chunks
-    ///   2. NMS LZ4 streaming - 0xE5A1EDFE magic per chunk (multi-block)
-    ///   3. Plain/single-block LZ4 or uncompressed
+    /// Supports HGSAVEV2, NMS streaming LZ4 and plain/raw LZ4 payloads
+    /// (see <see cref="XboxBlobCodec"/>).
     /// </summary>
     public static string? LoadXboxSave(XboxSlotInfo slotInfo)
     {
@@ -234,33 +232,8 @@ public static class ContainersIndexManager
 
         try
         {
-            using var fs = new FileStream(slotInfo.DataFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-
-            // Need at least the HGSAVEV2 header length to detect format
-            byte[] headerBuf = new byte[Hgsv2Header.Length];
-            int headerRead = 0;
-            while (headerRead < headerBuf.Length && headerRead < fs.Length)
-            {
-                int n = fs.Read(headerBuf, headerRead, (int)Math.Min(headerBuf.Length - headerRead, fs.Length - headerRead));
-                if (n <= 0) break;
-                headerRead += n;
-            }
-            fs.Position = 0;
-
-            // Check for HGSAVEV2 format first (post-Omega Xbox saves)
-            if (IsHgsv2Header(headerBuf, headerRead))
-            {
-                return DecompressHgsv2(fs);
-            }
-
-            // Check for NMS LZ4 streaming format (0xE5A1EDFE magic)
-            if (headerRead >= 4 && IsNmsLz4Header(headerBuf))
-            {
-                return DecompressNmsLz4(fs);
-            }
-
-            // Fallback: plain or single-block LZ4
-            return ReadPlainOrSingleLz4(fs);
+            byte[] data = File.ReadAllBytes(slotInfo.DataFilePath);
+            return XboxBlobCodec.Decompress(data);
         }
         catch
         {
@@ -282,36 +255,63 @@ public static class ContainersIndexManager
 
     /// <summary>
     /// Write save data and meta to an Xbox blob directory.
-    /// Creates new GUID-named files and updates the blob container.
+    /// When the blob already exists its contents are overwritten in place, preserving the
+    /// blob GUIDs, the container extension and the sync identity used by Xbox cloud saves.
+    /// Only slots with no existing blob create fresh GUID-named files and a container.
     /// </summary>
     public static void WriteXboxSave(XboxSlotInfo slotInfo, byte[] compressedData, byte[] metaData)
     {
         if (!Directory.Exists(slotInfo.BlobDirectoryPath))
             Directory.CreateDirectory(slotInfo.BlobDirectoryPath);
 
-        // Create new GUID-named blob files
+        // Existing blob: replace contents in place to preserve cloud container identity.
+        if (slotInfo.DataFilePath != null && File.Exists(slotInfo.DataFilePath))
+        {
+            WriteAtomic(slotInfo.DataFilePath, compressedData);
+
+            if (metaData.Length > 0 && slotInfo.MetaFilePath != null && File.Exists(slotInfo.MetaFilePath))
+            {
+                byte[] existingMeta = File.ReadAllBytes(slotInfo.MetaFilePath);
+                if (!existingMeta.AsSpan().SequenceEqual(metaData))
+                    WriteAtomic(slotInfo.MetaFilePath, metaData);
+            }
+            return;
+        }
+
+        // No existing blob (new slot or copy destination): create fresh GUID-named files.
+        WriteXboxSaveNewBlobs(slotInfo, compressedData, metaData);
+    }
+
+    /// <summary>
+    /// Creates fresh GUID-named data/meta blobs and a new container file for a slot
+    /// that has no existing blob on disk.
+    /// </summary>
+    private static void WriteXboxSaveNewBlobs(XboxSlotInfo slotInfo, byte[] compressedData, byte[] metaData)
+    {
         Guid newDataGuid = Guid.NewGuid();
         Guid newMetaGuid = Guid.NewGuid();
 
         string newDataPath = GetBlobFilePath(slotInfo.BlobDirectoryPath, newDataGuid);
         string newMetaPath = GetBlobFilePath(slotInfo.BlobDirectoryPath, newMetaGuid);
 
-        // Delete old files
-        if (slotInfo.DataFilePath != null && File.Exists(slotInfo.DataFilePath))
-            File.Delete(slotInfo.DataFilePath);
-        if (slotInfo.MetaFilePath != null && File.Exists(slotInfo.MetaFilePath))
-            File.Delete(slotInfo.MetaFilePath);
+        WriteAtomic(newDataPath, compressedData);
+        WriteAtomic(newMetaPath, metaData);
 
-        // Write new files
-        File.WriteAllBytes(newDataPath, compressedData);
-        File.WriteAllBytes(newMetaPath, metaData);
-
-        // Update slot info
         slotInfo.DataFilePath = newDataPath;
         slotInfo.MetaFilePath = newMetaPath;
 
-        // Write new blob container file
         WriteBlobContainer(slotInfo, newDataGuid, newMetaGuid);
+    }
+
+    /// <summary>
+    /// Writes a file via a temporary sibling and an atomic replace, so an interrupted
+    /// write cannot leave a truncated save blob behind.
+    /// </summary>
+    private static void WriteAtomic(string path, byte[] bytes)
+    {
+        string tmp = path + ".nmse.tmp";
+        File.WriteAllBytes(tmp, bytes);
+        File.Move(tmp, path, overwrite: true);
     }
 
     /// <summary>
@@ -362,6 +362,14 @@ public static class ContainersIndexManager
             if (slot.MetaFilePath != null && File.Exists(slot.MetaFilePath))
                 totalSize += new FileInfo(slot.MetaFilePath).Length;
             writer.Write(totalSize);
+        }
+
+        // The parser requires at least 200 bytes; keep small indexes (for example after
+        // deleting most slots) valid by padding with zeros.
+        if (ms.Position < 200)
+        {
+            ms.Position = 199;
+            writer.Write((byte)0);
         }
 
         byte[] result = buffer.AsSpan(0, (int)ms.Position).ToArray();
@@ -515,175 +523,6 @@ public static class ContainersIndexManager
     {
         writer.Write(value.Length);
         writer.Write(Encoding.Unicode.GetBytes(value));
-    }
-
-    private static readonly byte[] Lz4Magic = { 0xE5, 0xA1, 0xED, 0xFE };
-
-    // HGSAVEV2 header: "HGSAVEV2\0" (9 bytes), used by post-Omega Xbox/Microsoft saves
-    private static readonly byte[] Hgsv2Header = Encoding.ASCII.GetBytes("HGSAVEV2").Concat(new byte[] { 0x00 }).ToArray();
-
-    private static bool IsNmsLz4Header(byte[] header)
-    {
-        return header.Length >= 4 &&
-               header[0] == Lz4Magic[0] && header[1] == Lz4Magic[1] &&
-               header[2] == Lz4Magic[2] && header[3] == Lz4Magic[3];
-    }
-
-    private static bool IsHgsv2Header(byte[] header, int length)
-    {
-        if (length < Hgsv2Header.Length) return false;
-        for (int i = 0; i < Hgsv2Header.Length; i++)
-        {
-            if (header[i] != Hgsv2Header[i]) return false;
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// Decompress HGSAVEV2 format: "HGSAVEV2\0" header followed by multi-frame LZ4.
-    /// Each frame: [decompressedSize(4 LE)] [compressedSize(4 LE)] [LZ4 data].
-    /// </summary>
-    private static string DecompressHgsv2(FileStream fs)
-    {
-        var latin1 = Encoding.GetEncoding(28591);
-
-        // Skip the HGSAVEV2 header
-        fs.Position = Hgsv2Header.Length;
-
-        // First pass: calculate total decompressed size
-        int totalSize = 0;
-        long scanPos = fs.Position;
-        byte[] frameHeader = new byte[8];
-
-        while (scanPos + 8 <= fs.Length)
-        {
-            fs.Position = scanPos;
-            if (fs.Read(frameHeader, 0, 8) < 8) break;
-
-            int decompressedLen = ReadInt32LE(frameHeader, 0);
-            int compressedLen = ReadInt32LE(frameHeader, 4);
-            if (decompressedLen < 0 || compressedLen < 0 ||
-                decompressedLen > 256 * 1024 * 1024 || compressedLen > 256 * 1024 * 1024) break;
-
-            totalSize += decompressedLen;
-            scanPos += 8 + compressedLen;
-        }
-
-        // Second pass: decompress all frames
-        byte[] result = new byte[totalSize];
-        int writePos = 0;
-        fs.Position = Hgsv2Header.Length;
-
-        while (fs.Position + 8 <= fs.Length && writePos < totalSize)
-        {
-            if (fs.Read(frameHeader, 0, 8) < 8) break;
-
-            int decompressedLen = ReadInt32LE(frameHeader, 0);
-            int compressedLen = ReadInt32LE(frameHeader, 4);
-            if (decompressedLen <= 0 || compressedLen <= 0) break;
-
-            byte[] block = new byte[compressedLen];
-            int totalRead = 0;
-            while (totalRead < compressedLen)
-            {
-                int n = fs.Read(block, totalRead, compressedLen - totalRead);
-                if (n <= 0) break;
-                totalRead += n;
-            }
-
-            int decompressed = Lz4Compressor.Decompress(block, 0, totalRead, result, writePos, decompressedLen);
-            writePos += decompressed;
-        }
-
-        return latin1.GetString(result, 0, writePos);
-    }
-
-    private static string DecompressNmsLz4(FileStream fs)
-    {
-        var latin1 = Encoding.GetEncoding(28591);
-        byte[] header = new byte[16];
-
-        // First pass: calculate total size
-        int totalSize = 0;
-        long scanPos = 0;
-        while (scanPos + 16 <= fs.Length)
-        {
-            fs.Position = scanPos;
-            if (fs.Read(header, 0, 16) < 16) break;
-            if (!IsNmsLz4Header(header)) break;
-
-            int compressedLen = ReadInt32LE(header, 4);
-            int uncompressedLen = ReadInt32LE(header, 8);
-            if (compressedLen < 0 || uncompressedLen < 0) break;
-
-            totalSize += uncompressedLen;
-            scanPos += 16 + compressedLen;
-        }
-
-        // Second pass: decompress
-        byte[] result = new byte[totalSize];
-        int writePos = 0;
-        fs.Position = 0;
-
-        while (fs.Position + 16 <= fs.Length)
-        {
-            if (fs.Read(header, 0, 16) < 16) break;
-            if (!IsNmsLz4Header(header)) break;
-
-            int compressedLen = ReadInt32LE(header, 4);
-            int uncompressedLen = ReadInt32LE(header, 8);
-
-            byte[] block = new byte[compressedLen];
-            int totalRead = 0;
-            while (totalRead < compressedLen)
-            {
-                int n = fs.Read(block, totalRead, compressedLen - totalRead);
-                if (n <= 0) break;
-                totalRead += n;
-            }
-
-            int decompressed = Lz4Compressor.Decompress(block, 0, totalRead, result, writePos, uncompressedLen);
-            writePos += decompressed;
-        }
-
-        return latin1.GetString(result, 0, writePos);
-    }
-
-    private static string ReadPlainOrSingleLz4(FileStream fs)
-    {
-        var latin1 = Encoding.GetEncoding(28591);
-        byte[] data = new byte[fs.Length];
-        int read = 0;
-        while (read < data.Length)
-        {
-            int n = fs.Read(data, read, data.Length - read);
-            if (n <= 0) break;
-            read += n;
-        }
-
-        // If data looks like plain JSON (starts with '{' or whitespace + '{'), return as-is
-        for (int i = 0; i < read; i++)
-        {
-            byte b = data[i];
-            if (b == '{') return latin1.GetString(data, 0, read);
-            if (b != ' ' && b != '\t' && b != '\r' && b != '\n' && b != 0) break;
-        }
-
-        // Try raw LZ4 block decompression (Xbox AccountData/Settings blobs).
-        // These blobs are stored as raw LZ4 without the NMS streaming header (0xE5A1EDFE).
-        try
-        {
-            using var ms = new MemoryStream(data, 0, read, writable: false);
-            using var decompressor = new Lz4DecompressorStream(ms, uncompressedSize: 0);
-            using var result = new MemoryStream();
-            decompressor.CopyTo(result);
-            return latin1.GetString(result.GetBuffer(), 0, (int)result.Length);
-        }
-        catch
-        {
-            // LZ4 decompression failed - return as uncompressed
-            return latin1.GetString(data, 0, read);
-        }
     }
 
     private static int ReadInt32LE(byte[] data, int offset)

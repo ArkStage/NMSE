@@ -436,6 +436,19 @@ partial class MainStatsPanel
         utilitiesLayout.SetColumnSpan(slotOpsPanel, 2);
         utilRow++;
 
+        // Slot operations capability note (hidden when the save format supports them)
+        _slotOpsNote = new Label
+        {
+            Text = UiStrings.Get("player.slot_ops_unsupported"),
+            ForeColor = ThemeManager.Effective == AppTheme.Dark ? ThemeColors.Dark.ErrorRed : Color.OrangeRed,
+            AutoSize = true,
+            Visible = false,
+            Padding = new Padding(0, 2, 0, 4)
+        };
+        utilitiesLayout.Controls.Add(_slotOpsNote, 0, utilRow);
+        utilitiesLayout.SetColumnSpan(_slotOpsNote, 2);
+        utilRow++;
+
         // Cross-platform transfer row
         var transferPanel = new FlowLayoutPanel { AutoSize = true, WrapContents = false, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0, 6, 0, 0) };
         _destPlatformLabel = new Label { Text = "Dest Platform:", AutoSize = true, Padding = new Padding(0, 5, 2, 0) };
@@ -749,7 +762,8 @@ partial class MainStatsPanel
     private Label _guidesTitle = null!;
     private Label _guidesFilterLabel = null!;
     private Label _titlesTitle = null!;
-    private Label _saveUtilsWarning = null!;
+        private Label _saveUtilsWarning = null!;
+        private Label _slotOpsNote = null!;
 
     // Multiplayer sub-panel
     private MultiplayerPanel _multiplayerPanel = null!;

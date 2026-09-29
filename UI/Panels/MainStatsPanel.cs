@@ -570,6 +570,8 @@ public partial class MainStatsPanel : UserControl
         finally { _loading = false; }
     }
 
+    private readonly List<int> _sourceSlotIndices = new();
+
     public void SetSaveFilePath(string path)
     {
         _saveFilePath = path;
@@ -579,10 +581,113 @@ public partial class MainStatsPanel : UserControl
             _lastSaveDateLabel.Text = lastWrite.ToString("g", CultureInfo.CurrentCulture);
         }
         catch { _lastSaveDateLabel.Text = ""; }
+        RefreshSlotUtilities();
     }
 
     private const int GridBorderPadding = 2;
     private const int MinimumEmptyGridHeight = 24;
+
+    /// <summary>
+    /// Rebuilds the slot operation controls for the currently loaded save. The source
+    /// combo only lists slots that contain data, and the buttons are disabled with a
+    /// note when the detected save format does not support slot operations.
+    /// </summary>
+    private void RefreshSlotUtilities()
+    {
+        _sourceSlotIndices.Clear();
+        _slotSourceCombo.Items.Clear();
+
+        bool supported = false;
+        try
+        {
+            string? dir = GetSaveDirectory();
+            if (dir != null)
+            {
+                var platform = GetDetectedPlatform();
+                supported = SaveSlotManager.IsSlotOperationSupported(dir, platform);
+
+                foreach (int slotIndex in SaveSlotManager.GetExistingSlotIndices(dir, platform))
+                {
+                    _sourceSlotIndices.Add(slotIndex);
+                    _slotSourceCombo.Items.Add(UiStrings.Format("player.slot_format", slotIndex + 1));
+                }
+            }
+        }
+        catch
+        {
+            supported = false;
+            _sourceSlotIndices.Clear();
+            _slotSourceCombo.Items.Clear();
+        }
+
+        // The destination combo always offers all slots so a save can be copied into an empty slot
+        int previousDest = _slotDestCombo.SelectedIndex;
+        _slotDestCombo.Items.Clear();
+        for (int i = 1; i <= SaveSlotManager.MaxGameSlots; i++)
+            _slotDestCombo.Items.Add(UiStrings.Format("player.slot_format", i));
+        _slotDestCombo.SelectedIndex = previousDest >= 0 && previousDest < _slotDestCombo.Items.Count
+            ? previousDest
+            : (_slotDestCombo.Items.Count > 1 ? 1 : 0);
+
+        if (_slotSourceCombo.Items.Count > 0)
+            _slotSourceCombo.SelectedIndex = 0;
+
+        UpdateSlotUtilitiesEnabled(supported);
+    }
+
+    /// <summary>
+    /// Enables or disables the slot operation buttons and shows the capability note.
+    /// </summary>
+    private void UpdateSlotUtilitiesEnabled(bool supported)
+    {
+        bool hasSource = _slotSourceCombo.Items.Count > 0;
+        _slotSourceCombo.Enabled = supported && hasSource;
+        _slotDestCombo.Enabled = supported;
+        _copySlotBtn.Enabled = supported && hasSource;
+        _moveSlotBtn.Enabled = supported && hasSource;
+        _swapSlotBtn.Enabled = supported && hasSource;
+        _deleteSlotBtn.Enabled = supported && hasSource;
+        _slotOpsNote.Visible = !supported;
+    }
+
+    /// <summary>
+    /// Resolves the currently selected source/destination slots to 0-based slot indices.
+    /// </summary>
+    private bool TryGetSlotSelection(out int sourceSlot, out int destSlot)
+    {
+        sourceSlot = -1;
+        destSlot = _slotDestCombo.SelectedIndex;
+
+        int selected = _slotSourceCombo.SelectedIndex;
+        if (selected < 0 || selected >= _sourceSlotIndices.Count || destSlot < 0)
+            return false;
+
+        sourceSlot = _sourceSlotIndices[selected];
+        return true;
+    }
+
+    /// <summary>
+    /// Shows a localised message for a failed slot operation.
+    /// </summary>
+    private void ShowSlotOperationError(Exception ex, string titleKey, string failureKey)
+    {
+        string title = UiStrings.Get(titleKey);
+        switch (ex)
+        {
+            case SlotEmptyException empty:
+                MessageBox.Show(this, UiStrings.Format("player.slot_empty", empty.SlotNumber),
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                break;
+            case SlotOperationUnsupportedException:
+                MessageBox.Show(this, UiStrings.Get("player.slot_ops_unsupported"),
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                break;
+            default:
+                MessageBox.Show(this, UiStrings.Format(failureKey, ex.Message),
+                    title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                break;
+        }
+    }
 
     private static void AutoSizeGridHeight(DataGridView grid)
     {
@@ -960,8 +1065,18 @@ public partial class MainStatsPanel : UserControl
 
     // -- Save Utility event handlers --
 
-    private string? GetSaveDirectory() =>
-        _saveFilePath != null ? Path.GetDirectoryName(_saveFilePath) : null;
+    private string? GetSaveDirectory()
+    {
+        if (string.IsNullOrEmpty(_saveFilePath))
+            return null;
+
+        // Xbox xgs saves track the container directory directly; file-based platforms
+        // track a save file and use its parent directory.
+        if (Directory.Exists(_saveFilePath))
+            return _saveFilePath;
+
+        return Path.GetDirectoryName(_saveFilePath);
+    }
 
     private SaveFileManager.Platform GetDetectedPlatform()
     {
@@ -983,9 +1098,7 @@ public partial class MainStatsPanel : UserControl
     {
         string? dir = GetSaveDirectory();
         if (dir == null) { ShowNoDirWarning(); return; }
-        int src = _slotSourceCombo.SelectedIndex;
-        int dst = _slotDestCombo.SelectedIndex;
-        if (src < 0 || dst < 0) return;
+        if (!TryGetSlotSelection(out int src, out int dst)) return;
         if (src == dst) { MessageBox.Show(this, UiStrings.Get("player.slots_must_differ"), UiStrings.Get("player.copy_slot"), MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
         var platform = GetDetectedPlatform();
@@ -1000,7 +1113,7 @@ public partial class MainStatsPanel : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, UiStrings.Format("player.copy_slot_failed", ex.Message), UiStrings.Get("player.copy_slot"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowSlotOperationError(ex, "player.copy_slot", "player.copy_slot_failed");
         }
     }
 
@@ -1008,9 +1121,7 @@ public partial class MainStatsPanel : UserControl
     {
         string? dir = GetSaveDirectory();
         if (dir == null) { ShowNoDirWarning(); return; }
-        int src = _slotSourceCombo.SelectedIndex;
-        int dst = _slotDestCombo.SelectedIndex;
-        if (src < 0 || dst < 0) return;
+        if (!TryGetSlotSelection(out int src, out int dst)) return;
         if (src == dst) { MessageBox.Show(this, UiStrings.Get("player.slots_must_differ"), UiStrings.Get("player.move_slot"), MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
         var platform = GetDetectedPlatform();
@@ -1026,7 +1137,7 @@ public partial class MainStatsPanel : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, UiStrings.Format("player.move_slot_failed", ex.Message), UiStrings.Get("player.move_slot"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowSlotOperationError(ex, "player.move_slot", "player.move_slot_failed");
         }
     }
 
@@ -1034,9 +1145,7 @@ public partial class MainStatsPanel : UserControl
     {
         string? dir = GetSaveDirectory();
         if (dir == null) { ShowNoDirWarning(); return; }
-        int src = _slotSourceCombo.SelectedIndex;
-        int dst = _slotDestCombo.SelectedIndex;
-        if (src < 0 || dst < 0) return;
+        if (!TryGetSlotSelection(out int src, out int dst)) return;
         if (src == dst) { MessageBox.Show(this, UiStrings.Get("player.slots_must_differ"), UiStrings.Get("player.swap_slots"), MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
         var platform = GetDetectedPlatform();
@@ -1052,7 +1161,7 @@ public partial class MainStatsPanel : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, UiStrings.Format("player.swap_slot_failed", ex.Message), UiStrings.Get("player.swap_slots"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowSlotOperationError(ex, "player.swap_slots", "player.swap_slot_failed");
         }
     }
 
@@ -1060,8 +1169,7 @@ public partial class MainStatsPanel : UserControl
     {
         string? dir = GetSaveDirectory();
         if (dir == null) { ShowNoDirWarning(); return; }
-        int src = _slotSourceCombo.SelectedIndex;
-        if (src < 0) return;
+        if (!TryGetSlotSelection(out int src, out _)) return;
 
         var platform = GetDetectedPlatform();
         var result = MessageBox.Show(this, UiStrings.Format("player.delete_slot_confirm", src + 1),
@@ -1076,7 +1184,7 @@ public partial class MainStatsPanel : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, UiStrings.Format("player.delete_slot_failed", ex.Message), UiStrings.Get("player.delete_slot"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowSlotOperationError(ex, "player.delete_slot", "player.delete_slot_failed");
         }
     }
 
@@ -1095,7 +1203,7 @@ public partial class MainStatsPanel : UserControl
             Description = UiStrings.Get("player.transfer_dest_folder"),
             UseDescriptionForTitle = true
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         var result = MessageBox.Show(this, 
             UiStrings.Format("player.transfer_cross_confirm", _transferPlatformCombo.Text, destSlot + 1, dialog.SelectedPath),
@@ -1144,7 +1252,7 @@ public partial class MainStatsPanel : UserControl
                 Filter = ExportConfig.BuildDialogFilter(ext, UiStrings.Get("outfits.export")),
                 FileName = defaultName
             };
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             OutfitLogic.ExportOutfit(outfit, dialog.FileName);
             MessageBox.Show(this, UiStrings.Get("outfits.export_success"), UiStrings.Get("outfits.export"),
@@ -1172,7 +1280,7 @@ public partial class MainStatsPanel : UserControl
             {
                 Filter = ExportConfig.BuildOpenFilter(ext, UiStrings.Get("outfits.import"))
             };
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             OutfitLogic.ImportOutfit(outfits, idx, dialog.FileName);
             RaiseDataModified();
@@ -1213,8 +1321,8 @@ public partial class MainStatsPanel : UserControl
         catch { }
     }
 
-    private static void ShowNoDirWarning() =>
-        MessageBox.Show(UiStrings.Get("player.no_save_loaded"), UiStrings.Get("player.save_utils_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    private void ShowNoDirWarning() =>
+        MessageBox.Show(FindForm(), UiStrings.Get("player.no_save_loaded"), UiStrings.Get("player.save_utils_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
     private void OnGuideCellChanged(object? sender, DataGridViewCellEventArgs e)
     {
@@ -1459,6 +1567,10 @@ public partial class MainStatsPanel : UserControl
 
         // Save utilities warning
         _saveUtilsWarning.Text = UiStrings.Get("player.save_utils_warning");
+        _slotOpsNote.Text = UiStrings.Get("player.slot_ops_unsupported");
+
+        // Rebuild slot combos so their labels follow the active language
+        RefreshSlotUtilities();
 
         // Guide category labels
         for (int i = 0; i < _guideCategoryLabels.Count && i < GuideCategories.Length; i++)

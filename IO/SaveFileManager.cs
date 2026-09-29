@@ -27,6 +27,17 @@ public class SaveFileManager
     /// </summary>
     public enum Platform { Steam, XboxGamePass, PS4, GOG, Switch, Unknown }
 
+    /// <summary>Xbox save container format used by a Game Pass save directory.</summary>
+    public enum XboxSaveFormat
+    {
+        /// <summary>Not an Xbox save directory.</summary>
+        None,
+        /// <summary>Legacy XGameSave container/blob format (containers.index + GUID blobs).</summary>
+        Wgs,
+        /// <summary>XGameSaveFiles plain-file format (SlotN folders with data/meta files).</summary>
+        Xgs
+    }
+
     /// <summary>
     /// Represents a single save slot with its file paths and metadata.
     /// </summary>
@@ -57,6 +68,8 @@ public class SaveFileManager
     {
         if (File.Exists(Path.Combine(directory, "containers.index")))
             return Platform.XboxGamePass;
+        if (XgsSaveManager.IsXgsContainerDirectory(directory))
+            return Platform.XboxGamePass;
         // Switch saves carry manifestaccountdata.hg alongside the manifest*.hg companion
         // files (manifest00.hg for savedata00.hg settings, manifest02.hg for the first
         // game slot, etc.).  Some exports use manifest*.dat names, so keep that check too.
@@ -76,6 +89,45 @@ public class SaveFileManager
             return Platform.Steam;
         }
         return Platform.Unknown;
+    }
+
+    /// <summary>
+    /// Detects which Xbox save container format a directory holds.
+    /// </summary>
+    /// <param name="directory">The save directory to inspect.</param>
+    /// <returns>The detected format, or <see cref="XboxSaveFormat.None"/>.</returns>
+    public static XboxSaveFormat DetectXboxSaveFormat(string directory)
+    {
+        if (File.Exists(Path.Combine(directory, "containers.index")))
+            return XboxSaveFormat.Wgs;
+        return XgsSaveManager.IsXgsContainerDirectory(directory) ? XboxSaveFormat.Xgs : XboxSaveFormat.None;
+    }
+
+    /// <summary>
+    /// Accepts either an Xbox save directory or a legacy containers.index file path and
+    /// returns the containing save directory.
+    /// </summary>
+    private static string ResolveXboxSaveDirectory(string savePath)
+    {
+        if (File.Exists(savePath) &&
+            string.Equals(Path.GetFileName(savePath), "containers.index", StringComparison.OrdinalIgnoreCase))
+        {
+            return Path.GetDirectoryName(savePath) ?? savePath;
+        }
+        return savePath;
+    }
+
+    /// <summary>
+    /// Enumerates the Xbox save slots in a wgs or xgs save directory.
+    /// </summary>
+    /// <param name="savePath">Path to the save directory (containers.index folder or xgs container).</param>
+    /// <returns>Slot descriptors keyed by identifier (for example "Slot1Auto").</returns>
+    public static Dictionary<string, XboxSlotInfo> EnumerateXboxSlots(string savePath)
+    {
+        savePath = ResolveXboxSaveDirectory(savePath);
+        return DetectXboxSaveFormat(savePath) == XboxSaveFormat.Xgs
+            ? XgsSaveManager.EnumerateSlots(savePath)
+            : ContainersIndexManager.ParseContainersIndex(Path.Combine(savePath, "containers.index"));
     }
 
     /// <summary>
@@ -110,8 +162,20 @@ public class SaveFileManager
             var nmsDirs = Directory.GetDirectories(xboxPath, "HelloGames*");
             foreach (var nmsDir in nmsDirs)
             {
-                // Xbox Game Pass saves live under SystemAppData/wgs/{SaveId}/ which
-                // contains the containers.index file.
+                // Xbox Game Pass saves now use XGameSaveFiles (xgs) containers, with the
+                // legacy wgs containers.index system kept as a mirror. Prefer xgs.
+                string xgsPath = Path.Combine(nmsDir, "SystemAppData", "xgs");
+                if (Directory.Exists(xgsPath))
+                {
+                    foreach (var containerDir in Directory.GetDirectories(xgsPath))
+                    {
+                        if (XgsSaveManager.IsXgsContainerDirectory(containerDir))
+                            return containerDir;
+                    }
+                }
+
+                // Legacy XGameSave (wgs) containers live under SystemAppData/wgs/{SaveId}/
+                // which contains the containers.index file.
                 string wgsPath = Path.Combine(nmsDir, "SystemAppData", "wgs");
                 if (Directory.Exists(wgsPath))
                 {
@@ -688,21 +752,18 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
 
     /// <summary>
     /// Save JSON data back to an Xbox Game Pass save slot.
-    /// Writes the compressed save data and meta to the blob directory,
-    /// then updates the containers.index file.  The blob files are written under
-    /// new GUID names, so callers should refresh any cached paths from the returned
-    /// slot information.
+    /// Handles both the xgs (XGameSaveFiles) and legacy wgs (containers.index) formats.
+    /// Blob contents are replaced in place, preserving the cloud container identity.
+    /// When the slot lives in an xgs container and a sibling wgs mirror exists, the same
+    /// payload is mirrored so both copies stay consistent.
     /// </summary>
-    /// <param name="containersIndexPath">Path to the containers.index file.</param>
+    /// <param name="savePath">Path to the save directory (xgs container or containers.index folder).</param>
     /// <param name="slotIdentifier">Slot identifier (e.g., "Slot1Auto").</param>
     /// <param name="data">The JSON save data to write.</param>
-    /// <returns>The updated slot information with the new data and meta blob paths.</returns>
-    public static XboxSlotInfo SaveXboxSave(string containersIndexPath, string slotIdentifier, JsonObject data)
+    /// <returns>The updated slot information with the data and meta file paths.</returns>
+    public static XboxSlotInfo SaveXboxSave(string savePath, string slotIdentifier, JsonObject data)
     {
-        // Parse the full containers.index to get header info and all slots
-        var indexData = ContainersIndexManager.ParseContainersIndexFull(containersIndexPath);
-        if (!indexData.Slots.TryGetValue(slotIdentifier, out var slotInfo))
-            throw new InvalidOperationException($"Xbox slot '{slotIdentifier}' not found in containers.index");
+        savePath = ResolveXboxSaveDirectory(savePath);
 
         // Serialize JSON to bytes with null terminator
         string json = data.ToString();
@@ -710,15 +771,28 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
         byte[] dataBytes = new byte[jsonBytes.Length + 1];
         Buffer.BlockCopy(jsonBytes, 0, dataBytes, 0, jsonBytes.Length);
 
-        // Compress save data using NMS LZ4 streaming format
-        byte[] compressedData;
-        using (var ms = new MemoryStream())
-        using (var compressor = new Lz4CompressorStream(ms))
+        byte[] compressedData = CompressNmsStreaming(dataBytes);
+
+        // xgs (XGameSaveFiles): plain slot folders with data/meta files.
+        if (DetectXboxSaveFormat(savePath) == XboxSaveFormat.Xgs)
         {
-            compressor.Write(dataBytes, 0, dataBytes.Length);
-            compressor.Flush();
-            compressedData = ms.ToArray();
+            var xgsSlots = XgsSaveManager.EnumerateSlots(savePath);
+            if (!xgsSlots.TryGetValue(slotIdentifier, out var xgsSlot))
+                throw new InvalidOperationException($"Xbox slot '{slotIdentifier}' not found in xgs container");
+
+            byte[] xgsMeta = XgsSaveManager.LoadMeta(xgsSlot) ?? new byte[24];
+            XgsSaveManager.WriteSave(xgsSlot, compressedData, xgsMeta);
+            xgsSlot.LastModified = DateTimeOffset.UtcNow;
+
+            MirrorXgsToWgs(savePath, slotIdentifier, compressedData, xgsMeta);
+            return xgsSlot;
         }
+
+        // Legacy wgs containers.index format.
+        string containersIndexPath = Path.Combine(savePath, "containers.index");
+        var indexData = ContainersIndexManager.ParseContainersIndexFull(containersIndexPath);
+        if (!indexData.Slots.TryGetValue(slotIdentifier, out var slotInfo))
+            throw new InvalidOperationException($"Xbox slot '{slotIdentifier}' not found in containers.index");
 
         // Read existing meta or create minimal placeholder
         byte[] metaData = ContainersIndexManager.LoadXboxMeta(slotInfo) ?? new byte[24];
@@ -741,18 +815,44 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
     }
 
     /// <summary>
+    /// Compresses save bytes using the NMS streaming LZ4 format (0xE5A1EDFE chunks).
+    /// </summary>
+    private static byte[] CompressNmsStreaming(byte[] dataBytes)
+    {
+        using var ms = new MemoryStream();
+        using (var compressor = new Lz4CompressorStream(ms))
+        {
+            compressor.Write(dataBytes, 0, dataBytes.Length);
+            compressor.Flush();
+        }
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Compresses bytes as a single raw LZ4 block (used by AccountData/Settings blobs).
+    /// </summary>
+    private static byte[] CompressRawLz4(byte[] dataBytes)
+    {
+        byte[] compressedBuffer = new byte[Lz4Compressor.MaxCompressedLength(dataBytes.Length)];
+        int compressedLen = Lz4Compressor.Compress(dataBytes, 0, dataBytes.Length,
+            compressedBuffer, 0, compressedBuffer.Length);
+        byte[] compressedData = new byte[compressedLen];
+        Buffer.BlockCopy(compressedBuffer, 0, compressedData, 0, compressedLen);
+        return compressedData;
+    }
+
+    /// <summary>
     /// Save account data back to the Xbox Game Pass AccountData blob.
     /// Uses raw LZ4 block compression (not NMS streaming), matching the format
-    /// the game uses for AccountData and Settings blobs.
+    /// the game uses for AccountData and Settings blobs. Handles both the xgs
+    /// (XGameSaveFiles) and legacy wgs (containers.index) formats, mirroring xgs writes
+    /// to the sibling wgs container when one exists.
     /// </summary>
-    /// <param name="containersIndexPath">Path to the containers.index file.</param>
+    /// <param name="savePath">Path to the save directory (xgs container or containers.index folder).</param>
     /// <param name="accountData">The account data JSON object to write.</param>
-    public static void SaveXboxAccountData(string containersIndexPath, JsonObject accountData)
+    public static void SaveXboxAccountData(string savePath, JsonObject accountData)
     {
-        // Parse the full containers.index to get header info and all slots
-        var indexData = ContainersIndexManager.ParseContainersIndexFull(containersIndexPath);
-        if (!indexData.Slots.TryGetValue(ContainersIndexManager.AccountDataIdentifier, out var accountSlot))
-            throw new InvalidOperationException("Xbox AccountData slot not found in containers.index");
+        savePath = ResolveXboxSaveDirectory(savePath);
 
         // Serialize JSON to bytes with null terminator
         string json = accountData.ToString();
@@ -762,22 +862,34 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
 
         // Compress account data using raw LZ4 block compression.
         // AccountData/Settings use raw LZ4, not NMS streaming (0xE5A1EDFE).
-        byte[] compressedBuffer = new byte[Lz4Compressor.MaxCompressedLength(dataBytes.Length)];
-        int compressedLen = Lz4Compressor.Compress(dataBytes, 0, dataBytes.Length,
-            compressedBuffer, 0, compressedBuffer.Length);
-        byte[] compressedData = new byte[compressedLen];
-        Buffer.BlockCopy(compressedBuffer, 0, compressedData, 0, compressedLen);
+        byte[] compressedData = CompressRawLz4(dataBytes);
+
+        // xgs (XGameSaveFiles): plain AccountData folder with data/meta files.
+        if (DetectXboxSaveFormat(savePath) == XboxSaveFormat.Xgs)
+        {
+            var xgsSlots = XgsSaveManager.EnumerateSlots(savePath);
+            if (!xgsSlots.TryGetValue(ContainersIndexManager.AccountDataIdentifier, out var xgsAccountSlot))
+                throw new InvalidOperationException("Xbox AccountData slot not found in xgs container");
+
+            byte[] xgsMeta = XgsSaveManager.LoadMeta(xgsAccountSlot) ?? CreateAccountMeta((uint)dataBytes.Length);
+            UpdateAccountMetaSize(xgsMeta, dataBytes.Length);
+            XgsSaveManager.WriteSave(xgsAccountSlot, compressedData, xgsMeta);
+            xgsAccountSlot.LastModified = DateTimeOffset.UtcNow;
+
+            MirrorXgsToWgs(savePath, ContainersIndexManager.AccountDataIdentifier, compressedData, xgsMeta);
+            return;
+        }
+
+        // Legacy wgs containers.index format.
+        string containersIndexPath = Path.Combine(savePath, "containers.index");
+        var indexData = ContainersIndexManager.ParseContainersIndexFull(containersIndexPath);
+        if (!indexData.Slots.TryGetValue(ContainersIndexManager.AccountDataIdentifier, out var accountSlot))
+            throw new InvalidOperationException("Xbox AccountData slot not found in containers.index");
 
         // Read existing meta or create minimal account meta placeholder.
         // Account meta is 20 bytes: version(4) + padding(12) + decompressedSize(4)
         byte[] metaData = ContainersIndexManager.LoadXboxMeta(accountSlot) ?? CreateAccountMeta((uint)dataBytes.Length);
-
-        // Update the decompressed size in the meta if we have existing meta
-        if (metaData.Length >= 20)
-        {
-            byte[] sizeBytes = BitConverter.GetBytes((uint)dataBytes.Length);
-            Buffer.BlockCopy(sizeBytes, 0, metaData, 16, 4);
-        }
+        UpdateAccountMetaSize(metaData, dataBytes.Length);
 
         // Write account data blob, meta blob, and blob container
         ContainersIndexManager.WriteXboxSave(accountSlot, compressedData, metaData);
@@ -792,6 +904,67 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
             indexData.ProcessIdentifier,
             indexData.AccountGuid,
             DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>
+    /// Updates the decompressed-size field (offset 16) of an Xbox account meta blob.
+    /// </summary>
+    private static void UpdateAccountMetaSize(byte[] metaData, int decompressedSize)
+    {
+        if (metaData.Length < 20) return;
+        byte[] sizeBytes = BitConverter.GetBytes((uint)decompressedSize);
+        Buffer.BlockCopy(sizeBytes, 0, metaData, 16, 4);
+    }
+
+    /// <summary>
+    /// Mirrors a payload written to an xgs container to the sibling legacy wgs container
+    /// when one exists. Writes in place to preserve the wgs blob GUIDs, container
+    /// extension and index identity so Xbox cloud sync is not disturbed.
+    /// </summary>
+    /// <param name="xgsContainerDirectory">The xgs container directory that was written.</param>
+    /// <param name="identifier">Slot identifier (for example "Slot1Auto" or "AccountData").</param>
+    /// <param name="compressedData">The compressed payload that was written to xgs.</param>
+    /// <param name="metaData">The meta bytes that were written to xgs, if any.</param>
+    private static void MirrorXgsToWgs(string xgsContainerDirectory, string identifier,
+        byte[] compressedData, byte[]? metaData)
+    {
+        string? wgsDirectory = FindSiblingWgsDirectory(xgsContainerDirectory);
+        if (wgsDirectory == null)
+            return;
+
+        string indexPath = Path.Combine(wgsDirectory, "containers.index");
+        var indexData = ContainersIndexManager.ParseContainersIndexFull(indexPath);
+        if (!indexData.Slots.TryGetValue(identifier, out var slotInfo))
+            return;
+
+        byte[] meta = metaData ?? ContainersIndexManager.LoadXboxMeta(slotInfo) ?? new byte[24];
+        ContainersIndexManager.WriteXboxSave(slotInfo, compressedData, meta);
+        slotInfo.LastModified = DateTimeOffset.UtcNow;
+
+        ContainersIndexManager.WriteContainersIndex(
+            indexPath,
+            indexData.Slots.Values,
+            indexData.ProcessIdentifier,
+            indexData.AccountGuid,
+            DateTimeOffset.UtcNow);
+    }
+
+    /// <summary>
+    /// Finds the legacy wgs container that mirrors an xgs container. The two folders sit
+    /// side by side under SystemAppData (xgs/{container} and wgs/{container}).
+    /// </summary>
+    /// <param name="xgsContainerDirectory">The xgs container directory.</param>
+    /// <returns>The wgs container directory, or <c>null</c> when no mirror exists.</returns>
+    internal static string? FindSiblingWgsDirectory(string xgsContainerDirectory)
+    {
+        string? xgsRoot = Path.GetDirectoryName(xgsContainerDirectory);
+        string? systemAppData = xgsRoot != null ? Path.GetDirectoryName(xgsRoot) : null;
+        if (systemAppData == null)
+            return null;
+
+        string containerName = Path.GetFileName(xgsContainerDirectory);
+        string wgsDirectory = Path.Combine(systemAppData, "wgs", containerName);
+        return File.Exists(Path.Combine(wgsDirectory, "containers.index")) ? wgsDirectory : null;
     }
 
     /// <summary>
@@ -810,17 +983,30 @@ using var outFs = new FileStream(filePath, FileMode.Create, FileAccess.Write, Fi
     }
 
     /// <summary>
-    /// Load a save from an Xbox Game Pass containers.index directory.
+    /// Load a save from an Xbox Game Pass save directory (xgs container or legacy
+    /// containers.index folder).
     /// </summary>
-    /// <param name="containersIndexPath">Path to the containers.index file.</param>
+    /// <param name="savePath">Path to the save directory (xgs container or containers.index folder).</param>
     /// <param name="saveIdentifier">Slot identifier (e.g., "Slot1Auto").</param>
     /// <returns>Parsed JSON object, or null if the slot doesn't exist.</returns>
-    public static JsonObject? LoadXboxSave(string containersIndexPath, string saveIdentifier)
+    public static JsonObject? LoadXboxSave(string savePath, string saveIdentifier)
     {
-        var slots = ContainersIndexManager.ParseContainersIndex(containersIndexPath);
-        if (!slots.TryGetValue(saveIdentifier, out var slotInfo)) return null;
+        savePath = ResolveXboxSaveDirectory(savePath);
 
-        string? json = ContainersIndexManager.LoadXboxSave(slotInfo);
+        string? json;
+        if (DetectXboxSaveFormat(savePath) == XboxSaveFormat.Xgs)
+        {
+            var xgsSlots = XgsSaveManager.EnumerateSlots(savePath);
+            if (!xgsSlots.TryGetValue(saveIdentifier, out var xgsSlot)) return null;
+            json = XgsSaveManager.LoadSave(xgsSlot);
+        }
+        else
+        {
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(savePath, "containers.index"));
+            if (!slots.TryGetValue(saveIdentifier, out var slotInfo)) return null;
+            json = ContainersIndexManager.LoadXboxSave(slotInfo);
+        }
+
         if (json == null) return null;
 
         var result = JsonObject.Parse(json);

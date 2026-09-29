@@ -40,6 +40,50 @@ public class TransferOptions
 }
 
 /// <summary>
+/// Thrown when a save slot operation targets a slot that contains no save data.
+/// </summary>
+public sealed class SlotEmptyException : Exception
+{
+    /// <summary>Gets the 0-based index of the empty slot.</summary>
+    public int SlotIndex { get; }
+
+    /// <summary>Gets the 1-based slot number as shown in the user interface.</summary>
+    public int SlotNumber => SlotIndex + 1;
+
+    /// <summary>Initialises a new instance for the given 0-based slot index.</summary>
+    /// <param name="slotIndex">0-based index of the empty slot.</param>
+    public SlotEmptyException(int slotIndex)
+        : base($"Slot {slotIndex + 1} is empty.")
+    {
+        SlotIndex = slotIndex;
+    }
+}
+
+/// <summary>
+/// Thrown when a save slot operation is not supported for the detected save format.
+/// </summary>
+public sealed class SlotOperationUnsupportedException : Exception
+{
+    /// <summary>Gets the detected platform.</summary>
+    public SaveFileManager.Platform Platform { get; }
+
+    /// <summary>Gets whether the save directory is a PS4 memory.dat save.</summary>
+    public bool IsMemoryDat { get; }
+
+    /// <summary>Initialises a new instance for the given platform.</summary>
+    /// <param name="platform">The detected platform.</param>
+    /// <param name="isMemoryDat">True for PS4 memory.dat saves.</param>
+    public SlotOperationUnsupportedException(SaveFileManager.Platform platform, bool isMemoryDat = false)
+        : base(isMemoryDat
+            ? "Save slot operations are not supported for PS4 memory.dat saves."
+            : $"Save slot operations are not supported for the {platform} platform.")
+    {
+        Platform = platform;
+        IsMemoryDat = isMemoryDat;
+    }
+}
+
+/// <summary>
 /// Save slot operations: copy, move, swap within a platform, and cross-platform transfer.
 ///
 /// Slot copy/move/swap operates within the same save directory.
@@ -60,9 +104,17 @@ public class TransferOptions
 ///   Slot 1: savedata04.hg (auto) + savedata05.hg (manual)
 ///   Slot N: savedata(2N+2).hg    + savedata(2N+3).hg
 ///   (savedata00.hg is the settings file and account data lives in accountdata.hg)
+///
+/// Xbox Game Pass saves live in containers.index as "SlotNAuto"/"SlotNManual" entries
+/// that point at GUID-named blob directories rather than plain files, so those slots
+/// are handled through the containers.index helpers below.
 /// </summary>
 public static class SaveSlotManager
 {
+    /// <summary>Number of game save slots offered by NMS and the editor UI.</summary>
+    public const int MaxGameSlots = 15;
+
+    private const string XboxContainersIndexName = "containers.index";
     // Helpers
 
     /// <summary>
@@ -77,6 +129,102 @@ public static class SaveSlotManager
         SaveFileManager.Platform.Switch => "NX",
         _ => "PC",
     };
+
+    /// <summary>
+    /// Returns the 0-based indices of all game slots that contain save data in the given
+    /// directory. Used by the UI to offer only existing slots as copy/move/swap/delete sources.
+    /// </summary>
+    /// <param name="saveDirectory">Path to the save directory.</param>
+    /// <param name="platform">Platform type for the saves.</param>
+    /// <returns>Sorted list of 0-based slot indices; empty when none exist or the format is unsupported.</returns>
+    public static List<int> GetExistingSlotIndices(string saveDirectory, SaveFileManager.Platform platform)
+    {
+        var indices = new List<int>();
+
+        switch (platform)
+        {
+            case SaveFileManager.Platform.XboxGamePass:
+                {
+                    foreach (var slot in SaveFileManager.EnumerateXboxSlots(saveDirectory).Values)
+                    {
+                        if (!ContainersIndexManager.IsSaveSlot(slot.Identifier)) continue;
+
+                        int number = ContainersIndexManager.ExtractSlotNumber(slot.Identifier);
+                        if (number < 1 || number > MaxGameSlots) continue;
+                        if (!indices.Contains(number - 1)) indices.Add(number - 1);
+                    }
+                    break;
+                }
+
+            case SaveFileManager.Platform.Steam:
+            case SaveFileManager.Platform.GOG:
+            case SaveFileManager.Platform.Switch:
+            case SaveFileManager.Platform.PS4:
+                {
+                    if (platform == SaveFileManager.Platform.PS4 &&
+                        File.Exists(Path.Combine(saveDirectory, "memory.dat")))
+                        break;
+
+                    for (int i = 0; i < MaxGameSlots; i++)
+                    {
+                        bool exists = GetAllSlotFiles(saveDirectory, i, platform)
+                            .Any(f => f.DataFile != null && File.Exists(f.DataFile));
+                        if (exists) indices.Add(i);
+                    }
+                    break;
+                }
+        }
+
+        indices.Sort();
+        return indices;
+    }
+
+    /// <summary>
+    /// Returns whether copy/move/swap/delete slot operations are supported for the given save format.
+    /// </summary>
+    /// <param name="saveDirectory">Path to the save directory.</param>
+    /// <param name="platform">Platform type for the saves.</param>
+    /// <returns>True when slot operations are available for this save format.</returns>
+    public static bool IsSlotOperationSupported(string saveDirectory, SaveFileManager.Platform platform)
+    {
+        try
+        {
+            EnsureSlotOperationsSupported(saveDirectory, platform);
+            return true;
+        }
+        catch (SlotOperationUnsupportedException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Throws <see cref="SlotOperationUnsupportedException"/> when the platform or save format
+    /// does not support copy/move/swap/delete slot operations.
+    /// </summary>
+    /// <param name="saveDirectory">Path to the save directory.</param>
+    /// <param name="platform">Platform type for the saves.</param>
+    private static void EnsureSlotOperationsSupported(string saveDirectory, SaveFileManager.Platform platform)
+    {
+        switch (platform)
+        {
+            case SaveFileManager.Platform.Steam:
+            case SaveFileManager.Platform.GOG:
+            case SaveFileManager.Platform.Switch:
+            case SaveFileManager.Platform.XboxGamePass:
+                return;
+
+            case SaveFileManager.Platform.PS4:
+                // PS4 streaming saves (savedata*.hg) support slot operations; the
+                // monolithic SaveWizard/Apollo memory.dat container does not.
+                if (File.Exists(Path.Combine(saveDirectory, "memory.dat")))
+                    throw new SlotOperationUnsupportedException(platform, isMemoryDat: true);
+                return;
+
+            default:
+                throw new SlotOperationUnsupportedException(platform);
+        }
+    }
 
     /// <summary>
     /// Returns both file pairs (auto save and manual save) for a given slot index on a
@@ -255,12 +403,23 @@ public static class SaveSlotManager
     {
         if (sourceSlotIndex == destSlotIndex) return;
 
+        EnsureSlotOperationsSupported(saveDirectory, platform);
+
+        if (platform == SaveFileManager.Platform.XboxGamePass)
+        {
+            if (SaveFileManager.DetectXboxSaveFormat(saveDirectory) == SaveFileManager.XboxSaveFormat.Xgs)
+                CopyXgsSlot(saveDirectory, sourceSlotIndex, destSlotIndex);
+            else
+                CopyXboxSlot(saveDirectory, sourceSlotIndex, destSlotIndex);
+            return;
+        }
+
         var sourcePairs = GetAllSlotFiles(saveDirectory, sourceSlotIndex, platform);
         var destPairs   = GetAllSlotFiles(saveDirectory, destSlotIndex,   platform);
 
         bool anySourceFound = sourcePairs.Any(f => f.DataFile != null && File.Exists(f.DataFile));
         if (!anySourceFound)
-            throw new FileNotFoundException($"Source save slot {sourceSlotIndex} not found.");
+            throw new SlotEmptyException(sourceSlotIndex);
 
         int count = Math.Min(sourcePairs.Length, destPairs.Length);
         for (int i = 0; i < count; i++)
@@ -299,14 +458,30 @@ public static class SaveSlotManager
     {
         if (slotA == slotB) return;
 
+        EnsureSlotOperationsSupported(saveDirectory, platform);
+
+        if (platform == SaveFileManager.Platform.XboxGamePass)
+        {
+            if (SaveFileManager.DetectXboxSaveFormat(saveDirectory) == SaveFileManager.XboxSaveFormat.Xgs)
+                SwapXgsSlots(saveDirectory, slotA, slotB);
+            else
+                SwapXboxSlots(saveDirectory, slotA, slotB);
+            return;
+        }
+
+        var filesA = GetAllSlotFiles(saveDirectory, slotA, platform);
+        var filesB = GetAllSlotFiles(saveDirectory, slotB, platform);
+
+        bool anyA = filesA.Any(f => f.DataFile != null && File.Exists(f.DataFile));
+        bool anyB = filesB.Any(f => f.DataFile != null && File.Exists(f.DataFile));
+        if (!anyA && !anyB)
+            throw new SlotEmptyException(slotA);
+
         string tempDir = Path.Combine(Path.GetTempPath(), $"nmse_swap_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
 
         try
         {
-            var filesA = GetAllSlotFiles(saveDirectory, slotA, platform);
-            var filesB = GetAllSlotFiles(saveDirectory, slotB, platform);
-
             int count = Math.Min(filesA.Length, filesB.Length);
             for (int i = 0; i < count; i++)
             {
@@ -360,15 +535,432 @@ public static class SaveSlotManager
     /// <summary>
     /// Delete all files in a save slot (auto save and manual save).
     /// </summary>
+    /// <param name="saveDirectory">Path to the save directory.</param>
+    /// <param name="slotIndex">0-based slot index.</param>
+    /// <param name="platform">Platform type for the saves.</param>
+    /// <exception cref="SlotEmptyException">The slot contains no save data.</exception>
+    /// <exception cref="SlotOperationUnsupportedException">The save format does not support slot deletion.</exception>
     public static void DeleteSlot(string saveDirectory, int slotIndex,
         SaveFileManager.Platform platform)
     {
-        foreach (var files in GetAllSlotFiles(saveDirectory, slotIndex, platform))
+        EnsureSlotOperationsSupported(saveDirectory, platform);
+
+        if (platform == SaveFileManager.Platform.XboxGamePass)
+        {
+            if (SaveFileManager.DetectXboxSaveFormat(saveDirectory) == SaveFileManager.XboxSaveFormat.Xgs)
+                DeleteXgsSlot(saveDirectory, slotIndex);
+            else
+                DeleteXboxSlot(saveDirectory, slotIndex);
+            return;
+        }
+
+        var slotFiles = GetAllSlotFiles(saveDirectory, slotIndex, platform);
+        if (!slotFiles.Any(f => f.DataFile != null && File.Exists(f.DataFile)))
+            throw new SlotEmptyException(slotIndex);
+
+        foreach (var files in slotFiles)
         {
             if (files.DataFile != null && File.Exists(files.DataFile))
                 File.Delete(files.DataFile);
             if (files.MetaFile != null && File.Exists(files.MetaFile))
                 File.Delete(files.MetaFile);
+        }
+    }
+
+    // === Xbox Game Pass slot operations ===
+    //
+    // Xbox slots live in containers.index as "SlotNAuto" / "SlotNManual" entries that
+    // point at GUID-named blob directories, so file-based copy/move/swap/delete does not
+    // apply.  The helpers below read and rewrite the index and reuse
+    // ContainersIndexManager.WriteXboxSave for the blob data, copying the compressed
+    // blobs byte-for-byte so the save payload is never re-encoded.
+
+    /// <summary>
+    /// Copies all entries of an Xbox slot (auto and manual) into the destination slot,
+    /// creating destination entries when they do not exist yet.
+    /// </summary>
+    private static void CopyXboxSlot(string saveDirectory, int sourceSlotIndex, int destSlotIndex)
+    {
+        string indexPath = Path.Combine(saveDirectory, XboxContainersIndexName);
+        if (!File.Exists(indexPath))
+            throw new FileNotFoundException("Xbox save directory does not contain containers.index.", indexPath);
+
+        var index = ContainersIndexManager.ParseContainersIndexFull(indexPath);
+        var sourceEntries = GetXboxSlotEntries(index, sourceSlotIndex);
+        if (sourceEntries.Count == 0)
+            throw new SlotEmptyException(sourceSlotIndex);
+
+        foreach (var source in sourceEntries)
+        {
+            string destIdentifier = BuildXboxDestinationIdentifier(source.Identifier, destSlotIndex);
+            if (!index.Slots.TryGetValue(destIdentifier, out var dest))
+            {
+                dest = CreateXboxSlotEntry(saveDirectory, destIdentifier);
+                index.Slots[destIdentifier] = dest;
+            }
+
+            CopyXboxBlobs(source, dest);
+        }
+
+        WriteXboxIndex(indexPath, index);
+    }
+
+    /// <summary>
+    /// Swaps all entries of two Xbox slots.
+    /// </summary>
+    private static void SwapXboxSlots(string saveDirectory, int slotA, int slotB)
+    {
+        string indexPath = Path.Combine(saveDirectory, XboxContainersIndexName);
+        if (!File.Exists(indexPath))
+            throw new FileNotFoundException("Xbox save directory does not contain containers.index.", indexPath);
+
+        var index = ContainersIndexManager.ParseContainersIndexFull(indexPath);
+        var entriesA = GetXboxSlotEntries(index, slotA);
+        var entriesB = GetXboxSlotEntries(index, slotB);
+        if (entriesA.Count == 0 && entriesB.Count == 0)
+            throw new SlotEmptyException(slotA);
+
+        var payloadA = entriesA.Select(ReadXboxPayload).ToList();
+        var payloadB = entriesB.Select(ReadXboxPayload).ToList();
+
+        RemoveXboxSlotEntries(index, entriesA);
+        RemoveXboxSlotEntries(index, entriesB);
+
+        WriteXboxPayloads(saveDirectory, index, slotB, payloadA);
+        WriteXboxPayloads(saveDirectory, index, slotA, payloadB);
+
+        WriteXboxIndex(indexPath, index);
+    }
+
+    /// <summary>
+    /// Deletes all entries and blobs of an Xbox slot.
+    /// </summary>
+    private static void DeleteXboxSlot(string saveDirectory, int slotIndex)
+    {
+        string indexPath = Path.Combine(saveDirectory, XboxContainersIndexName);
+        if (!File.Exists(indexPath))
+            throw new FileNotFoundException("Xbox save directory does not contain containers.index.", indexPath);
+
+        var index = ContainersIndexManager.ParseContainersIndexFull(indexPath);
+        var entries = GetXboxSlotEntries(index, slotIndex);
+        if (entries.Count == 0)
+            throw new SlotEmptyException(slotIndex);
+
+        RemoveXboxSlotEntries(index, entries);
+        WriteXboxIndex(indexPath, index);
+    }
+
+    /// <summary>
+    /// Returns the containers.index entries belonging to a 0-based game slot.
+    /// </summary>
+    private static List<XboxSlotInfo> GetXboxSlotEntries(ContainersIndexData index, int slotIndex)
+    {
+        int slotNumber = slotIndex + 1;
+        return index.Slots.Values
+            .Where(s => ContainersIndexManager.IsSaveSlot(s.Identifier) &&
+                        ContainersIndexManager.ExtractSlotNumber(s.Identifier) == slotNumber)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Builds the destination identifier for a copied Xbox entry, keeping the
+    /// Auto/Manual suffix of the source ("Slot1Auto" -> "Slot3Auto").
+    /// </summary>
+    private static string BuildXboxDestinationIdentifier(string sourceIdentifier, int destSlotIndex)
+    {
+        int sourceNumber = ContainersIndexManager.ExtractSlotNumber(sourceIdentifier);
+        string suffix = sourceIdentifier.Substring(4 + sourceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+        return $"Slot{destSlotIndex + 1}{suffix}";
+    }
+
+    /// <summary>
+    /// Creates a new Xbox slot entry with its own blob directory. Sync GUIDs are not
+    /// copied from the source: a new slot must not reuse another slot's cloud identity.
+    /// </summary>
+    private static XboxSlotInfo CreateXboxSlotEntry(string saveDirectory, string identifier)
+    {
+        Guid directoryGuid = Guid.NewGuid();
+        return new XboxSlotInfo
+        {
+            Identifier = identifier,
+            SyncTime = "",
+            BlobContainerExtension = 0,
+            SyncState = 0,
+            DirectoryGuid = directoryGuid,
+            BlobDirectoryPath = Path.Combine(saveDirectory, directoryGuid.ToString("N").ToUpperInvariant()),
+            LastModified = DateTimeOffset.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Reads the raw compressed data and meta blob bytes of an Xbox slot entry.
+    /// </summary>
+    private static (string Suffix, byte[] Data, byte[] Meta) ReadXboxPayload(XboxSlotInfo entry)
+    {
+        if (entry.DataFilePath == null || !File.Exists(entry.DataFilePath))
+            throw new FileNotFoundException($"Xbox save slot '{entry.Identifier}' has no data blob.");
+
+        byte[] data = File.ReadAllBytes(entry.DataFilePath);
+        byte[] meta = entry.MetaFilePath != null && File.Exists(entry.MetaFilePath)
+            ? File.ReadAllBytes(entry.MetaFilePath)
+            : new byte[24];
+
+        int number = ContainersIndexManager.ExtractSlotNumber(entry.Identifier);
+        string suffix = entry.Identifier.Substring(4 + number.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+        return (suffix, data, meta);
+    }
+
+    /// <summary>
+    /// Copies the blob bytes of an Xbox slot entry into a destination entry (existing or new).
+    /// </summary>
+    private static void CopyXboxBlobs(XboxSlotInfo source, XboxSlotInfo dest)
+    {
+        var payload = ReadXboxPayload(source);
+        ContainersIndexManager.WriteXboxSave(dest, payload.Data, payload.Meta);
+        dest.LastModified = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Writes retained slot payloads into a 0-based slot, creating entries as needed.
+    /// </summary>
+    private static void WriteXboxPayloads(string saveDirectory, ContainersIndexData index, int slotIndex,
+        IEnumerable<(string Suffix, byte[] Data, byte[] Meta)> payloads)
+    {
+        foreach (var (suffix, data, meta) in payloads)
+        {
+            string identifier = $"Slot{slotIndex + 1}{suffix}";
+            if (!index.Slots.TryGetValue(identifier, out var entry))
+            {
+                entry = CreateXboxSlotEntry(saveDirectory, identifier);
+                index.Slots[identifier] = entry;
+            }
+
+            ContainersIndexManager.WriteXboxSave(entry, data, meta);
+            entry.LastModified = DateTimeOffset.UtcNow;
+        }
+    }
+
+    /// <summary>
+    /// Removes Xbox slot entries from the index and deletes their blob directories when
+    /// no remaining entry references the same directory.
+    /// </summary>
+    private static void RemoveXboxSlotEntries(ContainersIndexData index, IEnumerable<XboxSlotInfo> entries)
+    {
+        foreach (var entry in entries.ToList())
+        {
+            index.Slots.Remove(entry.Identifier);
+
+            bool stillReferenced = index.Slots.Values.Any(s => s.DirectoryGuid == entry.DirectoryGuid);
+            if (stillReferenced || string.IsNullOrEmpty(entry.BlobDirectoryPath))
+                continue;
+
+            try
+            {
+                if (Directory.Exists(entry.BlobDirectoryPath))
+                    Directory.Delete(entry.BlobDirectoryPath, true);
+            }
+            catch
+            {
+                // A locked or already removed blob directory must not fail the operation
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rewrites a containers.index file after slot entries have changed.
+    /// </summary>
+    private static void WriteXboxIndex(string indexPath, ContainersIndexData index)
+    {
+        ContainersIndexManager.WriteContainersIndex(indexPath, index.Slots.Values,
+            index.ProcessIdentifier, index.AccountGuid, DateTimeOffset.UtcNow);
+    }
+
+    // === Xbox Game Pass (xgs / XGameSaveFiles) slot operations ===
+    //
+    // xgs slots are plain identifier folders (SlotNAuto / SlotNManual) containing data and
+    // meta files, so copy/move/swap/delete operate on folders and copy payloads
+    // byte-for-byte.  Each operation is mirrored to the sibling legacy wgs container when
+    // one exists so both copies stay in step.
+
+    /// <summary>
+    /// Copies an xgs slot by duplicating its identifier folders, creating destination
+    /// folders when they do not exist yet.
+    /// </summary>
+    private static void CopyXgsSlot(string containerDirectory, int sourceSlotIndex, int destSlotIndex)
+    {
+        var sourceEntries = GetXgsSlotEntries(containerDirectory, sourceSlotIndex);
+        if (sourceEntries.Count == 0)
+            throw new SlotEmptyException(sourceSlotIndex);
+
+        foreach (var source in sourceEntries)
+        {
+            string destIdentifier = BuildXboxDestinationIdentifier(source.Identifier, destSlotIndex);
+            string destDirectory = XgsSaveManager.GetSlotDirectory(containerDirectory, destIdentifier);
+            CopyXgsFiles(source, destDirectory);
+        }
+
+        MirrorXgsSlotOperation(containerDirectory, wgsDirectory =>
+        {
+            var index = ParseWgsIndex(wgsDirectory);
+            foreach (var source in sourceEntries)
+            {
+                var payload = ReadXboxPayload(source);
+                string destIdentifier = BuildXboxDestinationIdentifier(source.Identifier, destSlotIndex);
+                if (!index.Slots.TryGetValue(destIdentifier, out var dest))
+                {
+                    dest = CreateXboxSlotEntry(wgsDirectory, destIdentifier);
+                    index.Slots[destIdentifier] = dest;
+                }
+
+                ContainersIndexManager.WriteXboxSave(dest, payload.Data, payload.Meta);
+                dest.LastModified = DateTimeOffset.UtcNow;
+            }
+
+            WriteXboxIndex(Path.Combine(wgsDirectory, XboxContainersIndexName), index);
+        });
+    }
+
+    /// <summary>
+    /// Swaps all entries of two xgs slots, keeping each payload's Auto/Manual suffix and
+    /// moving it under the other slot number (matching the wgs swap semantics).
+    /// </summary>
+    private static void SwapXgsSlots(string containerDirectory, int slotA, int slotB)
+    {
+        var entriesA = GetXgsSlotEntries(containerDirectory, slotA);
+        var entriesB = GetXgsSlotEntries(containerDirectory, slotB);
+        if (entriesA.Count == 0 && entriesB.Count == 0)
+            throw new SlotEmptyException(slotA);
+
+        var payloadA = entriesA.Select(ReadXboxPayload).ToList();
+        var payloadB = entriesB.Select(ReadXboxPayload).ToList();
+
+        RemoveXgsSlotEntries(entriesA);
+        RemoveXgsSlotEntries(entriesB);
+
+        WriteXgsPayloads(containerDirectory, slotB, payloadA);
+        WriteXgsPayloads(containerDirectory, slotA, payloadB);
+
+        MirrorXgsSlotOperation(containerDirectory, wgsDirectory =>
+        {
+            var index = ParseWgsIndex(wgsDirectory);
+            RemoveXboxSlotEntries(index, GetXboxSlotEntries(index, slotA));
+            RemoveXboxSlotEntries(index, GetXboxSlotEntries(index, slotB));
+            WriteXboxPayloads(wgsDirectory, index, slotB, payloadA);
+            WriteXboxPayloads(wgsDirectory, index, slotA, payloadB);
+            WriteXboxIndex(Path.Combine(wgsDirectory, XboxContainersIndexName), index);
+        });
+    }
+
+    /// <summary>
+    /// Deletes all identifier folders of an xgs slot.
+    /// </summary>
+    private static void DeleteXgsSlot(string containerDirectory, int slotIndex)
+    {
+        var entries = GetXgsSlotEntries(containerDirectory, slotIndex);
+        if (entries.Count == 0)
+            throw new SlotEmptyException(slotIndex);
+
+        RemoveXgsSlotEntries(entries);
+
+        MirrorXgsSlotOperation(containerDirectory, wgsDirectory =>
+        {
+            var index = ParseWgsIndex(wgsDirectory);
+            RemoveXboxSlotEntries(index, GetXboxSlotEntries(index, slotIndex));
+            WriteXboxIndex(Path.Combine(wgsDirectory, XboxContainersIndexName), index);
+        });
+    }
+
+    /// <summary>
+    /// Returns the xgs entry folders belonging to a 0-based game slot.
+    /// </summary>
+    private static List<XboxSlotInfo> GetXgsSlotEntries(string containerDirectory, int slotIndex)
+    {
+        int slotNumber = slotIndex + 1;
+        return XgsSaveManager.EnumerateSlots(containerDirectory).Values
+            .Where(s => ContainersIndexManager.IsSaveSlot(s.Identifier) &&
+                        ContainersIndexManager.ExtractSlotNumber(s.Identifier) == slotNumber)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Copies the data and meta files of an xgs entry into a destination folder.
+    /// </summary>
+    private static void CopyXgsFiles(XboxSlotInfo source, string destDirectory)
+    {
+        if (source.DataFilePath == null || !File.Exists(source.DataFilePath))
+            throw new FileNotFoundException($"xgs save slot '{source.Identifier}' has no data file.");
+
+        Directory.CreateDirectory(destDirectory);
+        File.Copy(source.DataFilePath, Path.Combine(destDirectory, XgsSaveManager.DataFileName), overwrite: true);
+
+        if (source.MetaFilePath != null && File.Exists(source.MetaFilePath))
+            File.Copy(source.MetaFilePath, Path.Combine(destDirectory, XgsSaveManager.MetaFileName), overwrite: true);
+    }
+
+    /// <summary>
+    /// Deletes the identifier folders of the given xgs entries.
+    /// </summary>
+    private static void RemoveXgsSlotEntries(IEnumerable<XboxSlotInfo> entries)
+    {
+        foreach (var entry in entries)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(entry.BlobDirectoryPath) && Directory.Exists(entry.BlobDirectoryPath))
+                    Directory.Delete(entry.BlobDirectoryPath, true);
+            }
+            catch
+            {
+                // A locked or already removed slot folder must not fail the operation
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes retained xgs payloads into a 0-based slot, keeping their Auto/Manual suffix.
+    /// </summary>
+    private static void WriteXgsPayloads(string containerDirectory, int slotIndex,
+        IEnumerable<(string Suffix, byte[] Data, byte[] Meta)> payloads)
+    {
+        foreach (var (suffix, data, meta) in payloads)
+        {
+            string identifier = $"Slot{slotIndex + 1}{suffix}";
+            string destDirectory = XgsSaveManager.GetSlotDirectory(containerDirectory, identifier);
+            Directory.CreateDirectory(destDirectory);
+            File.WriteAllBytes(Path.Combine(destDirectory, XgsSaveManager.DataFileName), data);
+            File.WriteAllBytes(Path.Combine(destDirectory, XgsSaveManager.MetaFileName), meta);
+        }
+    }
+
+    /// <summary>
+    /// Parses the containers.index of a legacy wgs container, throwing when absent.
+    /// </summary>
+    private static ContainersIndexData ParseWgsIndex(string wgsDirectory)
+    {
+        string indexPath = Path.Combine(wgsDirectory, XboxContainersIndexName);
+        if (!File.Exists(indexPath))
+            throw new FileNotFoundException("Xbox save directory does not contain containers.index.", indexPath);
+
+        return ContainersIndexManager.ParseContainersIndexFull(indexPath);
+    }
+
+    /// <summary>
+    /// Mirrors an xgs slot operation to the sibling wgs container (best effort: the game
+    /// rebuilds wgs from xgs at exit, so a mirror failure must not fail the xgs operation).
+    /// </summary>
+    private static void MirrorXgsSlotOperation(string xgsContainerDirectory, Action<string> wgsOperation)
+    {
+        string? wgsDirectory = SaveFileManager.FindSiblingWgsDirectory(xgsContainerDirectory);
+        if (wgsDirectory == null)
+            return;
+
+        try
+        {
+            wgsOperation(wgsDirectory);
+        }
+        catch
+        {
+            // Best effort only
         }
     }
 
@@ -526,24 +1118,25 @@ public static class SaveSlotManager
     }
 
     /// <summary>
-    /// Saves the given data to an Xbox Game Pass destination directory.
-    /// Xbox/Microsoft saves live as GUID-named blobs referenced by containers.index,
-    /// so the destination slot is located by its identifier rather than a file name.
+    /// Saves the given data to an Xbox Game Pass destination directory (xgs container or
+    /// legacy containers.index folder). The destination slot is located by its identifier
+    /// rather than a file name, so both formats share this path.
     /// Writes to the manual save entry when present, falling back to the auto save.
     /// </summary>
-    /// <param name="destDirectory">Path to the Xbox Game Pass save directory (containing containers.index).</param>
+    /// <param name="destDirectory">Path to the Xbox save directory (xgs container or containers.index folder).</param>
     /// <param name="destSlotIndex">Destination slot index (0-based; 0 = game "Slot 1").</param>
     /// <param name="saveData">The save data to write.</param>
     private static void SaveToXboxGamePass(string destDirectory, int destSlotIndex, JsonObject saveData)
     {
-        string containersPath = Path.Combine(destDirectory, "containers.index");
-        if (!File.Exists(containersPath))
-            throw new InvalidOperationException("Cannot determine destination file path: Xbox Game Pass directory does not contain containers.index.");
+        if (SaveFileManager.DetectXboxSaveFormat(destDirectory) == SaveFileManager.XboxSaveFormat.None)
+            throw new InvalidOperationException("Cannot determine destination file path: the Xbox directory is not a valid save container.");
 
         int targetSlotNumber = destSlotIndex + 1;
         string? identifier = null;
-        foreach (var (slotId, _) in ContainersIndexManager.ParseContainersIndex(containersPath))
+        foreach (var (slotId, _) in SaveFileManager.EnumerateXboxSlots(destDirectory))
         {
+            if (!ContainersIndexManager.IsSaveSlot(slotId))
+                continue;
             if (ContainersIndexManager.ExtractSlotNumber(slotId) != targetSlotNumber)
                 continue;
 
@@ -555,9 +1148,9 @@ public static class SaveSlotManager
         }
 
         if (identifier == null)
-            throw new InvalidOperationException($"Cannot determine destination file path: slot {targetSlotNumber} not found in containers.index.");
+            throw new InvalidOperationException($"Cannot determine destination file path: slot {targetSlotNumber} not found in the Xbox save container.");
 
-        SaveFileManager.SaveXboxSave(containersPath, identifier, saveData);
+        SaveFileManager.SaveXboxSave(destDirectory, identifier, saveData);
     }
 
     /// <summary>

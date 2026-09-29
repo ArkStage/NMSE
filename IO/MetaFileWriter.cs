@@ -291,6 +291,18 @@ public static class MetaFileWriter
 
             // Also preserve the slot identifier from the existing meta if present
             // (offset 348 = uint index 87+88 as a ulong)
+
+            // Preserve a non-standard difficulty mode tag (e.g. "Abandoned Universe").
+            // Alternate modes report DifficultyState.Preset as "Custom" in the save data,
+            // so regenerating the meta from the save would otherwise replace the real mode
+            // with "Custom". A deliberate change to a standard preset still wins.
+            if (existingMeta.Length >= 107)
+            {
+                byte[] existingBytes = UIntsToBytes(existingMeta);
+                string existingTag = Encoding.ASCII
+                    .GetString(existingBytes, STEAM_META_DIFFICULTY_TAG, 64).TrimEnd('\0');
+                PreserveExistingDifficulty(info, existingMeta[86], existingTag); // offset 344
+            }
         }
         else
         {
@@ -452,6 +464,7 @@ public static class MetaFileWriter
             // carries the same platform software version.
             uint existingFormat = 0;
             uint existingBaseVersion = 0;
+            uint existingPreset = 0;
             if (File.Exists(metaPath))
             {
                 byte[] existing = File.ReadAllBytes(metaPath);
@@ -459,8 +472,13 @@ public static class MetaFileWriter
                 {
                     existingFormat = BitConverter.ToUInt32(existing, 4);
                     existingBaseVersion = BitConverter.ToUInt32(existing, 20);
+                    if (existing.Length >= SWITCH_META_BEFORE_DIFFICULTY + 4)
+                        existingPreset = BitConverter.ToUInt32(existing, SWITCH_META_BEFORE_DIFFICULTY);
                 }
             }
+            // Switch manifests carry no difficulty tag string, so a recorded preset other
+            // than Custom is treated as an alternate mode and preserved (same rule as Steam).
+            PreserveExistingDifficulty(info, existingPreset, null);
             if (existingFormat == 0 || existingBaseVersion == 0)
             {
                 var sibling = ReadSiblingManifestInfo(Path.GetDirectoryName(metaPath)!);
@@ -575,6 +593,8 @@ public static class MetaFileWriter
             // carries the same platform software version.
             uint existingFormat = 0;
             uint existingBaseVersion = 0;
+            uint existingPreset = 0;
+            string? existingTag = null;
             if (File.Exists(metaPath))
             {
                 byte[] existing = File.ReadAllBytes(metaPath);
@@ -582,8 +602,15 @@ public static class MetaFileWriter
                 {
                     existingFormat = BitConverter.ToUInt32(existing, 4);
                     existingBaseVersion = BitConverter.ToUInt32(existing, 20);
+                    if (existing.Length >= PS4_META_BEFORE_DIFFICULTY + 4)
+                        existingPreset = BitConverter.ToUInt32(existing, PS4_META_BEFORE_DIFFICULTY);
+                    if (existingFormat >= META_FORMAT_4
+                        && existing.Length >= PS4_META_BEFORE_DIFFICULTY + 20 + 64)
+                        existingTag = Encoding.ASCII
+                            .GetString(existing, PS4_META_BEFORE_DIFFICULTY + 20, 64).TrimEnd('\0');
                 }
             }
+            PreserveExistingDifficulty(info, existingPreset, existingTag);
             if (existingFormat == 0 || existingBaseVersion == 0)
             {
                 var sibling = ReadSiblingManifestInfo(Path.GetDirectoryName(metaPath)!);
@@ -829,4 +856,35 @@ public static class MetaFileWriter
         "Permadeath" => 6,
         _ => 0
     };
+
+    /// <summary>
+    /// True when a meta difficulty tag is one of the presets the editor can produce.
+    /// Non-standard tags (e.g. "Abandoned Universe") are alternate game modes whose
+    /// save data reports the generic "Custom" preset; the editor must not overwrite them.
+    /// </summary>
+    internal static bool IsStandardDifficultyPreset(string? tag) => tag is
+        "Invalid" or "Custom" or "Normal" or "Creative" or "Relaxed" or "Survival" or "Permadeath";
+
+    /// <summary>
+    /// Preserves an alternate game mode recorded in an existing meta when the save data
+    /// reports the generic "Custom" preset (e.g. "Abandoned Universe"). A deliberate
+    /// change to a standard preset still wins. Platforms without a difficulty tag string
+    /// (Switch) treat any recorded preset other than Custom as an alternate mode.
+    /// </summary>
+    private static void PreserveExistingDifficulty(SaveMetaInfo info, uint existingPreset, string? existingTag)
+    {
+        if (existingPreset == 0)
+            return;
+        if (!string.IsNullOrEmpty(info.DifficultyPresetTag)
+            && !string.Equals(info.DifficultyPresetTag, "Custom", StringComparison.Ordinal))
+            return;
+        bool existingNonStandard = !string.IsNullOrEmpty(existingTag)
+            ? !IsStandardDifficultyPreset(existingTag)
+            : existingPreset != 1; // no tag: anything other than Custom is an alternate mode
+        if (!existingNonStandard)
+            return;
+        info.DifficultyPreset = (int)existingPreset;
+        if (!string.IsNullOrEmpty(existingTag))
+            info.DifficultyPresetTag = existingTag;
+    }
 }
