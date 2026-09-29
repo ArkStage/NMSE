@@ -262,21 +262,8 @@ internal static class StarshipLogic
         catch { }
         int classIndex = Array.IndexOf(ShipClasses, cls);
 
-        bool useOldColours = false;
-        try
-        {
-            if (playerState != null)
-            {
-                // ShipUsesLegacyColours is an array indexed per-ship
-                var legacyArr = playerState.GetArray("ShipUsesLegacyColours");
-                if (legacyArr != null && shipIndex >= 0 && shipIndex < legacyArr.Length)
-                {
-                    var val = legacyArr.Get(shipIndex);
-                    if (val is bool b) useOldColours = b;
-                }
-            }
-        }
-        catch { }
+        // ShipUsesLegacyColours is an array indexed per-ship
+        bool useOldColours = GetShipUsesLegacyColours(playerState, shipIndex);
 
         var shipInv = ship.GetObject("Inventory");
         double damage = 0, shield = 0, hyperdrive = 0, maneuver = 0;
@@ -401,16 +388,7 @@ internal static class StarshipLogic
         }
 
         // ShipUsesLegacyColours is an array indexed per-ship; update the correct element
-        try
-        {
-            if (values.ShipIndex >= 0)
-            {
-                var legacyArr = playerState.GetArray("ShipUsesLegacyColours");
-                if (legacyArr != null && values.ShipIndex < legacyArr.Length)
-                    legacyArr.Set(values.ShipIndex, values.UseOldColours);
-            }
-        }
-        catch { }
+        SetShipUsesLegacyColours(playerState, values.ShipIndex, values.UseOldColours);
 
         try { RawNumberGuard.SetInt(playerState, "PrimaryShip", values.PrimaryShipIndex); }
         catch { }
@@ -588,6 +566,88 @@ internal static class StarshipLogic
                 target.Set(name, ccdEntry.Get(name));
         }
         catch { }
+    }
+
+    // --- Ship legacy colours (ShipUsesLegacyColours) ------------------
+
+    /// <summary>
+    /// Upper bound used when growing a short ShipUsesLegacyColours array.
+    /// The game ships 12 slots; this is a runaway guard, not the slot count,
+    /// so saves with a larger ShipOwnership array are still handled.
+    /// </summary>
+    private const int MaxLegacyColourSlots = 64;
+
+    /// <summary>
+    /// Reads the legacy-colour flag for a ship slot. The flag is not stored on the
+    /// ship itself - it lives in <c>PlayerStateData.ShipUsesLegacyColours</c>, a bool
+    /// array indexed in parallel with <c>ShipOwnership</c>.
+    /// </summary>
+    /// <param name="playerState">The player state JSON object (may be <c>null</c>).</param>
+    /// <param name="shipIndex">Zero-based index in the ShipOwnership array.</param>
+    /// <returns>The stored flag, or <c>false</c> when it cannot be read.</returns>
+    internal static bool GetShipUsesLegacyColours(JsonObject? playerState, int shipIndex)
+    {
+        if (playerState == null || shipIndex < 0) return false;
+        try
+        {
+            var legacyArr = playerState.GetArray("ShipUsesLegacyColours");
+            if (legacyArr == null || shipIndex >= legacyArr.Length) return false;
+            return legacyArr.Get(shipIndex) is bool b && b;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Writes the legacy-colour flag for a ship slot into
+    /// <c>PlayerStateData.ShipUsesLegacyColours</c>.
+    /// <para>
+    /// Does nothing when the array is absent - a save without the key predates the
+    /// flag and inventing a PlayerStateData member would be unsafe. When the array
+    /// exists but is shorter than <paramref name="shipIndex"/> it is padded with
+    /// <c>false</c>, which matches what <see cref="GetShipUsesLegacyColours"/>
+    /// reports for those indices (and therefore what the UI displayed).
+    /// </para>
+    /// </summary>
+    /// <param name="playerState">The player state JSON object (may be <c>null</c>).</param>
+    /// <param name="shipIndex">Zero-based index in the ShipOwnership array.</param>
+    /// <param name="value">The flag value to write.</param>
+    internal static void SetShipUsesLegacyColours(JsonObject? playerState, int shipIndex, bool value)
+    {
+        if (playerState == null || shipIndex < 0 || shipIndex >= MaxLegacyColourSlots) return;
+        try
+        {
+            var legacyArr = playerState.GetArray("ShipUsesLegacyColours");
+            if (legacyArr == null) return;
+
+            while (legacyArr.Length < shipIndex)
+                legacyArr.Add(false);
+
+            if (shipIndex < legacyArr.Length)
+                legacyArr.Set(shipIndex, value);
+            else
+                legacyArr.Add(value);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Reads the <c>UsesLegacyColours</c> flag from an exported ship wrapper
+    /// (<c>{ Ship, Base?, CharacterCustomisationData?, UsesLegacyColours? }</c>).
+    /// </summary>
+    /// <param name="exportWrapper">The parsed export wrapper (may be <c>null</c>).</param>
+    /// <returns>
+    /// The flag, or <c>null</c> when the wrapper is null, the key is absent, or the
+    /// value is not a bool. A <c>null</c> result means "the file does not say" and
+    /// callers must leave the destination slot's existing flag untouched.
+    /// </returns>
+    internal static bool? TryGetExportedLegacyColours(JsonObject? exportWrapper)
+    {
+        if (exportWrapper == null) return null;
+        try
+        {
+            return exportWrapper.Get("UsesLegacyColours") is bool b ? b : null;
+        }
+        catch { return null; }
     }
 
     /// <summary>
@@ -799,8 +859,24 @@ internal static class StarshipLogic
     /// <param name="targetShip">The target empty ship slot in ShipOwnership.</param>
     /// <param name="targetIndex">The index in the ShipOwnership array.</param>
     /// <param name="ccdArray">The CharacterCustomisationData array (may be null).</param>
-    internal static void ImportShipFromArchive(JsonObject archivedSlot, JsonObject targetShip, int targetIndex, JsonArray? ccdArray)
+    /// <param name="playerState">
+    /// The player state JSON object, used to restore <c>ShipUsesLegacyColours[targetIndex]</c>
+    /// from the archive slot's <c>UsesLegacyColours</c>. When <c>null</c> the flag is left alone.
+    /// This is the counterpart to the <c>usesLegacyColours</c> argument of
+    /// <see cref="MoveShipToArchive"/>.
+    /// </param>
+    internal static void ImportShipFromArchive(JsonObject archivedSlot, JsonObject targetShip, int targetIndex, JsonArray? ccdArray, JsonObject? playerState = null)
     {
+        // Read the archived legacy-colour flag BEFORE the archive metadata is reset
+        // below (which clears UsesLegacyColours back to false).
+        bool? archivedLegacyColours = null;
+        try
+        {
+            if (archivedSlot.Get("UsesLegacyColours") is bool archivedFlag)
+                archivedLegacyColours = archivedFlag;
+        }
+        catch { }
+
         // Copy ship data from Ownership to target ship slot.
         // DeepClone is required so that the subsequent DeleteShipData call on the archive slot
         // does not corrupt the shared nested objects (Resource, Inventory, etc.) in targetShip.
@@ -816,6 +892,10 @@ internal static class StarshipLogic
         var customisation = archivedSlot.GetObject("Customisation");
         if (customisation != null)
             SetShipCustomisation(ccdArray, targetIndex, customisation);
+
+        // Restore the legacy-colour flag into the live parallel array
+        if (archivedLegacyColours.HasValue)
+            SetShipUsesLegacyColours(playerState, targetIndex, archivedLegacyColours.Value);
 
         // Clear the archive slot
         var archivedOwnership = archivedSlot.GetObject("Ownership");

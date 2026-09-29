@@ -263,6 +263,7 @@ partial class StarshipPanel
         row++;
 
         _shipName = new TextBox { Dock = DockStyle.Fill };
+        _shipName.TextChanged += OnShipDetailChanged;
         _shipName.Leave += OnShipNameChanged;
         _shipName.KeyDown += (s, e) =>
         {
@@ -276,6 +277,7 @@ partial class StarshipPanel
 
         _shipClass = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
         _shipClass.Items.AddRange(StarshipLogic.ShipClasses);
+        _shipClass.SelectedIndexChanged += OnShipDetailChanged;
         _classLabel = AddRow(leftPanel, "Class:", _shipClass, row++);
 
         var seedPanel = new TableLayoutPanel
@@ -292,6 +294,7 @@ partial class StarshipPanel
         seedPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         seedPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _shipSeed = new TextBox { Dock = DockStyle.Fill };
+        _shipSeed.TextChanged += OnShipDetailChanged;
         _shipSeed.KeyDown += (s, e) =>
         {
             if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; _shipSeed.Parent?.Focus(); }
@@ -340,18 +343,23 @@ partial class StarshipPanel
         statRow++;
 
         _damageField = new InvariantNumericTextBox { Dock = DockStyle.Fill };
+        _damageField.NumericValueChanged += OnShipDetailChanged;
         _damageLabel = AddRow(rightPanel, "Damage:", _damageField, statRow++);
 
         _shieldField = new InvariantNumericTextBox { Dock = DockStyle.Fill };
+        _shieldField.NumericValueChanged += OnShipDetailChanged;
         _shieldLabel = AddRow(rightPanel, "Shield:", _shieldField, statRow++);
 
         _hyperdriveField = new InvariantNumericTextBox { Dock = DockStyle.Fill };
+        _hyperdriveField.NumericValueChanged += OnShipDetailChanged;
         _hyperdriveLabel = AddRow(rightPanel, "Hyperdrive:", _hyperdriveField, statRow++);
 
         _maneuverField = new InvariantNumericTextBox { Dock = DockStyle.Fill };
+        _maneuverField.NumericValueChanged += OnShipDetailChanged;
         _maneuverLabel = AddRow(rightPanel, "Maneuverability:", _maneuverField, statRow++);
 
         _useOldColours = new CheckBox { Text = "Use Old Color", AutoSize = true };
+        _useOldColours.CheckedChanged += OnShipDetailChanged;
         rightPanel.Controls.Add(new Label(), 0, statRow);
         rightPanel.Controls.Add(_useOldColours, 1, statRow++);
 

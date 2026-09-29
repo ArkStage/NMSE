@@ -37,8 +37,14 @@ public partial class StarshipPanel : UserControl
     /// <summary>True while the panel is performing an initial data load; suppresses UI side-effects.</summary>
     private bool _loading;
 
+    /// <summary>Suppresses ship-detail dirty tracking while controls are populated programmatically.</summary>
+    private bool _suppressShipDetailChanged;
+
     /// <summary>Class index loaded from the save for the current ship, used to detect user changes.</summary>
     private int _originalClassIndex = -1;
+
+    /// <summary>The data index of the ship currently displayed in the detail controls, or -1.</summary>
+    private int _currentShipIndex = -1;
 
     /// <summary>The data index of the ship currently loaded in the Customisation tab.</summary>
     private int _currentCustomisationShipIndex = -1;
@@ -280,6 +286,7 @@ public partial class StarshipPanel : UserControl
         try
         {
             _saveData = saveData;
+            _currentShipIndex = -1;
             _shipType.Items.Clear();
             _shipType.Items.AddRange(StarshipLogic.GetShipTypeItems());
 
@@ -332,6 +339,27 @@ public partial class StarshipPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Writes the current ship-detail controls into the in-memory save tree so
+    /// operations that serialise the ship (export, snapshot, archive) include edits
+    /// the user has not saved yet. In-memory only - no disk I/O.
+    /// </summary>
+    private void SyncCurrentShipToModel()
+    {
+        if (_saveData == null || _loading || _shipSelector.SelectedIndex < 0) return;
+        SaveData(_saveData);
+    }
+
+    /// <summary>
+    /// Raises <see cref="DataModified"/> when a ship-detail control changes so pending
+    /// edits are tracked and prompt to be saved instead of being lost silently.
+    /// </summary>
+    private void OnShipDetailChanged(object? sender, EventArgs e)
+    {
+        if (_loading || _suppressShipDetailChanged) return;
+        DataModified?.Invoke(this, EventArgs.Empty);
+    }
+
     public void SaveData(JsonObject saveData)
     {
         try
@@ -347,44 +375,7 @@ public partial class StarshipPanel : UserControl
             if (idx >= ships.Length) return;
 
             var ship = ships.GetObject(idx);
-
-            var selectedTypeItem = _shipType.SelectedItem as StarshipLogic.ShipTypeItem;
-
-            var values = new StarshipLogic.ShipSaveValues
-            {
-                Name = _shipName.Text,
-                SelectedTypeName = selectedTypeItem?.InternalName,
-                CustomFilename = selectedTypeItem?.CustomFilename,
-                ClassIndex = _shipClass.SelectedIndex,
-                OriginalClassIndex = _originalClassIndex,
-                Seed = _shipSeed.Text,
-                // Use raw values for unmodified fields to prevent any
-                // precision loss from the UI control text round-trip.
-                Damage = _damageField.UserModified
-                    ? (_damageField.NumericValue ?? 0.0)
-                    : (_rawShipStatValues?.GetValueOrDefault("^SHIP_DAMAGE") ?? _damageField.NumericValue ?? 0.0),
-                Shield = _shieldField.UserModified
-                    ? (_shieldField.NumericValue ?? 0.0)
-                    : (_rawShipStatValues?.GetValueOrDefault("^SHIP_SHIELD") ?? _shieldField.NumericValue ?? 0.0),
-                Hyperdrive = _hyperdriveField.UserModified
-                    ? (_hyperdriveField.NumericValue ?? 0.0)
-                    : (_rawShipStatValues?.GetValueOrDefault("^SHIP_HYPERDRIVE") ?? _hyperdriveField.NumericValue ?? 0.0),
-                Maneuver = _maneuverField.UserModified
-                    ? (_maneuverField.NumericValue ?? 0.0)
-                    : (_rawShipStatValues?.GetValueOrDefault("^SHIP_AGILE") ?? _maneuverField.NumericValue ?? 0.0),
-                // Pass display text so the saved JSON reproduces the exact text
-                // the user sees (or the original save file text if unmodified).
-                DamageText = _damageField.UserModified ? _damageField.DisplayText : null,
-                ShieldText = _shieldField.UserModified ? _shieldField.DisplayText : null,
-                HyperdriveText = _hyperdriveField.UserModified ? _hyperdriveField.DisplayText : null,
-                ManeuverText = _maneuverField.UserModified ? _maneuverField.DisplayText : null,
-                UseOldColours = _useOldColours.Checked,
-                ShipIndex = idx,
-                PrimaryShipIndex = _primaryShipIndex,
-                RawStatValues = _rawShipStatValues
-            };
-
-            StarshipLogic.SaveShipData(ship, playerState, values);
+            WriteShipDetail(ship, playerState, idx);
 
             _inventoryGrid.SaveInventory(ship.GetObject("Inventory"));
             _techGrid.SaveInventory(ship.GetObject("Inventory_TechOnly"));
@@ -397,8 +388,80 @@ public partial class StarshipPanel : UserControl
         catch { }
     }
 
+    /// <summary>
+    /// Commits the currently displayed ship-detail controls into the in-memory save for the
+    /// displayed ship. Called before the selection changes so unsaved edits are not
+    /// overwritten when the user switches to another ship. In-memory only, no disk I/O.
+    /// </summary>
+    private void CommitCurrentShipDetail()
+    {
+        if (_saveData == null || _playerState == null || _shipOwnership == null) return;
+        if (_currentShipIndex < 0 || _currentShipIndex >= _shipOwnership.Length) return;
+        try
+        {
+            var ship = _shipOwnership.GetObject(_currentShipIndex);
+            if (ship == null) return;
+
+            WriteShipDetail(ship, _playerState, _currentShipIndex);
+
+            if (_customisationTabEnabled && _currentCustomisationShipIndex == _currentShipIndex)
+                SaveCustomisationToCcd(_playerState, _currentShipIndex);
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Writes the current ship-detail control values into the given ship object.
+    /// </summary>
+    private void WriteShipDetail(JsonObject ship, JsonObject playerState, int idx)
+    {
+        var selectedTypeItem = _shipType.SelectedItem as StarshipLogic.ShipTypeItem;
+
+        var values = new StarshipLogic.ShipSaveValues
+        {
+            Name = _shipName.Text,
+            SelectedTypeName = selectedTypeItem?.InternalName,
+            CustomFilename = selectedTypeItem?.CustomFilename,
+            ClassIndex = _shipClass.SelectedIndex,
+            OriginalClassIndex = _originalClassIndex,
+            Seed = _shipSeed.Text,
+            // Use raw values for unmodified fields to prevent any
+            // precision loss from the UI control text round-trip.
+            Damage = _damageField.UserModified
+                ? (_damageField.NumericValue ?? 0.0)
+                : (_rawShipStatValues?.GetValueOrDefault("^SHIP_DAMAGE") ?? _damageField.NumericValue ?? 0.0),
+            Shield = _shieldField.UserModified
+                ? (_shieldField.NumericValue ?? 0.0)
+                : (_rawShipStatValues?.GetValueOrDefault("^SHIP_SHIELD") ?? _shieldField.NumericValue ?? 0.0),
+            Hyperdrive = _hyperdriveField.UserModified
+                ? (_hyperdriveField.NumericValue ?? 0.0)
+                : (_rawShipStatValues?.GetValueOrDefault("^SHIP_HYPERDRIVE") ?? _hyperdriveField.NumericValue ?? 0.0),
+            Maneuver = _maneuverField.UserModified
+                ? (_maneuverField.NumericValue ?? 0.0)
+                : (_rawShipStatValues?.GetValueOrDefault("^SHIP_AGILE") ?? _maneuverField.NumericValue ?? 0.0),
+            // Pass display text so the saved JSON reproduces the exact text
+            // the user sees (or the original save file text if unmodified).
+            DamageText = _damageField.UserModified ? _damageField.DisplayText : null,
+            ShieldText = _shieldField.UserModified ? _shieldField.DisplayText : null,
+            HyperdriveText = _hyperdriveField.UserModified ? _hyperdriveField.DisplayText : null,
+            ManeuverText = _maneuverField.UserModified ? _maneuverField.DisplayText : null,
+            UseOldColours = _useOldColours.Checked,
+            ShipIndex = idx,
+            PrimaryShipIndex = _primaryShipIndex,
+            RawStatValues = _rawShipStatValues
+        };
+
+        StarshipLogic.SaveShipData(ship, playerState, values);
+    }
+
     private void OnShipSelected(object? sender, EventArgs e)
     {
+        // Commit the previously displayed ship's edits before switching away, so unsaved
+        // changes are not overwritten by the new ship's data. Skipped during programmatic
+        // loads (the selection is set while _loading is true).
+        if (!_loading)
+            CommitCurrentShipDetail();
+
         // Freeze painting on the entire panel to prevent visible intermediate
         // redraws while grids are torn down and rebuilt. Without this, switching
         // between corvette and non-corvette ships (which have different layouts)
@@ -411,17 +474,23 @@ public partial class StarshipPanel : UserControl
             var item = (StarshipLogic.ShipListItem)_shipSelector.Items[_shipSelector.SelectedIndex]!;
             int idx = item.DataIndex;
             if (idx >= _shipOwnership.Length) return;
+            _currentShipIndex = idx;
 
             var ship = _shipOwnership.GetObject(idx);
             var data = StarshipLogic.LoadShipData(ship, _playerState, idx);
 
-            _shipName.Text = data.Name;
-            SelectShipTypeByName(data.ShipTypeName, data.IsResourceModified, data.IsResourceModified ? data.Filename : null);
-            SetStarshipMaxSupportedLabels(data.Filename);
-            _shipSeed.Text = data.Seed;
-            _shipClass.SelectedIndex = data.ClassIndex;
-            _originalClassIndex = data.ClassIndex;
-            _useOldColours.Checked = data.UseOldColours;
+            _suppressShipDetailChanged = true;
+            try
+            {
+                _shipName.Text = data.Name;
+                SelectShipTypeByName(data.ShipTypeName, data.IsResourceModified, data.IsResourceModified ? data.Filename : null);
+                SetStarshipMaxSupportedLabels(data.Filename);
+                _shipSeed.Text = data.Seed;
+                _shipClass.SelectedIndex = data.ClassIndex;
+                _originalClassIndex = data.ClassIndex;
+                _useOldColours.Checked = data.UseOldColours;
+            }
+            finally { _suppressShipDetailChanged = false; }
 
             // Set owner type BEFORE loading inventories so the item picker
             // filters reflect the correct ship type on the very first load
@@ -467,10 +536,15 @@ public partial class StarshipPanel : UserControl
             string techImportFilter = ExportConfig.BuildImportFilter(cfg.StarshipTechExt, "Ship tech inventory");
             _techGrid.SetExportFileFilter(techExportFilter, techImportFilter, cfg.StarshipTechExt.TrimStart('.'));
 
-            try { _damageField.SetValueWithText(data.Damage, data.DamageText); } catch { _damageField.NumericValue = 0; }
-            try { _shieldField.SetValueWithText(data.Shield, data.ShieldText); } catch { _shieldField.NumericValue = 0; }
-            try { _hyperdriveField.SetValueWithText(data.Hyperdrive, data.HyperdriveText); } catch { _hyperdriveField.NumericValue = 0; }
-            try { _maneuverField.SetValueWithText(data.Maneuver, data.ManeuverText); } catch { _maneuverField.NumericValue = 0; }
+            _suppressShipDetailChanged = true;
+            try
+            {
+                try { _damageField.SetValueWithText(data.Damage, data.DamageText); } catch { _damageField.NumericValue = 0; }
+                try { _shieldField.SetValueWithText(data.Shield, data.ShieldText); } catch { _shieldField.NumericValue = 0; }
+                try { _hyperdriveField.SetValueWithText(data.Hyperdrive, data.HyperdriveText); } catch { _hyperdriveField.NumericValue = 0; }
+                try { _maneuverField.SetValueWithText(data.Maneuver, data.ManeuverText); } catch { _maneuverField.NumericValue = 0; }
+            }
+            finally { _suppressShipDetailChanged = false; }
 
             // Store raw stat values for preservation before limits clamp the NUDs
             _rawShipStatValues = new Dictionary<string, double>
@@ -741,6 +815,11 @@ public partial class StarshipPanel : UserControl
             StarshipLogic.ResetShipCustomisation(
                 _playerState.GetArray("CharacterCustomisationData"), idx);
 
+            // Reset the slot's legacy-colour flag so a future import that cannot carry
+            // the flag (old NMSE exports, IO Tool ZIPs) does not inherit the deleted
+            // ship's colour mode.
+            StarshipLogic.SetShipUsesLegacyColours(_playerState, idx, false);
+
             // If the deleted ship was the primary ship, reassign to the first valid ship.
             // Since we don't remove from the array, non-primary indices remain correct.
             if (idx == _primaryShipIndex)
@@ -773,6 +852,9 @@ public partial class StarshipPanel : UserControl
             var item = (StarshipLogic.ShipListItem)_shipSelector.Items[_shipSelector.SelectedIndex]!;
             int idx = item.DataIndex;
             if (idx >= _shipOwnership.Length) return;
+
+            // Flush unsaved ship-detail edits into the in-memory save before archiving
+            SyncCurrentShipToModel();
 
             var ship = _shipOwnership.GetObject(idx);
 
@@ -835,17 +917,7 @@ public partial class StarshipPanel : UserControl
             if (result != DialogResult.Yes) return;
 
             // Get legacy colours flag for this ship
-            bool usesLegacyColours = false;
-            try
-            {
-                var legacyArr = _playerState.GetArray("ShipUsesLegacyColours");
-                if (legacyArr != null && idx < legacyArr.Length)
-                {
-                    var val = legacyArr.Get(idx);
-                    if (val is bool b) usesLegacyColours = b;
-                }
-            }
-            catch { }
+            bool usesLegacyColours = StarshipLogic.GetShipUsesLegacyColours(_playerState, idx);
 
             var archivedSlot = archivedShips.GetObject(archIdx);
             var ccdArray = _playerState.GetArray("CharacterCustomisationData");
@@ -927,7 +999,7 @@ public partial class StarshipPanel : UserControl
             var archivedSlot = archivedShips.GetObject(selectedItem.ArchiveIndex);
             var targetShip = _shipOwnership.GetObject(emptyListIdx);
             var ccdArray = _playerState.GetArray("CharacterCustomisationData");
-            StarshipLogic.ImportShipFromArchive(archivedSlot, targetShip, emptyListIdx, ccdArray);
+            StarshipLogic.ImportShipFromArchive(archivedSlot, targetShip, emptyListIdx, ccdArray, _playerState);
 
             // Rebuild ship list and select the newly imported ship
             _shipSelector.Items.Clear();
@@ -956,7 +1028,7 @@ public partial class StarshipPanel : UserControl
     /// Shows a modal dialog presenting a list of items for the user to select from.
     /// Returns the index of the selected item in <paramref name="items"/>, or -1 if cancelled.
     /// </summary>
-    private static int ShowArchiveSelectionDialog(List<string> items, string title)
+    private int ShowArchiveSelectionDialog(List<string> items, string title)
     {
         using var form = new Form
         {
@@ -1018,7 +1090,7 @@ public partial class StarshipPanel : UserControl
         // Double-click selects
         listBox.DoubleClick += (s, e) => { form.DialogResult = DialogResult.OK; form.Close(); };
 
-        if (form.ShowDialog() != DialogResult.OK) return -1;
+        if (form.ShowDialog(FindForm()) != DialogResult.OK) return -1;
         return listBox.SelectedIndex;
     }
 
@@ -1027,6 +1099,9 @@ public partial class StarshipPanel : UserControl
         try
         {
             if (_shipOwnership == null || _shipSelector.SelectedIndex < 0) return;
+
+            // Flush unsaved ship-detail edits into the in-memory save before serialising
+            SyncCurrentShipToModel();
 
             var item = (StarshipLogic.ShipListItem)_shipSelector.Items[_shipSelector.SelectedIndex]!;
             int idx = item.DataIndex;
@@ -1080,7 +1155,7 @@ public partial class StarshipPanel : UserControl
                 FileName = ExportConfig.BuildFileName(template, ext, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
             {
                 // Build a wrapper object with the ship data and CCD as siblings.
                 // CCD is stored externally under its original game key name,
@@ -1094,6 +1169,11 @@ public partial class StarshipPanel : UserControl
                 var ccdEntry = StarshipLogic.GetShipCustomisation(ccdArray, idx);
                 if (ccdEntry != null)
                     export.Set("CharacterCustomisationData", ccdEntry);
+
+                // ShipUsesLegacyColours lives in PlayerStateData as an array parallel
+                // to ShipOwnership, so it has to be carried alongside the ship block.
+                // Always written, so the file is unambiguous about which mode it wants.
+                export.Set("UsesLegacyColours", StarshipLogic.GetShipUsesLegacyColours(_playerState, idx));
 
                 export.ExportToFile(dialog.FileName);
             }
@@ -1118,7 +1198,7 @@ public partial class StarshipPanel : UserControl
                 cfg.CorvetteExt, ".nmsship");
 
             using var dialog = new OpenFileDialog { Filter = filter };
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             // --- Parse the imported file ---
             var zipResult = StarshipLogic.TryReadNmsshipZip(dialog.FileName);
@@ -1128,6 +1208,10 @@ public partial class StarshipPanel : UserControl
             JsonObject? zipCcd = null;
             // CCD from the wrapper-level "CharacterCustomisationData" key (new format)
             JsonObject? wrapperCcd = null;
+            // Legacy-colour flag from the wrapper-level "UsesLegacyColours" key.
+            // Stays null for formats that cannot carry it (IO Tool ZIPs, plain ship
+            // JSON, NomNom envelopes) and for files exported before it was added.
+            bool? importedLegacyColours = null;
 
             if (zipResult != null)
             {
@@ -1143,12 +1227,13 @@ public partial class StarshipPanel : UserControl
             {
                 var imported = JsonObject.ImportFromFile(dialog.FileName);
 
-                // Check for wrapper format: { Ship, [Base], [CharacterCustomisationData] }
+                // Check for wrapper format: { Ship, [Base], [CharacterCustomisationData], [UsesLegacyColours] }
                 importedShip = imported.GetObject("Ship");
                 if (importedShip != null)
                 {
                     importedBase = imported.GetObject("Base");
                     wrapperCcd = imported.GetObject("CharacterCustomisationData");
+                    importedLegacyColours = StarshipLogic.TryGetExportedLegacyColours(imported);
                 }
                 else
                 {
@@ -1225,15 +1310,19 @@ public partial class StarshipPanel : UserControl
             // Extract CCD from the legacy __ShipCustomisation key (backwards compat)
             var legacyCcd = ExtractLegacyShipCustomisation(importedShip);
 
-            // Copy all properties from imported ship to target slot
+            // Copy all properties from imported ship to target slot.
+            // UsesLegacyColours is skipped: it belongs in the PlayerStateData array,
+            // not on the ship, and copying it would write a stray key into the save.
             foreach (var name in importedShip.Names())
             {
                 if (name == "__ShipCustomisation") continue;
+                if (name == "UsesLegacyColours") continue;
                 targetShip.Set(name, importedShip.Get(name));
             }
 
-            // Remove the legacy key from the live ship object if it leaked
+            // Remove the keys that don't belong on a live ship object if they leaked
             targetShip.Remove("__ShipCustomisation");
+            targetShip.Remove("UsesLegacyColours");
 
             // Determine CCD source (priority order):
             //   1. ZIP ccd.json (if present and non-default)
@@ -1247,6 +1336,12 @@ public partial class StarshipPanel : UserControl
 
             var ccdArray = _playerState.GetArray("CharacterCustomisationData");
             StarshipLogic.SetShipCustomisation(ccdArray, targetIdx, ccdToApply);
+
+            // Apply the legacy-colour flag only when the file actually carried one.
+            // Files that cannot express it (older NMSE exports, IO Tool ZIPs, plain
+            // ship JSON) leave the destination slot's existing flag untouched.
+            if (importedLegacyColours.HasValue)
+                StarshipLogic.SetShipUsesLegacyColours(_playerState, targetIdx, importedLegacyColours.Value);
 
             // Import base building objects for corvette ships
             if (importedBase != null && importedIsCorvette)
@@ -1361,6 +1456,10 @@ public partial class StarshipPanel : UserControl
         try
         {
             if (_shipOwnership == null || _shipSelector.SelectedIndex < 0 || _saveData == null) return;
+
+            // Flush unsaved ship-detail edits into the in-memory save before serialising
+            SyncCurrentShipToModel();
+
             if (!CheckCorvettePrimarySafety("snapshotting tech for")) return;
 
             var item = (StarshipLogic.ShipListItem)_shipSelector.Items[_shipSelector.SelectedIndex]!;
@@ -1406,13 +1505,14 @@ public partial class StarshipPanel : UserControl
                 FileName = ExportConfig.BuildFileName(cfg.CorvetteSnapshotTemplate, cfg.CorvetteSnapshotExt, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
             {
                 // Create combined export: Ship (without cargo) + Base
                 var export = new JsonObject();
                 export.Set("Ship", shipSnapshot);
                 if (baseObj != null)
                     export.Set("Base", baseObj);
+                export.Set("UsesLegacyColours", StarshipLogic.GetShipUsesLegacyColours(_playerState, idx));
                 export.ExportToFile(dialog.FileName);
             }
         }
@@ -1435,7 +1535,7 @@ public partial class StarshipPanel : UserControl
             {
                 Filter = ExportConfig.BuildOpenFilter(cfg.CorvetteSnapshotExt, "Corvette snapshot files")
             };
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var imported = JsonObject.ImportFromFile(dialog.FileName);
 
@@ -1457,8 +1557,15 @@ public partial class StarshipPanel : UserControl
             foreach (var name in importedShip.Names())
             {
                 if (name == "Inventory") continue;
+                if (name == "UsesLegacyColours") continue;
                 ship.Set(name, importedShip.Get(name));
             }
+            ship.Remove("UsesLegacyColours");
+
+            // Apply the legacy-colour flag only when the snapshot carried one
+            var snapshotLegacyColours = StarshipLogic.TryGetExportedLegacyColours(imported);
+            if (snapshotLegacyColours.HasValue)
+                StarshipLogic.SetShipUsesLegacyColours(_playerState, idx, snapshotLegacyColours.Value);
 
             // Import base data if present
             var importedBase = imported.GetObject("Base");
