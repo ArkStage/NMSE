@@ -651,7 +651,7 @@ public partial class FrigatePanel : UserControl
             FileName = ExportConfig.BuildFileName(config.FrigateTemplate, config.FrigateExt, vars)
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             try { frigate.ExportToFile(dialog.FileName); }
             catch (Exception ex)
@@ -676,7 +676,7 @@ public partial class FrigatePanel : UserControl
             Filter = ExportConfig.BuildImportFilter(ExportConfig.Instance.FrigateExt, "Frigate files", ".flt")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {

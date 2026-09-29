@@ -295,7 +295,7 @@ public partial class SquadronPanel : UserControl
             FileName = ExportConfig.BuildFileName(config.SquadronTemplate, config.SquadronExt, vars)
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             try { pilot.ExportToFile(dialog.FileName); }
             catch (Exception ex)
@@ -314,7 +314,7 @@ public partial class SquadronPanel : UserControl
             Filter = ExportConfig.BuildImportFilter(ExportConfig.Instance.SquadronExt, "Squadron files", ".sqd")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {

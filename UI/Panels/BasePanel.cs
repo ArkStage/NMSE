@@ -1144,7 +1144,7 @@ internal class BasesSubPanel : UserControl
                 Title = UiStrings.Get("base.export_title")
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
             {
                 item.Data.ExportToFile(dialog.FileName);
                 MessageBox.Show(this, UiStrings.Get("base.export_success"), UiStrings.Get("base.export_title"),
@@ -1170,7 +1170,7 @@ internal class BasesSubPanel : UserControl
                 Title = UiStrings.Get("base.import_title")
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var result = MessageBox.Show(this, 
                 UiStrings.Get("base.import_confirm"),
@@ -1273,7 +1273,7 @@ internal class BasesSubPanel : UserControl
             selectForm.Controls.Add(okBtn);
             selectForm.AcceptButton = okBtn;
 
-            if (selectForm.ShowDialog() != DialogResult.OK || listBox.SelectedItem is not BaseObjectItem target)
+            if (selectForm.ShowDialog(FindForm()) != DialogResult.OK || listBox.SelectedItem is not BaseObjectItem target)
                 return;
 
             // Find the base computer (^BASE_FLAG)

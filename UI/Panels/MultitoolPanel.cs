@@ -442,7 +442,7 @@ public partial class MultitoolPanel : UserControl
                 FileName = ExportConfig.BuildFileName(config.MultitoolTemplate, config.MultitoolExt, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
                 tool.ExportToFile(dialog.FileName);
         }
         catch (Exception ex)
@@ -462,7 +462,7 @@ public partial class MultitoolPanel : UserControl
                 Filter = ExportConfig.BuildImportFilter(ExportConfig.Instance.MultitoolExt, "Multitool files", ".wp0", ".mlt")
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var imported = JsonObject.ImportFromFile(dialog.FileName);
 
@@ -677,7 +677,7 @@ public partial class MultitoolPanel : UserControl
     /// Shows a modal dialog presenting a list of items for the user to select from.
     /// Returns the index of the selected item in <paramref name="items"/>, or -1 if cancelled.
     /// </summary>
-    private static int ShowArchiveSelectionDialog(List<string> items, string title)
+    private int ShowArchiveSelectionDialog(List<string> items, string title)
     {
         using var form = new Form
         {
@@ -738,7 +738,7 @@ public partial class MultitoolPanel : UserControl
 
         listBox.DoubleClick += (s, e) => { form.DialogResult = DialogResult.OK; form.Close(); };
 
-        if (form.ShowDialog() != DialogResult.OK) return -1;
+        if (form.ShowDialog(FindForm()) != DialogResult.OK) return -1;
         return listBox.SelectedIndex;
     }
 

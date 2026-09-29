@@ -236,7 +236,7 @@ public partial class FreighterPanel : UserControl
                 FileName = ExportConfig.BuildFileName(config.FreighterTemplate, config.FreighterExt, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
                 _freighterBase.ExportToFile(dialog.FileName);
         }
         catch (Exception ex)
@@ -256,7 +256,7 @@ public partial class FreighterPanel : UserControl
                 Filter = ExportConfig.BuildOpenFilter(ExportConfig.Instance.FreighterExt, "Freighter files")
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var imported = JsonObject.ImportFromFile(dialog.FileName);
             var bases = _playerState.GetArray("PersistentPlayerBases");

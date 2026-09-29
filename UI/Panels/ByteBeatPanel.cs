@@ -234,7 +234,7 @@ public partial class ByteBeatPanel : UserControl
             FileName = ExportConfig.BuildFileName(config.ByteBeatTemplate, config.ByteBeatExt, vars)
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             try
             {
@@ -263,7 +263,7 @@ public partial class ByteBeatPanel : UserControl
             Filter = ExportConfig.BuildOpenFilter(config.ByteBeatExt, "ByteBeat songs")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {

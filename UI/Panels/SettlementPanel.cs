@@ -738,7 +738,7 @@ public partial class SettlementPanel : UserControl
                 FileName = ExportConfig.BuildFileName(cfg.SettlementTemplate, cfg.SettlementExt, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
                 settlement.ExportToFile(dialog.FileName);
         }
         catch (Exception ex)
@@ -759,7 +759,7 @@ public partial class SettlementPanel : UserControl
                 Filter = ExportConfig.BuildImportFilter(cfg.SettlementExt, "Settlement files", ".stl")
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var imported = JsonObject.ImportFromFile(dialog.FileName);
 
