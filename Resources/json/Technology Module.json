@@ -76,7 +76,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_SENTSUIT",
@@ -155,7 +156,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_LASER1",
@@ -234,7 +236,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Laser"
 	},
 	{
 		"Id": "U_LASER2",
@@ -313,7 +316,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Laser"
 	},
 	{
 		"Id": "U_LASER3",
@@ -392,7 +396,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Laser"
 	},
 	{
 		"Id": "U_LASER4",
@@ -471,7 +476,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Laser"
 	},
 	{
 		"Id": "U_LASERX",
@@ -550,7 +556,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Laser"
 	},
 	{
 		"Id": "U_SCANNER1",
@@ -629,7 +636,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Scan"
 	},
 	{
 		"Id": "U_SCANNER2",
@@ -708,7 +716,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Scan"
 	},
 	{
 		"Id": "U_SCANNER3",
@@ -787,7 +796,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Scan"
 	},
 	{
 		"Id": "U_SCANNER4",
@@ -866,7 +876,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Scan"
 	},
 	{
 		"Id": "U_SCANNERX",
@@ -945,7 +956,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Scan"
 	},
 	{
 		"Id": "U_BOLT1",
@@ -1024,7 +1036,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_BOLT2",
@@ -1103,7 +1116,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_BOLT3",
@@ -1182,7 +1196,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_BOLT4",
@@ -1261,7 +1276,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_BOLTX",
@@ -1340,7 +1356,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Projectile"
 	},
 	{
 		"Id": "U_GRENADE1",
@@ -1419,7 +1436,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Grenade"
 	},
 	{
 		"Id": "U_GRENADE2",
@@ -1498,7 +1516,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Grenade"
 	},
 	{
 		"Id": "U_GRENADE3",
@@ -1577,7 +1596,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Grenade"
 	},
 	{
 		"Id": "U_GRENADE4",
@@ -1656,7 +1676,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Grenade"
 	},
 	{
 		"Id": "U_GRENADEX",
@@ -1735,7 +1756,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Grenade"
 	},
 	{
 		"Id": "U_TGRENADE1",
@@ -1814,7 +1836,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_MineGrenade"
 	},
 	{
 		"Id": "U_TGRENADE2",
@@ -1893,7 +1916,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_MineGrenade"
 	},
 	{
 		"Id": "U_TGRENADE3",
@@ -1972,7 +1996,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_MineGrenade"
 	},
 	{
 		"Id": "U_TGRENADE4",
@@ -2051,7 +2076,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_MineGrenade"
 	},
 	{
 		"Id": "U_TGRENADEX",
@@ -2130,7 +2156,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_MineGrenade"
 	},
 	{
 		"Id": "U_RAIL1",
@@ -2209,7 +2236,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Rail"
 	},
 	{
 		"Id": "U_RAIL2",
@@ -2288,7 +2316,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Rail"
 	},
 	{
 		"Id": "U_RAIL3",
@@ -2367,7 +2396,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Rail"
 	},
 	{
 		"Id": "U_RAIL4",
@@ -2446,7 +2476,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Rail"
 	},
 	{
 		"Id": "U_RAILX",
@@ -2525,7 +2556,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Rail"
 	},
 	{
 		"Id": "U_SHOTGUN1",
@@ -2604,7 +2636,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Shotgun"
 	},
 	{
 		"Id": "U_SHOTGUN2",
@@ -2683,7 +2716,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Shotgun"
 	},
 	{
 		"Id": "U_SHOTGUN3",
@@ -2762,7 +2796,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Shotgun"
 	},
 	{
 		"Id": "U_SHOTGUN4",
@@ -2841,7 +2876,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Shotgun"
 	},
 	{
 		"Id": "U_SHOTGUNX",
@@ -2920,7 +2956,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Shotgun"
 	},
 	{
 		"Id": "U_SMG1",
@@ -2999,7 +3036,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Burst"
 	},
 	{
 		"Id": "U_SMG2",
@@ -3078,7 +3116,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Burst"
 	},
 	{
 		"Id": "U_SMG3",
@@ -3157,7 +3196,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Burst"
 	},
 	{
 		"Id": "U_SMG4",
@@ -3236,7 +3276,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Burst"
 	},
 	{
 		"Id": "U_SMGX",
@@ -3315,7 +3356,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Burst"
 	},
 	{
 		"Id": "U_CANNON1",
@@ -3394,7 +3436,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Cannon"
 	},
 	{
 		"Id": "U_CANNON2",
@@ -3473,7 +3516,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Cannon"
 	},
 	{
 		"Id": "U_CANNON3",
@@ -3552,7 +3596,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Cannon"
 	},
 	{
 		"Id": "U_CANNON4",
@@ -3631,7 +3676,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Cannon"
 	},
 	{
 		"Id": "U_CANNONX",
@@ -3710,7 +3756,8 @@
 		"Category": "Weapon",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Weapon_Cannon"
 	},
 	{
 		"Id": "U_ENERGY1",
@@ -3789,7 +3836,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Energy"
 	},
 	{
 		"Id": "U_ENERGY2",
@@ -3868,7 +3916,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Energy"
 	},
 	{
 		"Id": "U_ENERGY3",
@@ -3947,7 +3996,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Energy"
 	},
 	{
 		"Id": "U_ENERGYX",
@@ -4026,7 +4076,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Energy"
 	},
 	{
 		"Id": "U_HAZARDX",
@@ -4105,7 +4156,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_JETBOOST1",
@@ -4184,7 +4236,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Jetpack"
 	},
 	{
 		"Id": "U_JETBOOST2",
@@ -4263,7 +4316,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Jetpack"
 	},
 	{
 		"Id": "U_JETBOOST3",
@@ -4342,7 +4396,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Jetpack"
 	},
 	{
 		"Id": "U_JETBOOST4",
@@ -4421,7 +4476,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Jetpack"
 	},
 	{
 		"Id": "U_JETBOOSTX",
@@ -4500,7 +4556,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Jetpack"
 	},
 	{
 		"Id": "U_SHIELDBOOST1",
@@ -4579,7 +4636,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIELDBOOST2",
@@ -4658,7 +4716,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIELDBOOST3",
@@ -4737,7 +4796,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIELDBOOST4",
@@ -4816,7 +4876,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIELDBOOSTX",
@@ -4895,7 +4956,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_UNW1",
@@ -4974,7 +5036,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_UNW2",
@@ -5053,7 +5116,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_UNW3",
@@ -5132,7 +5196,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_RAD1",
@@ -5211,7 +5276,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_RAD2",
@@ -5290,7 +5356,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_RAD3",
@@ -5369,7 +5436,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_TOX1",
@@ -5448,7 +5516,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_TOX2",
@@ -5527,7 +5596,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_TOX3",
@@ -5606,7 +5676,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_COLDPROT1",
@@ -5685,7 +5756,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_COLDPROT2",
@@ -5764,7 +5836,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_COLDPROT3",
@@ -5843,7 +5916,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_HOTPROT1",
@@ -5922,7 +5996,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_HOTPROT2",
@@ -6001,7 +6076,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_HOTPROT3",
@@ -6080,7 +6156,8 @@
 		"Category": "Suit",
 		"Chargeable": true,
 		"ChargeAmount": 80,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Protection"
 	},
 	{
 		"Id": "U_ROBOSUIT",
@@ -6159,7 +6236,8 @@
 		"Category": "Suit",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Suit_Armour_Shield"
 	},
 	{
 		"Id": "U_PULSE1",
@@ -6238,7 +6316,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "U_PULSE2",
@@ -6317,7 +6396,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "U_PULSE3",
@@ -6396,7 +6476,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "U_PULSE4",
@@ -6475,7 +6556,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "U_PULSEX",
@@ -6554,7 +6636,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "U_LAUNCH1",
@@ -6633,7 +6716,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "U_LAUNCH2",
@@ -6712,7 +6796,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "U_LAUNCH3",
@@ -6791,7 +6876,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "U_LAUNCH4",
@@ -6870,7 +6956,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "U_LAUNCHX",
@@ -6949,7 +7036,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "U_HYPER1",
@@ -7028,7 +7116,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "U_HYPER2",
@@ -7107,7 +7196,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "U_HYPER3",
@@ -7186,7 +7276,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "U_HYPER4",
@@ -7265,7 +7356,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "U_HYPERX",
@@ -7344,7 +7436,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "U_SHIPSHIELD1",
@@ -7423,7 +7516,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIPSHIELD2",
@@ -7502,7 +7596,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIPSHIELD3",
@@ -7581,7 +7676,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIPSHIELD4",
@@ -7660,7 +7756,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIPSHIELDX",
@@ -7739,7 +7836,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "U_SHIPGUN1",
@@ -7818,7 +7916,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "U_SHIPGUN2",
@@ -7897,7 +7996,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "U_SHIPGUN3",
@@ -7976,7 +8076,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "U_SHIPGUN4",
@@ -8055,7 +8156,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "U_SHIPGUNX",
@@ -8134,7 +8236,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "U_SHIPLAS1",
@@ -8213,7 +8316,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_SHIPLAS2",
@@ -8292,7 +8396,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_SHIPLAS3",
@@ -8371,7 +8476,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_SHIPLAS4",
@@ -8450,7 +8556,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_SHIPLASX",
@@ -8529,7 +8636,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_SHIPSHOT1",
@@ -8608,7 +8716,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Shotgun"
 	},
 	{
 		"Id": "U_SHIPSHOT2",
@@ -8687,7 +8796,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Shotgun"
 	},
 	{
 		"Id": "U_SHIPSHOT3",
@@ -8766,7 +8876,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Shotgun"
 	},
 	{
 		"Id": "U_SHIPSHOT4",
@@ -8845,7 +8956,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Shotgun"
 	},
 	{
 		"Id": "U_SHIPSHOTX",
@@ -8924,7 +9036,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Shotgun"
 	},
 	{
 		"Id": "U_SHIPMINI1",
@@ -9003,7 +9116,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_MiniGun"
 	},
 	{
 		"Id": "U_SHIPMINI2",
@@ -9082,7 +9196,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_MiniGun"
 	},
 	{
 		"Id": "U_SHIPMINI3",
@@ -9161,7 +9276,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_MiniGun"
 	},
 	{
 		"Id": "U_SHIPMINI4",
@@ -9240,7 +9356,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_MiniGun"
 	},
 	{
 		"Id": "U_SHIPMINIX",
@@ -9319,7 +9436,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_MiniGun"
 	},
 	{
 		"Id": "U_SHIPBLOB1",
@@ -9398,7 +9516,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Plasma"
 	},
 	{
 		"Id": "U_SHIPBLOB2",
@@ -9477,7 +9596,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Plasma"
 	},
 	{
 		"Id": "U_SHIPBLOB3",
@@ -9556,7 +9676,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Plasma"
 	},
 	{
 		"Id": "U_SHIPBLOB4",
@@ -9635,7 +9756,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Plasma"
 	},
 	{
 		"Id": "U_SHIPBLOBX",
@@ -9714,7 +9836,8 @@
 		"Category": "AllShipsExceptAlien",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Plasma"
 	},
 	{
 		"Id": "U_EXOGUN1",
@@ -9793,7 +9916,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXOGUN2",
@@ -9872,7 +9996,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXOGUN3",
@@ -9951,7 +10076,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXOGUN4",
@@ -10030,7 +10156,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXOLAS1",
@@ -10109,7 +10236,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_EXOLAS2",
@@ -10188,7 +10316,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_EXOLAS3",
@@ -10267,7 +10396,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_EXOLAS4",
@@ -10346,7 +10476,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_EXOBOOST1",
@@ -10425,7 +10556,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Boost"
 	},
 	{
 		"Id": "U_EXOBOOST2",
@@ -10504,7 +10636,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Boost"
 	},
 	{
 		"Id": "U_EXOBOOST3",
@@ -10583,7 +10716,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Boost"
 	},
 	{
 		"Id": "U_EXOBOOST4",
@@ -10662,7 +10796,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Boost"
 	},
 	{
 		"Id": "U_EXO_ENG1",
@@ -10741,7 +10876,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_ENG2",
@@ -10820,7 +10956,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_ENG3",
@@ -10899,7 +11036,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_ENG4",
@@ -10978,7 +11116,8 @@
 		"Category": "Exocraft",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_SUB1",
@@ -11057,7 +11196,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_SUB2",
@@ -11136,7 +11276,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_SUB3",
@@ -11215,7 +11356,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_SUB4",
@@ -11294,7 +11436,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_EXO_SUBGUN1",
@@ -11373,7 +11516,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXO_SUBGUN2",
@@ -11452,7 +11596,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXO_SUBGUN3",
@@ -11531,7 +11676,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_EXO_SUBGUN4",
@@ -11610,7 +11756,8 @@
 		"Category": "Submarine",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_MECH_ENG2",
@@ -11689,7 +11836,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_MECH_ENG3",
@@ -11768,7 +11916,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_MECH_ENG4",
@@ -11847,7 +11996,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Engine"
 	},
 	{
 		"Id": "U_MECHLAS2",
@@ -11926,7 +12076,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_MECHLAS3",
@@ -12005,7 +12156,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_MECHLAS4",
@@ -12084,7 +12236,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Laser"
 	},
 	{
 		"Id": "U_MECHFLAME2",
@@ -12163,7 +12316,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Flame"
 	},
 	{
 		"Id": "U_MECHFLAME3",
@@ -12242,7 +12396,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Flame"
 	},
 	{
 		"Id": "U_MECHFLAME4",
@@ -12321,7 +12476,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Flame"
 	},
 	{
 		"Id": "U_MECHGUN2",
@@ -12400,7 +12556,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_MECHGUN3",
@@ -12479,7 +12636,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "U_MECHGUN4",
@@ -12558,7 +12716,8 @@
 		"Category": "Mech",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Vehicle_Gun"
 	},
 	{
 		"Id": "AP_PULSE1",
@@ -12637,7 +12796,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "AP_PULSE2",
@@ -12716,7 +12876,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "AP_PULSE3",
@@ -12795,7 +12956,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "AP_PULSE4",
@@ -12874,7 +13036,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_PulseDrive"
 	},
 	{
 		"Id": "AP_LAUNCH1",
@@ -12953,7 +13116,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "AP_LAUNCH2",
@@ -13032,7 +13196,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "AP_LAUNCH3",
@@ -13111,7 +13276,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "AP_LAUNCH4",
@@ -13190,7 +13356,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Launcher"
 	},
 	{
 		"Id": "AP_HYPER1",
@@ -13269,7 +13436,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "AP_HYPER2",
@@ -13348,7 +13516,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "AP_HYPER3",
@@ -13427,7 +13596,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "AP_HYPER4",
@@ -13506,7 +13676,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": false
+		"BuildFullyCharged": false,
+		"BaseStat": "Ship_Hyperdrive"
 	},
 	{
 		"Id": "AP_SHIPSHIELD1",
@@ -13585,7 +13756,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "AP_SHIPSHIELD2",
@@ -13664,7 +13836,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "AP_SHIPSHIELD3",
@@ -13743,7 +13916,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "AP_SHIPSHIELD4",
@@ -13822,7 +13996,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Armour_Shield"
 	},
 	{
 		"Id": "AP_SHIPGUN1",
@@ -13901,7 +14076,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "AP_SHIPGUN2",
@@ -13980,7 +14156,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "AP_SHIPGUN3",
@@ -14059,7 +14236,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "AP_SHIPGUN4",
@@ -14138,7 +14316,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Guns"
 	},
 	{
 		"Id": "AP_SHIPLAS1",
@@ -14217,7 +14396,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "AP_SHIPLAS2",
@@ -14296,7 +14476,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "AP_SHIPLAS3",
@@ -14375,7 +14556,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "AP_SHIPLAS4",
@@ -14454,7 +14636,8 @@
 		"Category": "AlienShip",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Ship_Weapons_Lasers"
 	},
 	{
 		"Id": "U_FR_HYP1",
@@ -14533,7 +14716,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Hyperdrive"
 	},
 	{
 		"Id": "U_FR_HYP2",
@@ -14612,7 +14796,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Hyperdrive"
 	},
 	{
 		"Id": "U_FR_HYP3",
@@ -14691,7 +14876,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Hyperdrive"
 	},
 	{
 		"Id": "U_FR_HYP4",
@@ -14770,7 +14956,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Hyperdrive"
 	},
 	{
 		"Id": "U_FR_SPE1",
@@ -14849,7 +15036,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_SPE2",
@@ -14928,7 +15116,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_SPE3",
@@ -15007,7 +15196,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_SPE4",
@@ -15086,7 +15276,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_FUEL1",
@@ -15165,7 +15356,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_FUEL2",
@@ -15244,7 +15436,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_FUEL3",
@@ -15323,7 +15516,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_FUEL4",
@@ -15402,7 +15596,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_COM1",
@@ -15481,7 +15676,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_COM2",
@@ -15560,7 +15756,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_COM3",
@@ -15639,7 +15836,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_COM4",
@@ -15718,7 +15916,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_TRA1",
@@ -15797,7 +15996,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_TRA2",
@@ -15876,7 +16076,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_TRA3",
@@ -15955,7 +16156,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_TRA4",
@@ -16034,7 +16236,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_EXP1",
@@ -16113,7 +16316,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_EXP2",
@@ -16192,7 +16396,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_EXP3",
@@ -16271,7 +16476,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_EXP4",
@@ -16350,7 +16556,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_MINE1",
@@ -16429,7 +16636,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_MINE2",
@@ -16508,7 +16716,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_MINE3",
@@ -16587,7 +16796,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_FR_MINE4",
@@ -16666,7 +16876,8 @@
 		"Category": "Freighter",
 		"Chargeable": false,
 		"ChargeAmount": 100,
-		"BuildFullyCharged": true
+		"BuildFullyCharged": true,
+		"BaseStat": "Freighter_Fleet_Boost"
 	},
 	{
 		"Id": "U_CRFIGHT1",

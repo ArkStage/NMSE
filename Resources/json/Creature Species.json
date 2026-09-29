@@ -1907,7 +1907,7 @@
 		"ForceType": "FlyingSnake",
 		"RealType": "None",
 		"MoveArea": "Air",
-		"EcoSystemCreature": true,
+		"EcoSystemCreature": false,
 		"CanBeFemale": true,
 		"OnlySpawnWhenIdIsForced": false,
 		"MinScale": 0.5,

@@ -199,48 +199,42 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "1"
+				"Stat": "Suit_Protection",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Radiation",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radiation",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Radiation",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Toxic",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "toxic",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Toxic",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Cold",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cold",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Cold",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Heat",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heat",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Heat",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Stamina Recovery",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recovery",
-				"Value": "1"
+				"Stat": "Suit_Stamina_Recovery",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Protection Pressure",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pressure",
-				"Value": "1"
+				"Stat": "Suit_Protection_Pressure",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -324,18 +318,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Energy",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "energy",
-				"Value": "1"
+				"Stat": "Suit_Energy",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Energy Regen",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "regen",
-				"Value": "1"
+				"Stat": "Suit_Energy_Regen",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Energy",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -418,36 +411,32 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Jetpack",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jetpack",
-				"Value": "1"
+				"Stat": "Suit_Jetpack",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Jetpack Tank",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "tank",
-				"Value": "2"
+				"Stat": "Suit_Jetpack_Tank",
+				"Bonus": 2.75,
+				"Level": 1
 			},
 			{
-				"Name": "Jetpack Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "1"
+				"Stat": "Suit_Jetpack_Drain",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Jetpack Ignition",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "ignition",
-				"Value": "1"
+				"Stat": "Suit_Jetpack_Ignition",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Jetpack Refill",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "refill",
-				"Value": "1"
+				"Stat": "Suit_Jetpack_Refill",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Jetpack",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -534,12 +523,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Jetpack Midair Refill",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "midairrefill",
-				"Value": "1"
+				"Stat": "Suit_Jetpack_MidairRefill",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Suit_Jetpack",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -626,12 +615,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Heat Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heatdrain",
-				"Value": "1"
+				"Stat": "Suit_Protection_HeatDrain",
+				"Bonus": 1.2,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -718,12 +707,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Cold Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "colddrain",
-				"Value": "1"
+				"Stat": "Suit_Protection_ColdDrain",
+				"Bonus": 1.2,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -810,12 +799,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Tox Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "toxdrain",
-				"Value": "1"
+				"Stat": "Suit_Protection_ToxDrain",
+				"Bonus": 1.2,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -902,12 +891,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Rad Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "raddrain",
-				"Value": "1"
+				"Stat": "Suit_Protection_RadDrain",
+				"Bonus": 1.2,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -994,12 +983,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Water Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "waterdrain",
-				"Value": "1"
+				"Stat": "Suit_Protection_WaterDrain",
+				"Bonus": 1.33,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1086,12 +1075,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Pressure",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pressure",
-				"Value": "1"
+				"Stat": "Suit_Protection_Pressure",
+				"Bonus": 1.8,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1175,12 +1164,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Refiner",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "refiner",
-				"Value": "1"
+				"Stat": "Suit_Refiner",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_Refiner",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1268,12 +1257,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Refiner",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "refiner",
-				"Value": "2"
+				"Stat": "Suit_Refiner",
+				"Bonus": 2.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Suit_Refiner",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1356,12 +1345,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Utility",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "utility",
-				"Value": "1"
+				"Stat": "Suit_Utility",
+				"Bonus": 1.0,
+				"Level": 0
 			}
 		],
+		"BaseStat": "Suit_Utility",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1444,12 +1433,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Armour Health",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "health",
-				"Value": "20"
+				"Stat": "Suit_Armour_Health",
+				"Bonus": 20.0,
+				"Level": 20
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1536,12 +1525,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Armour Health",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "health",
-				"Value": "20"
+				"Stat": "Suit_Armour_Health",
+				"Bonus": 20.0,
+				"Level": 20
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1629,12 +1618,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Denier",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "denier",
-				"Value": "1"
+				"Stat": "Suit_Denier",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Denier",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1719,12 +1708,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Utility",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "utility",
-				"Value": "1"
+				"Stat": "Suit_Utility",
+				"Bonus": 1.0,
+				"Level": 0
 			}
 		],
+		"BaseStat": "Suit_Utility",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1811,12 +1800,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Underwater Life Support",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "underwaterlifesupport",
-				"Value": "1"
+				"Stat": "Suit_UnderwaterLifeSupport",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_Underwater",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1895,12 +1884,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Auto Translator",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autotranslator",
-				"Value": "1"
+				"Stat": "Suit_AutoTranslator",
+				"Bonus": 1.0,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_AutoTranslator",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1987,12 +1976,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Auto Translator",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autotranslator",
-				"Value": "2"
+				"Stat": "Suit_AutoTranslator",
+				"Bonus": 2.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_AutoTranslator",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2079,12 +2068,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Auto Translator",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autotranslator",
-				"Value": "3"
+				"Stat": "Suit_AutoTranslator",
+				"Bonus": 3.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Suit_AutoTranslator",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2167,12 +2156,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Auto Translator",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autotranslator",
-				"Value": "1"
+				"Stat": "Suit_AutoTranslator",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_AutoTranslator",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2259,12 +2248,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "0"
+				"Stat": "Suit_Protection",
+				"Bonus": 0.2,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2351,12 +2340,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "0"
+				"Stat": "Suit_Protection",
+				"Bonus": 0.2,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2444,12 +2433,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Rocket Locker",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rocketlocker",
-				"Value": "1"
+				"Stat": "Suit_RocketLocker",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_RocketLocker",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2538,12 +2527,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Fish Platform",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "fishplatform",
-				"Value": "1"
+				"Stat": "Suit_FishPlatform",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_FishPlatform",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2626,12 +2615,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "0"
+				"Stat": "Suit_Protection",
+				"Bonus": 0.2,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2718,12 +2707,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Food Unit",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "foodunit",
-				"Value": "1"
+				"Stat": "Suit_FoodUnit",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Suit_FoodUnit",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2803,42 +2792,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "1"
+				"Stat": "Suit_Protection",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Radiation",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radiation",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Radiation",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Toxic",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "toxic",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Toxic",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Cold",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cold",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Cold",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Damage Reduce Heat",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heat",
-				"Value": "1"
+				"Stat": "Suit_DamageReduce_Heat",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Stamina Recovery",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recovery",
-				"Value": "1"
+				"Stat": "Suit_Stamina_Recovery",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -2927,12 +2911,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "protection",
-				"Value": "0"
+				"Stat": "Suit_Protection",
+				"Bonus": 0.2,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Suit_Protection",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -3016,42 +3000,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pulsedrive",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "100"
+				"Stat": "Ship_Boost",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpspeed",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Drift",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drift",
-				"Value": "1"
+				"Stat": "Ship_Drift",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -3141,12 +3120,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "0"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 0.66,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3233,12 +3212,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive Mini Jump Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpspeed",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpSpeed",
+				"Bonus": 1.3,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3325,24 +3304,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Drift",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drift",
-				"Value": "0"
+				"Stat": "Ship_Drift",
+				"Bonus": 0.6,
+				"Level": 3
 			},
 			{
-				"Name": "Ship Boost Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostmaneuverability",
-				"Value": "1"
+				"Stat": "Ship_BoostManeuverability",
+				"Bonus": 1.1,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.005,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3425,30 +3402,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "0"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 0.85,
+				"Level": 3
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "1"
+				"Stat": "Ship_Boost",
+				"Bonus": 1.15,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostmaneuverability",
-				"Value": "1"
+				"Stat": "Ship_BoostManeuverability",
+				"Bonus": 1.1,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.005,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3532,18 +3506,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Launcher",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "launcher",
-				"Value": "1"
+				"Stat": "Ship_Launcher",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Launcher Take Off Cost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "takeoffcost",
-				"Value": "50"
+				"Stat": "Ship_Launcher_TakeOffCost",
+				"Bonus": 50.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Launcher",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -3633,12 +3606,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Water Landing Jet",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "waterlandingjet",
-				"Value": "1"
+				"Stat": "Ship_WaterLandingJet",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Ship_WaterLandingJet",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3721,12 +3694,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Teleport",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "teleport",
-				"Value": "100"
+				"Stat": "Ship_Teleport",
+				"Bonus": 100.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Teleport",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -3810,24 +3783,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Hyperdrive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "hyperdrive",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "100"
+				"Stat": "Ship_Hyperdrive_JumpDistance",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jumps Per Cell",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpspercell",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive_JumpsPerCell",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -3917,12 +3888,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Hyperdrive Quick Warp",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "quickwarp",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive_QuickWarp",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Ship_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4009,12 +3980,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Cargo Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cargoshield",
-				"Value": "1"
+				"Stat": "Ship_CargoShield",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Ship_CargoShield",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4098,18 +4069,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Armour Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "shield",
-				"Value": "1"
+				"Stat": "Ship_Armour_Shield",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Armour Shield Strength",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "strength",
-				"Value": "0"
+				"Stat": "Ship_Armour_Shield_Strength",
+				"Bonus": 0.65,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Armour_Shield",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -4196,60 +4166,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "6500"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 6500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "5000"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 5000.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 2.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "10"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 10.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "15"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 15.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Rockets",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4332,60 +4294,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "7"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 7.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "7"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 7.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "320"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 320.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "1500"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 1500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "6"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Guns",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -4468,12 +4422,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Scan Economy Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "economyfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_EconomyFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Scan_EconomyFilter",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4556,12 +4510,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Scan Conflict Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "conflictfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_ConflictFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Scan_ConflictFilter",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4644,30 +4598,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Lasers",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "lasers",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Lasers",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Lasers Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Lasers_HeatTime",
+				"Bonus": 2.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Lasers Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "250"
+				"Stat": "Ship_Weapons_Lasers_Damage",
+				"Bonus": 250.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Shield Leech",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "shieldleech",
-				"Value": "0"
+				"Stat": "Ship_Weapons_ShieldLeech",
+				"Bonus": 0.2,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Lasers",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4750,60 +4701,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "10"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 10.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "14"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 14.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 1.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "280"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 280.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "500"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "100"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Shotgun",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -4886,60 +4829,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "9"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 9.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 0.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "205"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 205.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "2200"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 2200.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "6"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 6.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_MiniGun",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -5022,60 +4957,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "600"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 600.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "1250"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 1250.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Plasma",
 		"ConsumableRewardTexts": [],
 		"Category": "AllShipsExceptAlien",
 		"Category_LocStr": null,
@@ -5163,30 +5090,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Hyperdrive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "hyperdrive",
-				"Value": "1"
+				"Stat": "Freighter_Hyperdrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Freighter Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "100"
+				"Stat": "Freighter_Hyperdrive_JumpDistance",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Freighter Hyperdrive Jumps Per Cell",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpspercell",
-				"Value": "1"
+				"Stat": "Freighter_Hyperdrive_JumpsPerCell",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Freighter Fleet Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "1"
+				"Stat": "Freighter_Fleet_Boost",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Freighter_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5276,12 +5200,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "200"
+				"Stat": "Freighter_Hyperdrive_JumpDistance",
+				"Bonus": 200.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Freighter_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5368,12 +5292,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "300"
+				"Stat": "Freighter_Hyperdrive_JumpDistance",
+				"Bonus": 300.0,
+				"Level": 2
 			}
 		],
+		"BaseStat": "Freighter_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5460,12 +5384,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "800"
+				"Stat": "Freighter_Hyperdrive_JumpDistance",
+				"Bonus": 800.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Freighter_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5552,12 +5476,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Teleport",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "teleport",
-				"Value": "100"
+				"Stat": "Freighter_Teleport",
+				"Bonus": 100.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Freighter_Teleport",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5644,18 +5568,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Scan Conflict Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "conflictfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_ConflictFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Scan Economy Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "economyfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_EconomyFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Scan_ConflictFilter",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5743,12 +5666,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Mega Warp",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "megawarp",
-				"Value": "1"
+				"Stat": "Freighter_MegaWarp",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Freighter_MegaWarp",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5835,12 +5758,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Freighter Fleet Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "1"
+				"Stat": "Freighter_Fleet_Boost",
+				"Bonus": 1.1,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Freighter_Fleet_Boost",
 		"ConsumableRewardTexts": [],
 		"Category": "Freighter",
 		"Category_LocStr": null,
@@ -5924,36 +5847,32 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pulsedrive",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "0"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 0.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "100"
+				"Stat": "Ship_Boost",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpspeed",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6041,18 +5960,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Launcher",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "launcher",
-				"Value": "1"
+				"Stat": "Ship_Launcher",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Launcher Take Off Cost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "takeoffcost",
-				"Value": "50"
+				"Stat": "Ship_Launcher_TakeOffCost",
+				"Bonus": 50.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Launcher",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6140,24 +6058,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Hyperdrive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "hyperdrive",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "100"
+				"Stat": "Ship_Hyperdrive_JumpDistance",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jumps Per Cell",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpspercell",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive_JumpsPerCell",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6245,18 +6161,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Armour Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "shield",
-				"Value": "1"
+				"Stat": "Ship_Armour_Shield",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Armour Shield Strength",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "strength",
-				"Value": "0"
+				"Stat": "Ship_Armour_Shield_Strength",
+				"Bonus": 0.65,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Armour_Shield",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6343,60 +6258,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "10"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 10.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "10"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 10.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "340"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 340.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "1500"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 1500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "6"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Guns",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6479,30 +6386,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Lasers",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "lasers",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Lasers",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Lasers Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "3"
+				"Stat": "Ship_Weapons_Lasers_HeatTime",
+				"Bonus": 3.5,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Lasers Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "280"
+				"Stat": "Ship_Weapons_Lasers_Damage",
+				"Bonus": 280.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Shield Leech",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "shieldleech",
-				"Value": "0"
+				"Stat": "Ship_Weapons_ShieldLeech",
+				"Bonus": 0.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Lasers",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6585,12 +6489,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Cargo Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cargoshield",
-				"Value": "1"
+				"Stat": "Ship_CargoShield",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Ship_CargoShield",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6673,12 +6577,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Launcher Auto Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autocharge",
-				"Value": "1"
+				"Stat": "Ship_Launcher_AutoCharge",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Ship_Launcher",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6761,18 +6665,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Scan Economy Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "economyfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_EconomyFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Scan Conflict Filter",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "conflictfilter",
-				"Value": "1"
+				"Stat": "Ship_Scan_ConflictFilter",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Scan_EconomyFilter",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6855,12 +6758,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Water Landing Jet",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "waterlandingjet",
-				"Value": "1"
+				"Stat": "Ship_WaterLandingJet",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Ship_WaterLandingJet",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -6943,12 +6846,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Teleport",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "teleport",
-				"Value": "300"
+				"Stat": "Ship_Teleport",
+				"Bonus": 300.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Teleport",
 		"ConsumableRewardTexts": [],
 		"Category": "AlienShip",
 		"Category_LocStr": null,
@@ -7032,18 +6935,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Launcher",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "launcher",
-				"Value": "1"
+				"Stat": "Ship_Launcher",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Launcher Take Off Cost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "takeoffcost",
-				"Value": "25"
+				"Stat": "Ship_Launcher_TakeOffCost",
+				"Bonus": 25.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Launcher",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7130,48 +7032,42 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pulsedrive",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "120"
+				"Stat": "Ship_Boost",
+				"Bonus": 120.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.1,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpspeed",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostmaneuverability",
-				"Value": "1"
+				"Stat": "Ship_BoostManeuverability",
+				"Bonus": 1.25,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.005,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7262,24 +7158,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Hyperdrive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "hyperdrive",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "600"
+				"Stat": "Ship_Hyperdrive_JumpDistance",
+				"Bonus": 600.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jumps Per Cell",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpspercell",
-				"Value": "2"
+				"Stat": "Ship_Hyperdrive_JumpsPerCell",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7366,12 +7260,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Life Support",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "lifesupport",
-				"Value": "1"
+				"Stat": "Ship_LifeSupport",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_LifeSupport",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7457,30 +7351,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "0"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 0.2,
+				"Level": 4
 			},
 			{
-				"Name": "Ship Launcher Auto Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autocharge",
-				"Value": "1"
+				"Stat": "Ship_Launcher_AutoCharge",
+				"Bonus": 1.0,
+				"Level": 4
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "1"
+				"Stat": "Ship_Boost",
+				"Bonus": 1.15,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostmaneuverability",
-				"Value": "1"
+				"Stat": "Ship_BoostManeuverability",
+				"Bonus": 1.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7553,6 +7444,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Ship",
 		"Category_LocStr": null,
@@ -7640,24 +7532,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Launcher",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "launcher",
-				"Value": "1"
+				"Stat": "Ship_Launcher",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Launcher Take Off Cost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "takeoffcost",
-				"Value": "25"
+				"Stat": "Ship_Launcher_TakeOffCost",
+				"Bonus": 25.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Launcher Auto Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autocharge",
-				"Value": "1"
+				"Stat": "Ship_Launcher_AutoCharge",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Ship_Launcher",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -7748,42 +7638,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Pulse Drive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "pulsedrive",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Fuel Spending",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpfuelspending",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpFuelSpending",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "120"
+				"Stat": "Ship_Boost",
+				"Bonus": 120.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maneuverability",
-				"Value": "1"
+				"Stat": "Ship_Maneuverability",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Pulse Drive Mini Jump Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minijumpspeed",
-				"Value": "1"
+				"Stat": "Ship_PulseDrive_MiniJumpSpeed",
+				"Bonus": 1.1,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Boost Maneuverability",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostmaneuverability",
-				"Value": "1"
+				"Stat": "Ship_BoostManeuverability",
+				"Bonus": 1.5,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_PulseDrive",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -7870,24 +7755,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Hyperdrive",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "hyperdrive",
-				"Value": "1"
+				"Stat": "Ship_Hyperdrive",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jump Distance",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpdistance",
-				"Value": "600"
+				"Stat": "Ship_Hyperdrive_JumpDistance",
+				"Bonus": 600.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Hyperdrive Jumps Per Cell",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "jumpspercell",
-				"Value": "2"
+				"Stat": "Ship_Hyperdrive_JumpsPerCell",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Hyperdrive",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -7975,18 +7858,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Armour Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "shield",
-				"Value": "1"
+				"Stat": "Ship_Armour_Shield",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Armour Shield Strength",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "strength",
-				"Value": "0"
+				"Stat": "Ship_Armour_Shield_Strength",
+				"Bonus": 0.65,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Armour_Shield",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -8073,60 +7955,52 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Weapons Guns Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "11"
+				"Stat": "Ship_Weapons_Guns_Rate",
+				"Bonus": 11.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "0"
+				"Stat": "Ship_Weapons_Guns_Dispersion",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_BulletsPerShot",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "12"
+				"Stat": "Ship_Weapons_Guns_HeatTime",
+				"Bonus": 12.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "220"
+				"Stat": "Ship_Weapons_Guns_Damage",
+				"Bonus": 220.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "1500"
+				"Stat": "Ship_Weapons_Guns_Range",
+				"Bonus": 1500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Scale",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scale",
-				"Value": "6"
+				"Stat": "Ship_Weapons_Guns_Scale",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Cool Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooltime",
-				"Value": "1"
+				"Stat": "Ship_Weapons_Guns_CoolTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Ship Weapons Guns Damage Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Ship_Weapons_Guns_Damage_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_Weapons_Guns",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -8213,12 +8087,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Ship Life Support",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "lifesupport",
-				"Value": "1"
+				"Stat": "Ship_LifeSupport",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Ship_LifeSupport",
 		"ConsumableRewardTexts": [],
 		"Category": "RobotShip",
 		"Category_LocStr": null,
@@ -8297,30 +8171,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scan Binoculars",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "binoculars",
-				"Value": "0"
+				"Stat": "Weapon_Scan_Binoculars",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Discovery Creature",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "creature",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Discovery_Creature",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Discovery Flora",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "flora",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Discovery_Flora",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Secondary",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "secondary",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Secondary",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Scan_Binoculars",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8399,48 +8270,42 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scan",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scan",
-				"Value": "0"
+				"Stat": "Weapon_Scan",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Radius",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Terrain Resource",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "resource",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Terrain_Resource",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Scan Discovery Creature",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "creature",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Discovery_Creature",
+				"Bonus": 1.0,
+				"Level": 0
 			},
 			{
-				"Name": "Weapon Scan Discovery Flora",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "flora",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Discovery_Flora",
+				"Bonus": 1.0,
+				"Level": 0
 			},
 			{
-				"Name": "Weapon Scan Recharge Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "time",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Recharge_Time",
+				"Bonus": 1.0,
+				"Level": 0
 			},
 			{
-				"Name": "Weapon Scan Discovery Mineral",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "mineral",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Discovery_Mineral",
+				"Bonus": 1.0,
+				"Level": 0
 			}
 		],
+		"BaseStat": "Weapon_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8528,18 +8393,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scan Builder Reveal",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "builderreveal",
-				"Value": "1"
+				"Stat": "Weapon_Scan_BuilderReveal",
+				"Bonus": 1.0,
+				"Level": 4
 			},
 			{
-				"Name": "Weapon Scan Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Radius",
+				"Bonus": 1.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8628,18 +8492,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scan Builder Reveal",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "builderreveal",
-				"Value": "1"
+				"Stat": "Weapon_Scan_BuilderReveal",
+				"Bonus": 1.0,
+				"Level": 3
 			},
 			{
-				"Name": "Weapon Scan Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Radius",
+				"Bonus": 1.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8723,12 +8586,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Terrain Edit",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "terrainedit",
-				"Value": "0"
+				"Stat": "Weapon_TerrainEdit",
+				"Bonus": 0.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_TerrainEdit",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8811,12 +8674,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Front Shield",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "frontshield",
-				"Value": "1"
+				"Stat": "Weapon_FrontShield",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_FrontShield",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8903,12 +8766,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Stealth",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "stealth",
-				"Value": "1"
+				"Stat": "Weapon_Stealth",
+				"Bonus": 1.0,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Weapon_Stealth",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -8991,12 +8854,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scope",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scope",
-				"Value": "1"
+				"Stat": "Weapon_Scope",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Scope",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9076,42 +8939,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Mining Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "speed",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Mining_Speed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "8"
+				"Stat": "Weapon_Laser_HeatTime",
+				"Bonus": 8.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "20"
+				"Stat": "Weapon_Laser_Damage",
+				"Bonus": 20.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "0"
+				"Stat": "Weapon_Laser_ReloadTime",
+				"Bonus": 0.6,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Drain",
+				"Bonus": 1.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Mining Bonus",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "miningbonus",
-				"Value": "1"
+				"Stat": "Weapon_Laser_MiningBonus",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9202,18 +9060,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Strong Laser",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "stronglaser",
-				"Value": "1"
+				"Stat": "Weapon_Laser_StrongLaser",
+				"Bonus": 1.0,
+				"Level": 3
 			},
 			{
-				"Name": "Weapon Laser Mining Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "speed",
-				"Value": "0"
+				"Stat": "Weapon_Laser_Mining_Speed",
+				"Bonus": 0.85,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9300,12 +9157,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Mining Bonus",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "miningbonus",
-				"Value": "1"
+				"Stat": "Weapon_Laser_MiningBonus",
+				"Bonus": 1.5,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Weapon_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9392,12 +9249,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Fish",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "fish",
-				"Value": "1"
+				"Stat": "Weapon_Fish",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Fish",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9484,12 +9341,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Fish",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "fish",
-				"Value": "1"
+				"Stat": "Weapon_Fish",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Fish",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9577,12 +9434,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Gravity",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gravity",
-				"Value": "0"
+				"Stat": "Weapon_Gravity",
+				"Bonus": 0.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Weapon_Gravity",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9665,72 +9522,62 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "projectile",
-				"Value": "1"
+				"Stat": "Weapon_Projectile",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "180"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 180.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "300"
+				"Stat": "Weapon_Projectile_Range",
+				"Bonus": 300.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "7"
+				"Stat": "Weapon_Projectile_Rate",
+				"Bonus": 7.5,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Clip Size",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "clipsize",
-				"Value": "64"
+				"Stat": "Weapon_Projectile_ClipSize",
+				"Bonus": 64.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "200"
+				"Stat": "Weapon_Projectile_Recoil",
+				"Bonus": 200.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_ReloadTime",
+				"Bonus": 0.8,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_Dispersion",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cap",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcap",
-				"Value": "6"
+				"Stat": "Weapon_Projectile_BurstCap",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cooldown",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcooldown",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCooldown",
+				"Bonus": 0.66,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Maximum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maximumcharge",
-				"Value": "200"
+				"Stat": "Weapon_Projectile_MaximumCharge",
+				"Bonus": 200.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Projectile",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9813,24 +9660,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_Rate",
+				"Bonus": 1.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Clip Size",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "clipsize",
-				"Value": "8"
+				"Stat": "Weapon_Projectile_ClipSize",
+				"Bonus": 8.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Projectile",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -9918,42 +9763,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Grenade Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "500"
+				"Stat": "Weapon_Grenade_Damage",
+				"Bonus": 500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Grenade Bounce",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bounce",
-				"Value": "3"
+				"Stat": "Weapon_Grenade_Bounce",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Grenade Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Weapon_Grenade_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Fire Dot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "firedot",
-				"Value": "1"
+				"Stat": "Weapon_FireDOT",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Fire Dot Duration",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "duration",
-				"Value": "5"
+				"Stat": "Weapon_FireDOT_Duration",
+				"Bonus": 5.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Fire Dot Dps",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dps",
-				"Value": "50"
+				"Stat": "Weapon_FireDOT_DPS",
+				"Bonus": 50.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Grenade",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10039,18 +9879,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Grenade Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "1000"
+				"Stat": "Weapon_Grenade_Damage",
+				"Bonus": 1000.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Grenade Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Weapon_Grenade_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_MineGrenade",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10140,30 +9979,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Grenade Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "4"
+				"Stat": "Weapon_Grenade_Radius",
+				"Bonus": 4.0,
+				"Level": 3
 			},
 			{
-				"Name": "Weapon Stun",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "stun",
-				"Value": "1"
+				"Stat": "Weapon_Stun",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Stun Duration",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "duration",
-				"Value": "3"
+				"Stat": "Weapon_Stun_Duration",
+				"Bonus": 3.5,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Grenade Bounce",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bounce",
-				"Value": "2"
+				"Stat": "Weapon_Grenade_Bounce",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_StunGrenade",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10253,42 +10089,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "0"
+				"Stat": "Weapon_Laser_HeatTime",
+				"Bonus": 0.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "1500"
+				"Stat": "Weapon_Laser_Damage",
+				"Bonus": 1500.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "2"
+				"Stat": "Weapon_Laser_ReloadTime",
+				"Bonus": 2.5,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Charge Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "chargetime",
-				"Value": "3"
+				"Stat": "Weapon_Laser_ChargeTime",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "20"
+				"Stat": "Weapon_Laser_Recoil",
+				"Bonus": 20.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "2"
+				"Stat": "Weapon_Laser_Drain",
+				"Bonus": 2.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Rail",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10374,72 +10205,62 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "55"
+				"Stat": "Weapon_Projectile_Range",
+				"Bonus": 55.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Clip Size",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "clipsize",
-				"Value": "96"
+				"Stat": "Weapon_Projectile_ClipSize",
+				"Bonus": 96.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "8"
+				"Stat": "Weapon_Projectile_BulletsPerShot",
+				"Bonus": 8.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "150"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 150.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "10"
+				"Stat": "Weapon_Projectile_Dispersion",
+				"Bonus": 10.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "2"
+				"Stat": "Weapon_Projectile_Rate",
+				"Bonus": 2.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "1000"
+				"Stat": "Weapon_Projectile_Recoil",
+				"Bonus": 1000.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_ReloadTime",
+				"Bonus": 1.5,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cap",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcap",
-				"Value": "2"
+				"Stat": "Weapon_Projectile_BurstCap",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cooldown",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcooldown",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_BurstCooldown",
+				"Bonus": 1.28,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Maximum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maximumcharge",
-				"Value": "100"
+				"Stat": "Weapon_Projectile_MaximumCharge",
+				"Bonus": 100.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Shotgun",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10526,72 +10347,62 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile Clip Size",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "clipsize",
-				"Value": "80"
+				"Stat": "Weapon_Projectile_ClipSize",
+				"Bonus": 80.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "96"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 96.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "8"
+				"Stat": "Weapon_Projectile_Rate",
+				"Bonus": 8.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "6"
+				"Stat": "Weapon_Projectile_Dispersion",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_ReloadTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "300"
+				"Stat": "Weapon_Projectile_Range",
+				"Bonus": 300.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "2"
+				"Stat": "Weapon_Projectile_BulletsPerShot",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "80"
+				"Stat": "Weapon_Projectile_Recoil",
+				"Bonus": 80.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cap",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcap",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCap",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cooldown",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcooldown",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCooldown",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Maximum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maximumcharge",
-				"Value": "200"
+				"Stat": "Weapon_Projectile_MaximumCharge",
+				"Bonus": 200.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Burst",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10678,72 +10489,62 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile Clip Size",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "clipsize",
-				"Value": "800"
+				"Stat": "Weapon_Projectile_ClipSize",
+				"Bonus": 800.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "50"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 50.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "rate",
-				"Value": "16"
+				"Stat": "Weapon_Projectile_Rate",
+				"Bonus": 16.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "6"
+				"Stat": "Weapon_Projectile_Dispersion",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_ReloadTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "12"
+				"Stat": "Weapon_Projectile_Range",
+				"Bonus": 12.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Bullets Per Shot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "bulletspershot",
-				"Value": "2"
+				"Stat": "Weapon_Projectile_BulletsPerShot",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "200"
+				"Stat": "Weapon_Projectile_Recoil",
+				"Bonus": 200.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cap",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcap",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCap",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cooldown",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcooldown",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCooldown",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Maximum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maximumcharge",
-				"Value": "200"
+				"Stat": "Weapon_Projectile_MaximumCharge",
+				"Bonus": 200.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Flame",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10835,72 +10636,62 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Projectile Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "120"
+				"Stat": "Weapon_Projectile_Damage",
+				"Bonus": 120.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Range",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "range",
-				"Value": "800"
+				"Stat": "Weapon_Projectile_Range",
+				"Bonus": 800.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Recoil",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "recoil",
-				"Value": "1600"
+				"Stat": "Weapon_Projectile_Recoil",
+				"Bonus": 1600.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Dispersion",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dispersion",
-				"Value": "2"
+				"Stat": "Weapon_Projectile_Dispersion",
+				"Bonus": 2.5,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Minimum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "minimumcharge",
-				"Value": "1"
+				"Stat": "Weapon_Projectile_MinimumCharge",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Maximum Charge",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "maximumcharge",
-				"Value": "6"
+				"Stat": "Weapon_Projectile_MaximumCharge",
+				"Bonus": 6.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Charged Projectile Charge Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "chargetime",
-				"Value": "1"
+				"Stat": "Weapon_ChargedProjectile_ChargeTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Charged Projectile Cooldown Duration",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cooldownduration",
-				"Value": "0"
+				"Stat": "Weapon_ChargedProjectile_CooldownDuration",
+				"Bonus": 0.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Charged Projectile Extra Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "extraspeed",
-				"Value": "180"
+				"Stat": "Weapon_ChargedProjectile_ExtraSpeed",
+				"Bonus": 180.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Grenade Radius",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radius",
-				"Value": "2"
+				"Stat": "Weapon_Grenade_Radius",
+				"Bonus": 2.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Projectile Burst Cooldown",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "burstcooldown",
-				"Value": "0"
+				"Stat": "Weapon_Projectile_BurstCooldown",
+				"Bonus": 0.5,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Cannon",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -10990,12 +10781,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Stun Damage Multiplier",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "multiplier",
-				"Value": "1"
+				"Stat": "Weapon_Stun_Damage_Multiplier",
+				"Bonus": 1.2,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Weapon_Stun",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11073,6 +10864,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11150,6 +10942,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11235,6 +11028,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11312,6 +11106,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11397,6 +11192,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11482,6 +11278,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11563,6 +11360,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11648,6 +11446,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11729,6 +11528,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11810,6 +11610,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11895,6 +11696,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -11980,6 +11782,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12057,6 +11860,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12134,6 +11938,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12215,6 +12020,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12292,6 +12098,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12369,6 +12176,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12446,6 +12254,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12523,6 +12332,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12600,6 +12410,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12683,12 +12494,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Sun Laser",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "sunlaser",
-				"Value": "1"
+				"Stat": "Weapon_SunLaser",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Weapon_SunLaser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12772,42 +12583,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Mining Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "speed",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Mining_Speed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "8"
+				"Stat": "Weapon_Laser_HeatTime",
+				"Bonus": 8.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "40"
+				"Stat": "Weapon_Laser_Damage",
+				"Bonus": 40.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "0"
+				"Stat": "Weapon_Laser_ReloadTime",
+				"Bonus": 0.6,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Drain",
+				"Bonus": 1.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Mining Bonus",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "miningbonus",
-				"Value": "0"
+				"Stat": "Weapon_Laser_MiningBonus",
+				"Bonus": 0.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_SoulLaser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -12890,42 +12696,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Mining Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "speed",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Mining_Speed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "8"
+				"Stat": "Weapon_Laser_HeatTime",
+				"Bonus": 8.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "20"
+				"Stat": "Weapon_Laser_Damage",
+				"Bonus": 20.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "0"
+				"Stat": "Weapon_Laser_ReloadTime",
+				"Bonus": 0.6,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Drain",
+				"Bonus": 1.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Mining Bonus",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "miningbonus",
-				"Value": "1"
+				"Stat": "Weapon_Laser_MiningBonus",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -13009,48 +12810,42 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Laser Mining Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "speed",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Mining_Speed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heattime",
-				"Value": "12"
+				"Stat": "Weapon_Laser_HeatTime",
+				"Bonus": 12.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "damage",
-				"Value": "20"
+				"Stat": "Weapon_Laser_Damage",
+				"Bonus": 20.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Reload Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "reloadtime",
-				"Value": "0"
+				"Stat": "Weapon_Laser_ReloadTime",
+				"Bonus": 0.6,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Drain",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "drain",
-				"Value": "1"
+				"Stat": "Weapon_Laser_Drain",
+				"Bonus": 1.2,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Laser Mining Bonus",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "miningbonus",
-				"Value": "1"
+				"Stat": "Weapon_Laser_MiningBonus",
+				"Bonus": 1.1,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Stealth",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "stealth",
-				"Value": "1"
+				"Stat": "Weapon_Stealth",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Weapon",
 		"Category_LocStr": null,
@@ -13141,12 +12936,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Fuel Regen",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "fuelregen",
-				"Value": "4"
+				"Stat": "Vehicle_FuelRegen",
+				"Bonus": 4.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "AllVehicles",
 		"Category_LocStr": null,
@@ -13233,12 +13028,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Refiner",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "refiner",
-				"Value": "3"
+				"Stat": "Vehicle_Refiner",
+				"Bonus": 3.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Vehicle_Refiner",
 		"ConsumableRewardTexts": [],
 		"Category": "Colossus",
 		"Category_LocStr": null,
@@ -13326,36 +13121,32 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Engine",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "engine",
-				"Value": "1"
+				"Stat": "Vehicle_Engine",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Fuel Use",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginefueluse",
-				"Value": "0"
+				"Stat": "Vehicle_EngineFuelUse",
+				"Bonus": 0.5,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Top Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginetopspeed",
-				"Value": "1"
+				"Stat": "Vehicle_EngineTopSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "grip",
-				"Value": "1"
+				"Stat": "Vehicle_Grip",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Skid Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "skidgrip",
-				"Value": "1"
+				"Stat": "Vehicle_SkidGrip",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13442,12 +13233,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Scan",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scan",
-				"Value": "1"
+				"Stat": "Vehicle_Scan",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13534,24 +13325,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Boost",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boost",
-				"Value": "1"
+				"Stat": "Vehicle_Boost",
+				"Bonus": 1.0,
+				"Level": 4
 			},
 			{
-				"Name": "Vehicle Boost Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boostspeed",
-				"Value": "1"
+				"Stat": "Vehicle_BoostSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Boost Tanks",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boosttanks",
-				"Value": "1"
+				"Stat": "Vehicle_BoostTanks",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Boost",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13639,18 +13428,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserdamage",
-				"Value": "100"
+				"Stat": "Vehicle_LaserDamage",
+				"Bonus": 100.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserheattime",
-				"Value": "1"
+				"Stat": "Vehicle_LaserHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13733,18 +13521,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserdamage",
-				"Value": "50"
+				"Stat": "Vehicle_LaserDamage",
+				"Bonus": 50.0,
+				"Level": 3
 			},
 			{
-				"Name": "Vehicle Laser Strong Laser",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserstronglaser",
-				"Value": "1"
+				"Stat": "Vehicle_LaserStrongLaser",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13832,24 +13619,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Gun Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gundamage",
-				"Value": "420"
+				"Stat": "Vehicle_GunDamage",
+				"Bonus": 420.0,
+				"Level": 2
 			},
 			{
-				"Name": "Vehicle Gun Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunheattime",
-				"Value": "1"
+				"Stat": "Vehicle_GunHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunrate",
-				"Value": "0"
+				"Stat": "Vehicle_GunRate",
+				"Bonus": 0.35,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Gun",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -13937,12 +13722,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Terrain Edit",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "terrainedit",
-				"Value": "1"
+				"Stat": "Vehicle_TerrainEdit",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Vehicle_TerrainEdit",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -14029,12 +13814,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Auto Pilot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autopilot",
-				"Value": "1"
+				"Stat": "Vehicle_AutoPilot",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Vehicle_AutoPilot",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -14121,12 +13906,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Auto Pilot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "autopilot",
-				"Value": "1"
+				"Stat": "Vehicle_AutoPilot",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Vehicle_AutoPilot",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,
@@ -14200,6 +13985,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14276,6 +14062,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14349,6 +14136,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14422,6 +14210,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14498,6 +14287,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14575,6 +14365,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14652,6 +14443,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14729,6 +14521,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14810,6 +14603,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14887,6 +14681,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -14964,6 +14759,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15045,6 +14841,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15122,6 +14919,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15199,6 +14997,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15276,6 +15075,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15353,6 +15153,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15430,6 +15231,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15511,6 +15313,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15592,6 +15395,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15669,6 +15473,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15746,6 +15551,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15827,6 +15633,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15904,6 +15711,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -15985,6 +15793,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16062,6 +15871,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16143,6 +15953,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16224,6 +16035,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16305,6 +16117,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16390,6 +16203,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16471,6 +16285,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16544,6 +16359,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16617,6 +16433,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16690,6 +16507,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16763,6 +16581,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16836,6 +16655,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16909,6 +16729,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -16982,6 +16803,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17055,6 +16877,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17128,6 +16951,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17201,6 +17025,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17274,6 +17099,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17347,6 +17173,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17420,6 +17247,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17493,6 +17321,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17566,6 +17395,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17639,6 +17469,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17716,6 +17547,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17788,6 +17620,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17860,6 +17693,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -17932,6 +17766,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18004,6 +17839,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18076,6 +17912,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18149,6 +17986,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18226,6 +18064,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18303,6 +18142,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18380,6 +18220,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18457,6 +18298,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18538,6 +18380,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18615,6 +18458,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18692,6 +18536,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18773,6 +18618,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18850,6 +18696,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -18927,6 +18774,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19008,6 +18856,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19089,6 +18938,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19166,6 +19016,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19243,6 +19094,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19320,6 +19172,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19397,6 +19250,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19470,6 +19324,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19545,6 +19400,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19620,6 +19476,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19699,6 +19556,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19776,6 +19634,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19853,6 +19712,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -19930,6 +19790,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20007,6 +19868,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20084,6 +19946,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20161,6 +20024,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20238,6 +20102,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20315,6 +20180,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20392,6 +20258,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20469,6 +20336,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20546,6 +20414,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -20623,6 +20492,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,

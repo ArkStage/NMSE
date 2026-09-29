@@ -1032,12 +1032,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Summon",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "summon",
-				"Value": "1"
+				"Stat": "Suit_Vehicle_Summon",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Suit_Vehicle_Summon",
 		"ConsumableRewardTexts": [],
 		"Category": "Suit",
 		"Category_LocStr": null,
@@ -1121,36 +1121,32 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Engine",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "engine",
-				"Value": "1"
+				"Stat": "Vehicle_Engine",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Fuel Use",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginefueluse",
-				"Value": "1"
+				"Stat": "Vehicle_EngineFuelUse",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Top Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginetopspeed",
-				"Value": "1"
+				"Stat": "Vehicle_EngineTopSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "grip",
-				"Value": "1"
+				"Stat": "Vehicle_Grip",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Skid Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "skidgrip",
-				"Value": "1"
+				"Stat": "Vehicle_SkidGrip",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1237,18 +1233,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "grip",
-				"Value": "3"
+				"Stat": "Vehicle_Grip",
+				"Bonus": 3.0,
+				"Level": 3
 			},
 			{
-				"Name": "Vehicle Skid Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "skidgrip",
-				"Value": "0"
+				"Stat": "Vehicle_SkidGrip",
+				"Bonus": 0.66,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1335,18 +1330,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "grip",
-				"Value": "0"
+				"Stat": "Vehicle_Grip",
+				"Bonus": 0.5,
+				"Level": 3
 			},
 			{
-				"Name": "Vehicle Skid Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "skidgrip",
-				"Value": "2"
+				"Stat": "Vehicle_SkidGrip",
+				"Bonus": 2.1,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1433,18 +1427,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "grip",
-				"Value": "0"
+				"Stat": "Vehicle_Grip",
+				"Bonus": 0.5,
+				"Level": 3
 			},
 			{
-				"Name": "Vehicle Skid Grip",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "skidgrip",
-				"Value": "0"
+				"Stat": "Vehicle_SkidGrip",
+				"Bonus": 0.66,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1531,12 +1524,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Heat",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heat",
-				"Value": "3"
+				"Stat": "Suit_Protection_Heat",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection_Heat",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1623,12 +1616,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Cold",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cold",
-				"Value": "3"
+				"Stat": "Suit_Protection_Cold",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection_Cold",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1715,12 +1708,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Toxic",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "toxic",
-				"Value": "3"
+				"Stat": "Suit_Protection_Toxic",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection_Toxic",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1807,12 +1800,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Radiation",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radiation",
-				"Value": "3"
+				"Stat": "Suit_Protection_Radiation",
+				"Bonus": 3.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection_Radiation",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -1895,12 +1888,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Plough",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "plough",
-				"Value": "0"
+				"Stat": "Vehicle_Plough",
+				"Bonus": 0.01,
+				"Level": 3
 			}
 		],
+		"BaseStat": "Vehicle_Plough",
 		"ConsumableRewardTexts": [],
 		"Category": "Colossus",
 		"Category_LocStr": null,
@@ -1983,12 +1976,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Scan",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scan",
-				"Value": "1"
+				"Stat": "Vehicle_Scan",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -2075,12 +2068,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Weapon Scan Binoculars",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "binoculars",
-				"Value": "1"
+				"Stat": "Weapon_Scan_Binoculars",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Weapon_Scan_Binoculars",
 		"ConsumableRewardTexts": [],
 		"Category": "AllVehicles",
 		"Category_LocStr": null,
@@ -2168,18 +2161,17 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserdamage",
-				"Value": "80"
+				"Stat": "Vehicle_LaserDamage",
+				"Bonus": 80.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserheattime",
-				"Value": "1"
+				"Stat": "Vehicle_LaserHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -2263,24 +2255,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Gun Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gundamage",
-				"Value": "320"
+				"Stat": "Vehicle_GunDamage",
+				"Bonus": 320.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunheattime",
-				"Value": "1"
+				"Stat": "Vehicle_GunHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunrate",
-				"Value": "0"
+				"Stat": "Vehicle_GunRate",
+				"Bonus": 0.5,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Gun",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -2368,42 +2358,37 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Gun Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gundamage",
-				"Value": "3"
+				"Stat": "Vehicle_GunDamage",
+				"Bonus": 3.0,
+				"Level": 3
 			},
 			{
-				"Name": "Vehicle Gun Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunheattime",
-				"Value": "0"
+				"Stat": "Vehicle_GunHeatTime",
+				"Bonus": 0.75,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunrate",
-				"Value": "0"
+				"Stat": "Vehicle_GunRate",
+				"Bonus": 0.08,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Fire Dot",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "firedot",
-				"Value": "1"
+				"Stat": "Weapon_FireDOT",
+				"Bonus": 1.0,
+				"Level": 4
 			},
 			{
-				"Name": "Weapon Fire Dot Duration",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "duration",
-				"Value": "3"
+				"Stat": "Weapon_FireDOT_Duration",
+				"Bonus": 3.0,
+				"Level": 1
 			},
 			{
-				"Name": "Weapon Fire Dot Dps",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "dps",
-				"Value": "25"
+				"Stat": "Weapon_FireDOT_DPS",
+				"Bonus": 25.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Flame",
 		"ConsumableRewardTexts": [],
 		"Category": "Exocraft",
 		"Category_LocStr": null,
@@ -2487,36 +2472,32 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Engine",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "engine",
-				"Value": "1"
+				"Stat": "Vehicle_Engine",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Fuel Use",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginefueluse",
-				"Value": "1"
+				"Stat": "Vehicle_EngineFuelUse",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Engine Top Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "enginetopspeed",
-				"Value": "1"
+				"Stat": "Vehicle_EngineTopSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Sub Boost Speed",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "subboostspeed",
-				"Value": "1"
+				"Stat": "Vehicle_SubBoostSpeed",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Boost Tanks",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "boosttanks",
-				"Value": "4"
+				"Stat": "Vehicle_BoostTanks",
+				"Bonus": 4.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Engine",
 		"ConsumableRewardTexts": [],
 		"Category": "Submarine",
 		"Category_LocStr": null,
@@ -2606,24 +2587,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Gun Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gundamage",
-				"Value": "220"
+				"Stat": "Vehicle_GunDamage",
+				"Bonus": 220.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunheattime",
-				"Value": "1"
+				"Stat": "Vehicle_GunHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Gun Rate",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "gunrate",
-				"Value": "0"
+				"Stat": "Vehicle_GunRate",
+				"Bonus": 0.5,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Gun",
 		"ConsumableRewardTexts": [],
 		"Category": "Submarine",
 		"Category_LocStr": null,
@@ -2711,24 +2690,22 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Laser Damage",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserdamage",
-				"Value": "240"
+				"Stat": "Vehicle_LaserDamage",
+				"Bonus": 240.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Laser Heat Time",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserheattime",
-				"Value": "1"
+				"Stat": "Vehicle_LaserHeatTime",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Vehicle Laser Strong Laser",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "laserstronglaser",
-				"Value": "1"
+				"Stat": "Vehicle_LaserStrongLaser",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Laser",
 		"ConsumableRewardTexts": [],
 		"Category": "Submarine",
 		"Category_LocStr": null,
@@ -2816,12 +2793,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Terrain Edit",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "terrainedit",
-				"Value": "1"
+				"Stat": "Vehicle_TerrainEdit",
+				"Bonus": 1.0,
+				"Level": 4
 			}
 		],
+		"BaseStat": "Vehicle_TerrainEdit",
 		"ConsumableRewardTexts": [],
 		"Category": "Submarine",
 		"Category_LocStr": null,
@@ -2908,12 +2885,12 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Vehicle Scan",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "scan",
-				"Value": "1"
+				"Stat": "Vehicle_Scan",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Vehicle_Scan",
 		"ConsumableRewardTexts": [],
 		"Category": "Submarine",
 		"Category_LocStr": null,
@@ -3000,30 +2977,27 @@
 		],
 		"StatBonuses": [
 			{
-				"Name": "Protection Heat",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "heat",
-				"Value": "1"
+				"Stat": "Suit_Protection_Heat",
+				"Bonus": 1.0,
+				"Level": 4
 			},
 			{
-				"Name": "Protection Cold",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "cold",
-				"Value": "1"
+				"Stat": "Suit_Protection_Cold",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Protection Radiation",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "radiation",
-				"Value": "1"
+				"Stat": "Suit_Protection_Radiation",
+				"Bonus": 1.0,
+				"Level": 1
 			},
 			{
-				"Name": "Protection Toxic",
-				"LocaleKeyTemplate": "enabled",
-				"Image": "toxic",
-				"Value": "1"
+				"Stat": "Suit_Protection_Toxic",
+				"Bonus": 1.0,
+				"Level": 1
 			}
 		],
+		"BaseStat": "Suit_Protection_Heat",
 		"ConsumableRewardTexts": [],
 		"Category": "Mech",
 		"Category_LocStr": null,

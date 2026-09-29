@@ -15945,8 +15945,10 @@
 	{
 		"Id": "^SIXTEEN",
 		"Text": "sixteen",
-		"Text_LocStr": "EXP_SIXTEEN",
+		"Text_LocStr": "TRA_SIXTEEN",
 		"Groups": {
+			"^TRA_SIXTEEN": 0,
+			"^WAR_SIXTEEN": 1,
 			"^EXP_SIXTEEN": 2,
 			"^BUI_SIXTEEN": 8
 		}

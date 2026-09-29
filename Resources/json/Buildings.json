@@ -35850,6 +35850,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -35935,6 +35936,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -36020,6 +36022,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -36105,6 +36108,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
@@ -36190,6 +36194,7 @@
 			}
 		],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,

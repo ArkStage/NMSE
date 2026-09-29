@@ -28707,6 +28707,16 @@
       ]
     },
     {
+      "Group": "^TRA_SIXTEEN",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^TRA_SKILLS",
       "Races": [
         true,
@@ -38098,6 +38108,16 @@
     },
     {
       "Group": "^WAR_SITE",
+      "Races": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "Group": "^WAR_SIXTEEN",
       "Races": [
         false,
         true,

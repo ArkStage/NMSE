@@ -1199,6 +1199,7 @@
 		"BlueprintSource": 0,
 		"RequiredItems": [],
 		"StatBonuses": [],
+		"BaseStat": "Unspecified",
 		"ConsumableRewardTexts": [],
 		"Category": "Maintenance",
 		"Category_LocStr": null,
