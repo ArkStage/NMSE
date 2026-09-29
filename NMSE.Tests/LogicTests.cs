@@ -14336,6 +14336,69 @@ public class LogicTests
         Assert.Equal(0, result.StacksPlaced);
     }
 
+    [Fact]
+    public void BulkActions_SortAllChests_TiedItemsKeepTheirCurrentRelativeOrder()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // 20 procedural variants of the same item all tie on name/type/rarity. List.Sort is
+        // unstable above 16 elements, so this would shuffle them; a stable sort must not.
+        var items = Enumerable.Range(100, 20).Select(n => ($"^FUEL1#{n}", 5, 9999)).ToArray();
+        var chest1 = BuildChestInventory(5, 4, items);
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var ids = new List<string>();
+        var slots = chest1.GetArray("Slots")!;
+        for (int i = 0; i < slots.Length; i++) ids.Add(slots.GetObject(i)!.GetString("Id"));
+        Assert.Equal(items.Select(t => t.Item1).ToList(), ids);
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_KeepsItemsInChestWithNoSizeMetadata()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // Legacy chest: no ValidSlotIndices, Width or Height. Its items must be laid out on a
+        // grid inferred from their own positions rather than the chest being treated as empty.
+        var chest1 = BuildChestInventory(5, 2, ("^WATER1", 20, 9999), ("^FUEL1", 30, 9999));
+        chest1.Remove("ValidSlotIndices");
+        var ps = BuildPlayerStateWithChests(chest1);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        var slots = chest1.GetArray("Slots")!;
+        Assert.Equal(2, slots.Length);
+        Assert.Equal("^FUEL1", slots.GetObject(0)!.GetString("Id"));
+        Assert.Equal("^WATER1", slots.GetObject(1)!.GetString("Id"));
+    }
+
+    [Fact]
+    public void BulkActions_SortAllChests_RespectsUserSetMaxAmountAboveGameDefault()
+    {
+        var db = BuildTestDatabase();
+        if (db.Items.Count == 0) return;
+
+        // The inventory editor lets users set MaxAmount freely, so a stored value above the
+        // game's default cap (9999 for Substances) is intentional and must be preserved.
+        var chest1 = BuildChestInventory(5, 2, ("^FUEL1", 9000, 50000));
+        var chest2 = BuildChestInventory(5, 2, ("^FUEL1", 6000, 50000));
+        var ps = BuildPlayerStateWithChests(chest1, chest2);
+
+        var result = InventoryBulkActions.SortAllChests(ps, db, ChestSortMode.Name, paddingPerChest: 0);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.StacksPlaced);
+        var slot = chest1.GetArray("Slots")!.GetObject(0)!;
+        Assert.Equal(15000, slot.GetInt("Amount"));
+        Assert.Equal(50000, slot.GetInt("MaxAmount"));
+    }
+
     // --- InventoryBulkActions.MergeAllChestsInPlace ---------------------
 
     [Fact]

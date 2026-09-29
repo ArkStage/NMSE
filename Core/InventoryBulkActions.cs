@@ -1015,6 +1015,8 @@ internal static class InventoryBulkActions
                 ? rank
                 : int.MaxValue;
 
+            // Only a missing/zero MaxAmount falls back to the game's formula. A stored value
+            // above it is respected: the inventory editor lets users set MaxAmount freely.
             if (group.MaxAmount <= 0)
             {
                 int authoritativeMax = ResolveAuthoritativeMaxAmount(group.Template, gameItem);
@@ -1050,7 +1052,7 @@ internal static class InventoryBulkActions
         {
             var inv = playerState.GetObject(key);
             chestInventories.Add(inv);
-            chestPositions.Add(inv != null ? GetAllValidPositions(inv) : new List<(int, int)>());
+            chestPositions.Add(inv != null ? GetSortPositions(inv) : new List<(int, int)>());
         }
 
         var (groups, groupOrder, occupiedSlotCount) = CollectChestGroups(chestInventories, database);
@@ -1442,6 +1444,38 @@ internal static class InventoryBulkActions
         }
 
         return movedUnits;
+    }
+
+    /// <summary>
+    /// Slot positions available to a chest for sorting: its valid/grid positions, or, for
+    /// legacy chests with no size metadata at all, a grid inferred from its occupied slots so
+    /// their items aren't forced into other chests.
+    /// </summary>
+    private static List<(int x, int y)> GetSortPositions(JsonObject inventory)
+    {
+        var positions = GetAllValidPositions(inventory);
+        if (positions.Count > 0) return positions;
+
+        var slots = inventory.GetArray("Slots");
+        if (slots == null) return positions;
+
+        int maxX = -1, maxY = -1;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            JsonObject? slot;
+            try { slot = slots.GetObject(i); }
+            catch { continue; }
+            if (slot == null) continue;
+            if (TryGetAutoStackSlotPosition(slot, out int x, out int y))
+            {
+                if (x > maxX) maxX = x;
+                if (y > maxY) maxY = y;
+            }
+        }
+        for (int y = 0; y <= maxY; y++)
+            for (int x = 0; x <= maxX; x++)
+                positions.Add((x, y));
+        return positions;
     }
 
     private static List<(int x, int y)> GetAvailablePositions(JsonObject inventory, JsonArray slots)
