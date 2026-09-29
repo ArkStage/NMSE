@@ -32,8 +32,6 @@ public partial class CataloguePanel : UserControl
 
     private static readonly (string Name, int Index)[] RaceColumns = CatalogueLogic.RaceColumns;
 
-    private static readonly (string Prefix, int RaceIndex)[] RacePrefixes = CatalogueLogic.RacePrefixes;
-
     private const int TotalRaceCount = CatalogueLogic.TotalRaceCount;
 
     private static readonly Dictionary<string, string> LocationTypeLocKeys = new(StringComparer.OrdinalIgnoreCase)
@@ -1420,7 +1418,7 @@ public partial class CataloguePanel : UserControl
             DefaultExt = config.DiscoveryExt.TrimStart('.'),
             FileName = ExportConfig.BuildFileName(config.DiscoveryTemplate, config.DiscoveryExt, vars)
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1448,7 +1446,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1500,7 +1498,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1558,7 +1556,7 @@ public partial class CataloguePanel : UserControl
             DefaultExt = config.DiscoveryExt.TrimStart('.'),
             FileName = ExportConfig.BuildFileName(config.DiscoveryTemplate, config.DiscoveryExt, vars)
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1582,7 +1580,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1618,7 +1616,7 @@ public partial class CataloguePanel : UserControl
             DefaultExt = config.DiscoveryExt.TrimStart('.'),
             FileName = ExportConfig.BuildFileName(config.DiscoveryTemplate, config.DiscoveryExt, vars)
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1641,7 +1639,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1686,7 +1684,7 @@ public partial class CataloguePanel : UserControl
             DefaultExt = config.DiscoveryExt.TrimStart('.'),
             FileName = ExportConfig.BuildFileName(config.DiscoveryTemplate, config.DiscoveryExt, vars)
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1709,7 +1707,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -1948,7 +1946,7 @@ public partial class CataloguePanel : UserControl
         {
             Filter = ExportConfig.BuildOpenFilter(config.DiscoveryExt, "Discovery files")
         };
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {

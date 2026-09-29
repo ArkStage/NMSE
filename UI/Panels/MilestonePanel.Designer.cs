@@ -118,6 +118,7 @@ partial class MilestonePanel
         AddField(s1c1, "milestone.standing", "^BUI_STANDING");
         AddField(s1c1, "milestone.missions", "^BDONE_MISSIONS");
         AddField(s1c1, "milestone.autophage_met", "^BUI_MET");
+        AddField(s1c1, "milestone.radiant_shards", "^DRONE_SHARDS");
 
         // --- Column 1: Kills ---
         var s1c2 = MakeStdCol();
