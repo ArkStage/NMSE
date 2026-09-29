@@ -323,6 +323,13 @@ internal static partial class CatalogueCompletionLogic
             return new KnowledgePageStatus(page, null, null, "SKIP", "words/glyphs - not auto-maxed");
 
         int? last = GetLastSeen(playerState, page.Slot, page.PageIndex);
+        if (string.Equals(page.Id, "jr_devnotes", StringComparison.OrdinalIgnoreCase))
+        {
+            // The game records commentary unlocks in DEV_NOTES; SeenStories may be absent
+            // (for example when the commentary was unlocked outside the mission flow).
+            int count = DevNotesLogic.GetUnlockedCount(playerState);
+            last = count > 0 ? count : null;
+        }
         int? global = null;
         if (page.GlobalStat != null)
             global = globals.TryGetValue(page.GlobalStat, out var stat) ? GetGlobalInt(stat) : 0;
@@ -349,10 +356,17 @@ internal static partial class CatalogueCompletionLogic
                     return new KnowledgePageStatus(page, last, global, "MISSING", $"{detail} · need {page.TableMax}");
 
                 bool okLastSeen = StatAtLeast(last, page.TableMax, null);
-                bool okGlobal = global is null || StatAtLeast(global, page.TableMax, page.GlobalStat);
+                // DEV_NOTES stores the highest unlocked index, one less than the count.
+                int globalTarget = string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
+                    ? page.TableMax - 1
+                    : page.TableMax;
+                bool okGlobal = global is null || StatAtLeast(global, globalTarget, page.GlobalStat);
                 if (okLastSeen)
                 {
-                    detail = $"LastSeen {Display(last)}/{page.TableMax}";
+                    string label = string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
+                        ? "Unlocked"
+                        : "LastSeen";
+                    detail = $"{label} {Display(last)}/{page.TableMax}";
                     if (page.GlobalStat != null && !okGlobal)
                         detail += $" · Global {Display(global)} (can sync)";
                     return new KnowledgePageStatus(page, last, global, "OK", detail);
@@ -413,6 +427,11 @@ internal static partial class CatalogueCompletionLogic
                     changed = true;
                 }
             }
+            else if (string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase))
+            {
+                // Keeps the DEV_NOTES index in step with the SeenStories count.
+                changed |= DevNotesLogic.SetUnlockedCount(playerState, KnowledgeCatalogue.DevNotesTarget);
+            }
             else
             {
                 changed |= SetGlobalStatAtLeast(playerState, page.GlobalStat, page.TableMax);
@@ -443,7 +462,11 @@ internal static partial class CatalogueCompletionLogic
 
         bool changed = RemoveLastSeen(playerState, page.Slot, page.PageIndex);
         if (page.GlobalStat != null)
-            changed |= ClearGlobalStat(playerState, page.GlobalStat);
+        {
+            changed |= string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
+                ? DevNotesLogic.Clear(playerState)
+                : ClearGlobalStat(playerState, page.GlobalStat);
+        }
         if (page.Recipe == KnowledgeRecipe.Interaction && page.SiiIndex != null)
             changed |= ClearSiiEntry(playerState, page.SiiIndex.Value);
         return changed;
@@ -463,9 +486,17 @@ internal static partial class CatalogueCompletionLogic
         bool changed = UpsertLastSeen(playerState, page.Slot, page.PageIndex, value);
         if (page.GlobalStat != null)
         {
-            changed |= page.Recipe == KnowledgeRecipe.Bitmask
-                ? SetGlobalStatBits(playerState, page.GlobalStat, value)
-                : SetGlobalStatValue(playerState, page.GlobalStat, value);
+            if (string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase))
+            {
+                // Keeps the DEV_NOTES index in step with the SeenStories count.
+                changed |= DevNotesLogic.SetUnlockedCount(playerState, value);
+            }
+            else
+            {
+                changed |= page.Recipe == KnowledgeRecipe.Bitmask
+                    ? SetGlobalStatBits(playerState, page.GlobalStat, value)
+                    : SetGlobalStatValue(playerState, page.GlobalStat, value);
+            }
         }
         return changed;
     }
@@ -533,8 +564,7 @@ internal static partial class CatalogueCompletionLogic
 
         if (RemoveLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex)) changed++;
         if (ClearGlobalStat(playerState, "BASECOMP_LORE")) changed++;
-        if (RemoveLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex)) changed++;
-        if (ClearGlobalStat(playerState, "DEV_NOTES")) changed++;
+        if (DevNotesLogic.Clear(playerState)) changed++;
 
         foreach (var patch in pack.SiiPatches)
             if (ClearSiiEntry(playerState, patch.Index)) changed++;
@@ -566,16 +596,8 @@ internal static partial class CatalogueCompletionLogic
 
     private static bool ApplyDevNotes(JsonObject playerState)
     {
-        bool changed = UpsertLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex, KnowledgeCatalogue.DevNotesTarget);
-
-        var stat = EnsureGlobalStat(playerState, "DEV_NOTES");
-        int current = GetGlobalInt(stat);
-        if (current < 0 || current < KnowledgeCatalogue.DevNotesTarget)
-        {
-            SetGlobalInt(stat, KnowledgeCatalogue.DevNotesTarget);
-            changed = true;
-        }
-        return changed;
+        // Writes both the DEV_NOTES high-water index and the SeenStories count.
+        return DevNotesLogic.SetUnlockedCount(playerState, KnowledgeCatalogue.DevNotesTarget);
     }
 
     /// <summary>Builds the Story Completers group rows for the Collected Knowledge tab.</summary>
@@ -600,12 +622,12 @@ internal static partial class CatalogueCompletionLogic
             pack.BaseCompMax, baseCompLastSeen, baseCompComplete,
             $"LastSeen {Display(baseCompLastSeen)} · Global {Display(baseCompGlobal)} · target {pack.BaseCompMax}"));
 
-        int? devNotesLastSeen = GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex);
+        int devNotesCount = DevNotesLogic.GetUnlockedCount(playerState);
         int? devNotesGlobal = globals.TryGetValue("DEV_NOTES", out var devNotesStat) ? GetGlobalInt(devNotesStat) : null;
-        bool devNotesComplete = StatAtLeast(devNotesLastSeen, KnowledgeCatalogue.DevNotesTarget, null);
+        bool devNotesComplete = devNotesCount >= KnowledgeCatalogue.DevNotesTarget;
         results.Add(new KnowledgeCompleterStatus("DEV_NOTES", "Developer Commentary", KnowledgeCompleterKind.DevNotes,
-            KnowledgeCatalogue.DevNotesTarget, devNotesLastSeen, devNotesComplete,
-            $"LastSeen {Display(devNotesLastSeen)} · Global {Display(devNotesGlobal)} · target {KnowledgeCatalogue.DevNotesTarget}"));
+            KnowledgeCatalogue.DevNotesTarget, devNotesCount, devNotesComplete,
+            $"Unlocked {devNotesCount}/{KnowledgeCatalogue.DevNotesTarget} · Global {Display(devNotesGlobal)}"));
 
         foreach (var patch in pack.SiiPatches)
         {
@@ -663,9 +685,7 @@ internal static partial class CatalogueCompletionLogic
             KnowledgeCompleterKind.BaseComputer =>
                 RemoveLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex)
                 | ClearGlobalStat(playerState, "BASECOMP_LORE"),
-            KnowledgeCompleterKind.DevNotes =>
-                RemoveLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex)
-                | ClearGlobalStat(playerState, "DEV_NOTES"),
+            KnowledgeCompleterKind.DevNotes => DevNotesLogic.Clear(playerState),
             KnowledgeCompleterKind.SiiPatch => status.Patch != null && ClearSiiEntry(playerState, status.Patch.Index),
             KnowledgeCompleterKind.Flag => SetFlag(playerState, status.Id, false),
             KnowledgeCompleterKind.Mission => ClearMissionProgress(playerState, status.Id),
@@ -704,13 +724,9 @@ internal static partial class CatalogueCompletionLogic
                     | SetGlobalStatValue(playerState, "BASECOMP_LORE", value);
 
             case KnowledgeCompleterKind.DevNotes:
-                if (value <= 0)
-                {
-                    return RemoveLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex)
-                        | ClearGlobalStat(playerState, "DEV_NOTES");
-                }
-                return UpsertLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex, value)
-                    | SetGlobalStatValue(playerState, "DEV_NOTES", value);
+                return value <= 0
+                    ? DevNotesLogic.Clear(playerState)
+                    : DevNotesLogic.SetUnlockedCount(playerState, value);
 
             case KnowledgeCompleterKind.Mission:
                 return value <= 0

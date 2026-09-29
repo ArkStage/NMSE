@@ -1,6 +1,7 @@
 using NMSE.Core;
 using NMSE.Data;
 using NMSE.UI.Controls;
+using NMSE.UI.Dialogs;
 
 namespace NMSE.UI.Panels;
 
@@ -22,6 +23,25 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
         Grid.Columns.Add(CreateTextColumn("Target", UiStrings.Get("discovery.col_target"), 8));
         Grid.Columns.Add(CreateTextColumn("Status", UiStrings.Get("discovery.col_status"), 14));
         Grid.Columns.Add(CreateTextColumn("Details", UiStrings.Get("discovery.col_details"), 34));
+        Grid.CellDoubleClick += OnGridCellDoubleClick;
+    }
+
+    /// <summary>Opens the developer commentary editor when its row is double-clicked.</summary>
+    private void OnGridCellDoubleClick(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.RowIndex >= Grid.Rows.Count) return;
+        if (Grid.Rows[e.RowIndex].Tag is not KnowledgeRow info) return;
+        if (info.Page == null
+            || !string.Equals(info.Page.Id, "jr_devnotes", StringComparison.OrdinalIgnoreCase)) return;
+        if (PlayerState == null) return;
+
+        var localisation = (FindForm() as MainFormResources)?.CurrentLocalisation;
+        using var dialog = new DevNotesEditorDialog(PlayerState, localisation);
+        dialog.ShowDialog(this);
+        if (!dialog.Modified) return;
+
+        RaiseDataModified();
+        Reload();
     }
 
     /// <inheritdoc/>
@@ -68,7 +88,7 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
                 DisplayValue(status.LastSeen),
                 status.Page.TableMax > 0 ? status.Page.TableMax : "-",
                 skipped ? UiStrings.Get("discovery.status_skip") : LocalisedStatus(status.Status),
-                skipped ? "" : status.Detail);
+                skipped ? "" : FormatDetail(status));
             row.Tag = new KnowledgeRow(status.Page, null);
             Grid.Rows.Add(row);
 
@@ -80,6 +100,10 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
 
         foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters))
         {
+            // The Developer Commentary page row covers this completer; it is kept in the
+            // logic (for Complete All / Clear All parity) but not shown twice.
+            if (status.Kind == KnowledgeCompleterKind.DevNotes) continue;
+
             _completerTotal++;
             if (status.Complete) _completerComplete++;
 
@@ -100,6 +124,12 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
 
     private static string DisplayValue(int? value) =>
         value is int v ? v.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-";
+
+    /// <summary>Formats a page's detail text, hinting at the commentary editor.</summary>
+    private static string FormatDetail(KnowledgePageStatus status) =>
+        string.Equals(status.Page.Id, "jr_devnotes", StringComparison.OrdinalIgnoreCase)
+            ? status.Detail + " · " + UiStrings.Get("devnotes.row_hint")
+            : status.Detail;
 
     protected override (int Have, int Total) GetCompletion() =>
         (_pageComplete + _completerComplete, _pageTotal + _completerTotal);
