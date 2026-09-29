@@ -296,7 +296,7 @@ internal sealed partial class DatabaseSearchPanel : UserControl
         AddDetailRow("Symbol", item.Symbol);
         AddDetailRow("Icon", item.Icon);
 
-        _descriptionBox.Text = item.Description;
+        _descriptionBox.Text = ControlTokens.Resolve(item.Description);
     }
 
     private void AddDetailRow(string field, string? value)
