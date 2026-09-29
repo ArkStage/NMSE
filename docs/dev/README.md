@@ -181,5 +181,9 @@ port are under review; there is no current native cross-platform plan.
 | 18 | Backups | Every save writes a zip backup first (configured folder, else EXE-relative, else TEMP); restore uses `BackupPickerDialog` for all-or-single restore |
 | 19 | Self-update | `UpdateService` queries GitHub Releases, parses version/assets and offers in-app self-update with cloud-sync advisories |
 
+### Reversed game code
+
+Some Core logic reimplements algorithms reversed from the game. These areas are deliberately not documented here: they are game-derived reference code, provided for save interoperability only, and are not covered by the project's licence. Do not add algorithm documentation for them.
+
 
 [githubOwner]: https://github.com/vectorcmdr

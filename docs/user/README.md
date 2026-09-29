@@ -108,7 +108,7 @@ Save files differ between platforms. NMSE auto-detects the layout when you open 
 | Platform | Files | Notes |
 |----------|-------|-------|
 | Steam / GOG | `save.hg`, `save2.hg`, ... plus `mf_*.hg` meta files | Steam uses `st_<steamid>` folders, GOG uses `DefaultUser` |
-| Xbox Game Pass | `containers.index` plus GUID-named save blobs | Usually under `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\wgs\<id>\` |
+| Xbox Game Pass | `xgs` slot folders (`Slot1Auto\data`, `Slot1Manual\meta`, ...) or legacy `containers.index` plus GUID-named save blobs | Usually under `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\` (`xgs\<id>\` or `wgs\<id>\`) |
 | PlayStation 4 | `memory.dat`, `savedataNN.hg` (HTOS/homebrew), or SaveWizard `NOMANSKY` `.hg` | `memory.dat` holds up to 5 slots, each with an auto and a manual save |
 | Nintendo Switch | `savedataNN.hg` data files with matching `manifestNN.hg` files | Game slots start at `savedata02.hg`; `savedata00.hg` is settings |
 
@@ -246,8 +246,10 @@ The **Outfits** row on the General tab manages your saved player outfits:
 
 The **Advanced Save Utilities** section works on the save directory rather than just the loaded save:
 
-- <kbd>Copy Slot</kbd>, <kbd>Move Slot</kbd>, <kbd>Swap Slots</kbd> and <kbd>Delete Slot</kbd> act on the source and destination slots you pick (up to 15 slots are supported)
+- <kbd>Copy Slot</kbd>, <kbd>Move Slot</kbd>, <kbd>Swap Slots</kbd> and <kbd>Delete Slot</kbd> act on the source and destination slots you pick (up to 15 slots are supported). The source list only shows slots that contain a save, and the buttons are disabled with a note when the save format does not support slot operations
 - <kbd>Transfer to Platform...</kbd> copies the current save into another platform's format (Steam, GOG, Xbox Game Pass, PS4 or Switch). Pick the destination platform, then the destination folder and slot
+
+Slot operations work for Steam, GOG, Switch, PS4 streaming saves and Xbox Game Pass saves. PS4 saves in the monolithic `memory.dat` format (SaveWizard/Apollo) cannot use slot copy, move, swap or delete.
 
 After an operation completes, the save directory is reloaded so the UI reflects the new slot layout.
 
@@ -1230,11 +1232,16 @@ NMSE auto-detects save locations for Steam, GOG, and Xbox Game Pass. If auto-det
 
 - **Steam:** `%APPDATA%\HelloGames\NMS\st_<steamid>\`
 - **GOG:** `%APPDATA%\HelloGames\NMS\DefaultUser\`
-- **Xbox Game Pass:** `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\wgs\<id>\` (the folder containing `containers.index`)
+- **Xbox Game Pass:** `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\xgs\<id>\` (the folder containing the `Slot1Auto`, `Slot1Manual` folders) or the legacy `...\SystemAppData\wgs\<id>\` folder containing `containers.index`
 
 ### How do I load an Xbox Game Pass save?
 
-Open the folder that contains `containers.index` with <kbd>File > Open Save Directory</kbd>. NMSE reads the index and lists the save slots stored in the GUID-named blobs next to it.
+Open the save container folder with <kbd>File > Open Save Directory</kbd>:
+
+- **xgs (current format):** open `...\SystemAppData\xgs\<id>\` - the folder that holds `AccountData`, `Slot1Auto`, `Slot1Manual` and so on. NMSE lists those folders as the available slots
+- **wgs (legacy format):** open `...\SystemAppData\wgs\<id>\` - the folder that contains `containers.index`. NMSE reads the index and lists the save slots stored in the GUID-named blobs next to it
+
+Both formats are read and written in place, so the Xbox cloud sync container identity is preserved. When you edit an `xgs` save, NMSE also updates the matching `wgs` copy if one exists. Close No Man's Sky before loading or saving, so the game is not writing to the same container.
 
 ### Can I edit PlayStation or Switch saves?
 

@@ -55,6 +55,7 @@ It boasts the most complete set of editable features among editors and supports 
 - Companion editing
 - Custom creature builder
 - Pet battle editing
+- Pet battle stat seed search (stamped with `0xC0D3`)
 
 </td>
 <td width="50%" valign="top">
@@ -79,11 +80,12 @@ It boasts the most complete set of editable features among editors and supports 
 - Import/export practically everything (cross-editor compatible)
 - Database Search panel (lookup without a loaded save)
 - Backup picker and restore
-- Built-in update checker
+- Procedural tech stat/seed searcher
 - ByteBeat music library editor
 - Recipe browser with full crafting trees
 - Raw JSON tree viewer for advanced editing
 - Export/import editor configuration profiles
+- Built-in update checker
 - Light/Dark mode
 
 </td>
@@ -174,6 +176,8 @@ NMSE is a Windows app that also runs on Linux/macOS via Wine compatibility layer
 ## 📄 License
 
 NMSE is licensed under the **GNU Affero General Public License** - see the [LICENSE][license] file for details.
+
+**Reversed game code:** Parts of NMSE are reverse engineered from No Man's Sky and reimplemented for save interoperability only. Those parts are game-derived, are not covered by the project's AGPL licence, and are not intended for wholesale reuse or redistribution in other tools.
 
 ---
 

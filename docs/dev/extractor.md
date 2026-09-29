@@ -233,9 +233,8 @@ class consumes.
   read-only fallback to the legacy `Localisation-EN.json.tbc` for older resource sets.
   `ClearLocalisationCache` resets it.
 - `Translate` resolves a localisation key, retries without a redundant `_NAME` segment,
-  applies `MissingLocalisationOverrides`, converts `FE_*` control tokens to readable
-  labels (`FE_ALT1` to `[E]`, `FE_SELECT` to `[LMB]`), strips markup tags and title-cases
-  `_NAME` values.
+  applies `MissingLocalisationOverrides`, strips markup tags (leaving control tokens such as
+  `FE_ALT1` in place for the app to resolve at display time) and title-cases `_NAME` values.
 - Helpers: `GetPropertyValue`, `GetNestedEnum`, `ParseValue`, `ParseColour`,
   `NormalizeGameIconPath`, `TitleCaseName`, `FormatStatTypeName`,
   `LooksLikeLocalisationKey` and `UnresolvedLocalisationKeyCount`.
@@ -534,7 +533,9 @@ Corvette, Curiosities, Exocraft, Fish, Others, Products, Raw Materials, Starship
 Technology, Technology Module, Trade, Upgrades and none). `NormalizeExtracted` moves the
 extracted texture tree to lowercase `textures/` so paths match the game references.
 `ExtractIcons` looks up each icon in `banks/extracted/` and invokes `magick.exe` (15 second
-timeout) to write `{sanitisedId}.png` files into `Resources/images/`. `FindMagickExe`
+timeout) to write `{sanitisedId}.png` files into `Resources/images/`. Icons are emitted as
+128 px thumbnails (`-thumbnail 128x128>`), matching the editor's icon cache size, which keeps
+the asset set small and the runtime preload fast. `FindMagickExe`
 locates the portable ImageMagick under `tools/imagemagick/` (or directly in `tools/`), and
 `SanitizeFilename` replaces characters that are invalid in file names.
 

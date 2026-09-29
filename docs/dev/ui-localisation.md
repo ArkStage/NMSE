@@ -274,7 +274,7 @@ The Language menu follows `LocalisationService.SupportedLanguages`, in this orde
 
 ### Current Key Count
 
-All 16 UI language files contain **2241 keys** each with identical key sets
+All 16 UI language files contain the full set of keys, each with identical key sets
 (0 missing keys). The count was verified by parsing every `Resources/ui/lang/*.json`
 file as a JSON object.
 
