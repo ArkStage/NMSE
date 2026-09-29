@@ -89,10 +89,19 @@ public partial class MainFormResources : Form
     private string? _currentFilePath;
     private bool _hasUnsavedChanges;
 
+    // External file change detection (another program, cloud sync or the game writes
+    // to the loaded save/meta/account files while the editor is open).
+    private readonly List<FileSystemWatcher> _externalWatchers = new();
+    private System.Windows.Forms.Timer? _externalDebounceTimer;
+    private readonly HashSet<string> _externalWatchedFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTime> _externalFileTimes = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _externalIgnoreUntilUtc = DateTime.MinValue;
+    private bool _externalDiverged;
+
     /// <summary>The detected platform of the currently loaded save directory.</summary>
     private SaveFileManager.Platform _detectedPlatform = SaveFileManager.Platform.Unknown;
-    /// <summary>For Xbox saves: path to the containers.index file.</summary>
-    private string? _xboxContainersIndexPath;
+    /// <summary>For Xbox saves: path to the save container directory (xgs container or containers.index folder).</summary>
+    private string? _xboxSavePath;
     /// <summary>For PS4 memory.dat saves: path to memory.dat and which slot indices map to which slot.</summary>
     private string? _ps4MemoryDatPath;
     /// <summary>For Xbox/PS4 memory.dat: maps combo index to slot identifier or slot index.</summary>
@@ -116,6 +125,9 @@ public partial class MainFormResources : Form
     /// (restored when the lock is lifted).
     /// </summary>
     private readonly List<(Control Panel, NoSaveOverlay Overlay, Dictionary<Control, bool> EnabledStates)> _lockedTabs = new();
+
+    /// <summary>Current editor lock state, so repeated lock/unlock requests are no-ops.</summary>
+    private bool _editorLocked;
 
     /// <summary>Background icon preload task started during construction.</summary>
     private Task? _iconPreloadTask;
@@ -253,9 +265,9 @@ public partial class MainFormResources : Form
         _splashForm?.SetProgress(96, "Detecting save slots...");
         PopulateSaveSlots();
 
-        // Reveal the fully-rendered form once icon preloading finishes.
-        // Opacity was set to 0 in LoadDatabase so the user never sees
-        // the progressive one-by-one control rendering.
+        // Reveal the fully-rendered form once icon preloading finishes so the
+        // user never sees icons appear one by one. The preload runs against
+        // 128 px assets and takes about 1.5 s on a typical machine.
         Shown += async (_, _) =>
         {
             if (_iconPreloadTask != null)
@@ -549,6 +561,8 @@ public partial class MainFormResources : Form
     private void UpdateEditorLockState()
     {
         bool locked = _currentSaveData == null;
+        if (locked == _editorLocked) return;
+        _editorLocked = locked;
         foreach (var (panel, overlay, states) in _lockedTabs)
         {
             overlay.Visible = locked;
@@ -662,6 +676,9 @@ public partial class MainFormResources : Form
         if (_currentSaveData == null)
             return;
 
+        // Flush pending panel edits into the JSON before the panels are reloaded.
+        SyncAllPanelData();
+
         // Refresh loaded destination panels so transferred items appear immediately.
         if (_loadedTabIndices.Contains(3)) // Starships
             _shipPanel.LoadData(_currentSaveData);
@@ -677,6 +694,9 @@ public partial class MainFormResources : Form
     {
         if (_currentSaveData == null)
             return;
+
+        // Flush pending panel edits into the JSON before the panels are reloaded.
+        SyncAllPanelData();
 
         // Refresh loaded destination panels so transferred items appear immediately.
         if (_loadedTabIndices.Contains(4)) // Fleet (Freighter is inside)
@@ -854,8 +874,18 @@ public partial class MainFormResources : Form
 
         if (config.MainFrameWidth > 0 && config.MainFrameHeight > 0)
         {
-            Location = new Point(config.MainFrameX, config.MainFrameY);
-            Size = new Size(config.MainFrameWidth, config.MainFrameHeight);
+            // Restore the saved bounds, but only when they are still on a connected screen.
+            // StartPosition must be Manual or WinForms recomputes (and discards) the location
+            // when the form is first shown.
+            var bounds = new Rectangle(config.MainFrameX, config.MainFrameY,
+                config.MainFrameWidth, config.MainFrameHeight);
+            bool onScreen = Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(bounds));
+            if (onScreen)
+            {
+                StartPosition = FormStartPosition.Manual;
+                Location = bounds.Location;
+                Size = bounds.Size;
+            }
         }
 
         // Detect the OS default save directory
@@ -989,6 +1019,7 @@ public partial class MainFormResources : Form
             _splashForm?.SetProgress(55, "Loading localisation...");
             string langDir = Path.Combine(jsonPath, "lang");
             _localisationService.SetLangDirectory(langDir);
+            ProcTechLogic.SetLanguageDirectory(langDir);
 
             // Initialize UI string table service with ui/lang/ directory
             string uiLangDir = Path.Combine(basePath, "Resources", "ui", "lang");
@@ -1061,6 +1092,9 @@ public partial class MainFormResources : Form
             string exportConfigPath = Path.Combine(basePath, "export_config.json");
             ExportConfig.LoadFromFile(exportConfigPath);
             _exportConfigPanel.ConfigFilePath = exportConfigPath;
+            // Populate the Export Settings fields now so they are never blank,
+            // including when no save is open (the deferred tab loader needs a save).
+            _exportConfigPanel.LoadConfig();
 
             // Load JSON name mapper for obfuscated NMS save file keys (JSON only)
             var mapperJsonPath = Path.Combine(dbPath, "mapping.json");
@@ -1099,7 +1133,7 @@ public partial class MainFormResources : Form
     {
         _saveSlotCombo.Items.Clear();
         _saveFileCombo.Items.Clear();
-        _xboxContainersIndexPath = null;
+        _xboxSavePath = null;
         _ps4MemoryDatPath = null;
         _ps4NomanSkyPath = null;
         _platformSlotIdentifiers = null;
@@ -1115,16 +1149,15 @@ public partial class MainFormResources : Form
         // show/hide MXML controls (MXML is only relevant for PC platforms).
         _accountPanel.SetPlatform(_detectedPlatform);
 
-        // -- Xbox Game Pass: containers.index --
+        // -- Xbox Game Pass: xgs (XGameSaveFiles) or legacy wgs (containers.index) --
         if (_detectedPlatform == SaveFileManager.Platform.XboxGamePass)
         {
-            string containersPath = Path.Combine(dir, "containers.index");
-            if (File.Exists(containersPath))
+            if (SaveFileManager.DetectXboxSaveFormat(dir) != SaveFileManager.XboxSaveFormat.None)
             {
-                _xboxContainersIndexPath = containersPath;
+                _xboxSavePath = dir;
                 try
                 {
-                    var xboxSlots = ContainersIndexManager.ParseContainersIndex(containersPath);
+                    var xboxSlots = SaveFileManager.EnumerateXboxSlots(dir);
                     _platformSlotIdentifiers = new List<string>();
                     _saveSlotFiles = new List<List<string>>();
                     _xboxFileIdentifiers = new List<List<string>>();
@@ -1578,7 +1611,7 @@ public partial class MainFormResources : Form
         // Re-detect difficulty and expedition from the current file (cheap fast scan).
         // For Xbox the tracked path is containers.index, so scan the slot's data blob instead.
         string? scanPath = _currentFilePath;
-        if (_xboxContainersIndexPath != null && _xboxFileIdentifiers != null)
+        if (_xboxSavePath != null && _xboxFileIdentifiers != null)
         {
             int fileIdx = _saveFileCombo.SelectedIndex;
             if (slotIdx < _saveSlotFiles.Count && fileIdx >= 0 && fileIdx < _saveSlotFiles[slotIdx].Count)
@@ -1670,6 +1703,11 @@ public partial class MainFormResources : Form
             _progressBar.Value = 80;
             _loadedTabIndices.Clear();
 
+            // Lift the editor lock before loading the active tab so its panels set
+            // their enabled states last (restoring the startup snapshot here would
+            // re-disable controls the panels have just enabled).
+            UpdateEditorLockState();
+
             int activeTab = _tabControl.SelectedIndex;
             var activeContent = GetTabContent(activeTab >= 0 ? _tabControl.TabPages[activeTab] : null);
 
@@ -1719,7 +1757,9 @@ public partial class MainFormResources : Form
             EnableMenuItems();
 
             _statusLabel.Text = UiStrings.Format("status.loaded_save", Path.GetFileName(filePath), loadTimer.ElapsedMilliseconds.ToString("N0", CultureInfo.CurrentCulture));
+            _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
             _hasUnsavedChanges = false;
+            SetupExternalWatcher(filePath);
         }
         catch (Exception ex)
         {
@@ -1728,6 +1768,210 @@ public partial class MainFormResources : Form
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
             _statusLabel.Text = UiStrings.Get("status.failed_load_save");
             UpdateEditorLockState();
+        }
+    }
+
+    /// <summary>
+    /// Starts watching the loaded save file, its meta file and the account data file for
+    /// changes made outside the editor. Xbox containers are skipped because they are not
+    /// plain files. Creates one watcher per distinct directory (the macOS account MXML
+    /// lives in a sibling SETTINGS folder).
+    /// </summary>
+    /// <param name="saveFilePath">The loaded save file path.</param>
+    private void SetupExternalWatcher(string? saveFilePath)
+    {
+        DisposeExternalWatcher();
+        _externalDiverged = false;
+        if (string.IsNullOrEmpty(saveFilePath) || _detectedPlatform == SaveFileManager.Platform.XboxGamePass)
+            return;
+
+        string? directory = Path.GetDirectoryName(saveFilePath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+            return;
+
+        _externalWatchedFiles.Clear();
+        _externalWatchedFiles.Add(saveFilePath);
+        _externalWatchedFiles.Add(Path.Combine(directory, "mf_" + Path.GetFileName(saveFilePath)));
+        if (!string.IsNullOrEmpty(_accountPanel.AccountFilePath))
+            _externalWatchedFiles.Add(_accountPanel.AccountFilePath);
+        SnapshotExternalFileTimes();
+
+        foreach (string watchedDirectory in _externalWatchedFiles
+                     .Select(Path.GetDirectoryName)
+                     .Where(d => !string.IsNullOrEmpty(d))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var watcher = new FileSystemWatcher(watchedDirectory!)
+                {
+                    // Raise events on the UI thread: the debounce timer, the reload prompt and
+                    // the watched-file bookkeeping all assume the UI thread. Set before the
+                    // watcher starts raising events.
+                    SynchronizingObject = this,
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName,
+                    IncludeSubdirectories = false,
+                    InternalBufferSize = 64 * 1024,
+                    EnableRaisingEvents = true
+                };
+                watcher.Changed += OnExternalFileEvent;
+                watcher.Created += OnExternalFileEvent;
+                watcher.Deleted += OnExternalFileEvent;
+                watcher.Renamed += OnExternalFileEvent;
+                _externalWatchers.Add(watcher);
+            }
+            catch
+            {
+                // Ignore directories that cannot be watched.
+            }
+        }
+    }
+
+    /// <summary>Stops and disposes all external change watchers.</summary>
+    private void DisposeExternalWatcher()
+    {
+        foreach (var watcher in _externalWatchers)
+        {
+            try
+            {
+                watcher.EnableRaisingEvents = false;
+                watcher.Changed -= OnExternalFileEvent;
+                watcher.Created -= OnExternalFileEvent;
+                watcher.Deleted -= OnExternalFileEvent;
+                watcher.Renamed -= OnExternalFileEvent;
+                watcher.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal failures.
+            }
+        }
+        _externalWatchers.Clear();
+        _externalDebounceTimer?.Stop();
+    }
+
+    /// <summary>Records the current timestamps of the watched files for change comparison.</summary>
+    private void SnapshotExternalFileTimes()
+    {
+        _externalFileTimes.Clear();
+        foreach (string file in _externalWatchedFiles)
+        {
+            try
+            {
+                _externalFileTimes[file] = File.Exists(file) ? File.GetLastWriteTimeUtc(file) : DateTime.MinValue;
+            }
+            catch
+            {
+                _externalFileTimes[file] = DateTime.MinValue;
+            }
+        }
+    }
+
+    /// <summary>Queues a debounced external-change check (files are often written in chunks).</summary>
+    private void OnExternalFileEvent(object sender, FileSystemEventArgs e)
+    {
+        if (!_externalWatchedFiles.Contains(e.FullPath))
+            return;
+
+        if (_externalDebounceTimer == null)
+        {
+            _externalDebounceTimer = new System.Windows.Forms.Timer { Interval = 500 };
+            _externalDebounceTimer.Tick += (_, _) =>
+            {
+                _externalDebounceTimer!.Stop();
+                HandleExternalChange();
+            };
+        }
+        _externalDebounceTimer.Stop();
+        _externalDebounceTimer.Start();
+    }
+
+    /// <summary>
+    /// Compares the watched files against their snapshots and reloads, prompts or marks
+    /// the in-memory copy as diverged, following <see cref="ExternalChangeDecision"/>.
+    /// </summary>
+    private void HandleExternalChange()
+    {
+        if (_currentSaveData == null || _currentFilePath == null) return;
+        if (DateTime.UtcNow < _externalIgnoreUntilUtc) return;
+
+        bool changed = false;
+        bool deleted = false;
+        foreach (var (file, previousTime) in _externalFileTimes)
+        {
+            try
+            {
+                if (!File.Exists(file))
+                {
+                    if (previousTime != DateTime.MinValue)
+                        deleted = true;
+                    continue;
+                }
+                if (File.GetLastWriteTimeUtc(file) != previousTime)
+                    changed = true;
+            }
+            catch
+            {
+                // Ignore files that cannot be inspected.
+            }
+        }
+
+        // Flush pending panel edits so the unsaved-edit test sees them before deciding.
+        SyncAllPanelData();
+
+        bool dirty = HasUnsavedEdits();
+        var decision = ExternalChangeDecision.Decide(changed, deleted, dirty);
+        if (decision == ExternalChangeDecision.Action.None)
+            return;
+
+        // The user declined an earlier change and has not saved or reloaded since: keep the
+        // diverged status but do not prompt again for every game autosave.
+        if (_externalDiverged && !deleted)
+        {
+            _statusLabel.Text = UiStrings.Get("status.external_diverged");
+            return;
+        }
+
+        string title = deleted ? UiStrings.Get("external.deleted_title") : UiStrings.Get("external.changed_title");
+        string message = deleted
+            ? UiStrings.Get("external.deleted_message")
+            : dirty
+                ? UiStrings.Get("external.changed_message")
+                : UiStrings.Get("external.changed_clean_message");
+        var result = MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        if (result == DialogResult.Yes && !deleted)
+        {
+            ReloadFromExternalChange();
+        }
+        else
+        {
+            _externalDiverged = true;
+            _statusLabel.Text = UiStrings.Get("status.external_diverged");
+        }
+    }
+
+    /// <summary>True when the in-memory save or account data differs from the saved baseline.</summary>
+    private bool HasUnsavedEdits() =>
+        _currentSaveData != null
+        && (!_rawJsonPanel.SaveDataMatchesSavedBaseline(_currentSaveData)
+            || !_rawJsonPanel.AccountDataMatchesSavedBaseline(_accountPanel.AccountData));
+
+    /// <summary>Reloads the current save from disk after an external change.</summary>
+    private void ReloadFromExternalChange()
+    {
+        if (_currentFilePath == null) return;
+
+        _externalIgnoreUntilUtc = DateTime.UtcNow.AddSeconds(2);
+        _statusLabel.Text = UiStrings.Get("status.external_reloaded");
+
+        if (_ps4MemoryDatPath != null)
+        {
+            int slotIndex = _saveSlotCombo.SelectedIndex >= 0 ? _saveSlotCombo.SelectedIndex : 0;
+            LoadPS4MemoryDatSaveData(_ps4MemoryDatPath, slotIndex);
+        }
+        else
+        {
+            LoadSaveData(_currentFilePath);
         }
     }
 
@@ -1800,7 +2044,7 @@ public partial class MainFormResources : Form
             UseDescriptionForTitle = true
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             RecordRecentDirectory(dialog.SelectedPath);
         }
@@ -1843,7 +2087,7 @@ public partial class MainFormResources : Form
             SelectedPath = _backupPathCombo.Text
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             var config = AppConfig.Instance;
             config.AddRecentBackupDirectory(dialog.SelectedPath);
@@ -1921,7 +2165,7 @@ public partial class MainFormResources : Form
         int slotIndex = _saveSlotCombo.SelectedIndex;
 
         // Xbox containers.index loading - use file combo to pick Auto vs Manual
-        if (_xboxContainersIndexPath != null && _xboxFileIdentifiers != null
+        if (_xboxSavePath != null && _xboxFileIdentifiers != null
             && slotIndex >= 0 && slotIndex < _xboxFileIdentifiers.Count)
         {
             int fileIndex = _saveFileCombo.SelectedIndex;
@@ -1929,7 +2173,7 @@ public partial class MainFormResources : Form
             if (fileIndex < 0 || fileIndex >= identifiers.Count)
                 fileIndex = 0;
             string slotId = identifiers[fileIndex];
-            LoadXboxSaveData(_xboxContainersIndexPath, slotId);
+            LoadXboxSaveData(_xboxSavePath, slotId);
             return;
         }
 
@@ -1990,6 +2234,10 @@ public partial class MainFormResources : Form
 
             _progressBar.Value = 80;
             _loadedTabIndices.Clear();
+
+            // Lift the editor lock before loading the active tab (see LoadSaveData).
+            UpdateEditorLockState();
+
             int activeTab = _tabControl.SelectedIndex;
             var activeContent = GetTabContent(activeTab >= 0 ? _tabControl.TabPages[activeTab] : null);
             if (activeContent != null) activeContent.Visible = false;
@@ -2022,7 +2270,9 @@ public partial class MainFormResources : Form
             UpdateEditorLockState();
             EnableMenuItems();
             _statusLabel.Text = UiStrings.Format("status.loaded_xbox", slotId, loadTimer.ElapsedMilliseconds.ToString("N0", CultureInfo.CurrentCulture));
+            _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
             _hasUnsavedChanges = false;
+            SetupExternalWatcher(null);
         }
         catch (Exception ex)
         {
@@ -2062,6 +2312,10 @@ public partial class MainFormResources : Form
 
             _progressBar.Value = 80;
             _loadedTabIndices.Clear();
+
+            // Lift the editor lock before loading the active tab (see LoadSaveData).
+            UpdateEditorLockState();
+
             int activeTab = _tabControl.SelectedIndex;
             var activeContent = GetTabContent(activeTab >= 0 ? _tabControl.TabPages[activeTab] : null);
             if (activeContent != null) activeContent.Visible = false;
@@ -2096,7 +2350,9 @@ public partial class MainFormResources : Form
             UpdateEditorLockState();
             EnableMenuItems();
             _statusLabel.Text = UiStrings.Format("status.loaded_ps4", slotIndex, loadTimer.ElapsedMilliseconds.ToString("N0", CultureInfo.CurrentCulture));
+            _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
             _hasUnsavedChanges = false;
+            SetupExternalWatcher(memoryDatPath);
         }
         catch (Exception ex)
         {
@@ -2133,7 +2389,7 @@ public partial class MainFormResources : Form
             Title = UiStrings.Get("dialog.open_save_title")
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             LoadSaveData(dialog.FileName);
         }
@@ -2148,6 +2404,9 @@ public partial class MainFormResources : Form
             // Force any focused text field to lose focus, triggering its Leave handler
             // so that pending edits are committed before we sync panel data.
             this.ActiveControl = null;
+
+            // Ignore external-change events caused by our own writes.
+            _externalIgnoreUntilUtc = DateTime.UtcNow.AddSeconds(5);
 
             // Sync all panel data to in-memory JsonObjects
             SyncAllPanelData();
@@ -2173,7 +2432,7 @@ public partial class MainFormResources : Form
             // Xbox Game Pass saves use a completely different save pipeline:
             // data goes to blob directories, not directly to containers.index.
             if (_detectedPlatform == SaveFileManager.Platform.XboxGamePass
-                && _xboxContainersIndexPath != null
+                && _xboxSavePath != null
                 && _xboxFileIdentifiers != null)
             {
                 int slotIdx = _saveSlotCombo.SelectedIndex;
@@ -2184,7 +2443,7 @@ public partial class MainFormResources : Form
                     if (fileIdx < 0 || fileIdx >= identifiers.Count)
                         fileIdx = 0;
                     string slotId = identifiers[fileIdx];
-                    var savedSlot = SaveFileManager.SaveXboxSave(_xboxContainersIndexPath, slotId, _currentSaveData);
+                    var savedSlot = SaveFileManager.SaveXboxSave(_xboxSavePath, slotId, _currentSaveData);
 
                     // The write replaces the blob files with new GUID-named ones, so the
                     // cached path must be refreshed or the file combo reads a deleted file
@@ -2207,14 +2466,17 @@ public partial class MainFormResources : Form
                 // Account data uses raw LZ4 block compression, not NMS streaming.
                 if (_accountPanel.AccountData != null)
                 {
-                    SaveFileManager.SaveXboxAccountData(_xboxContainersIndexPath, _accountPanel.AccountData);
+                    SaveFileManager.SaveXboxAccountData(_xboxSavePath, _accountPanel.AccountData);
                 }
 
                 UpdateCurrentSlotLabel();
                 _statusLabel.Text = string.IsNullOrEmpty(backupRoot)
-                    ? UiStrings.Format("status.save_written", Path.GetFileName(_xboxContainersIndexPath))
-                    : UiStrings.Format("status.save_written_with_backup", Path.GetFileName(_xboxContainersIndexPath), backupRoot);
+                    ? UiStrings.Format("status.save_written", Path.GetFileName(_xboxSavePath))
+                    : UiStrings.Format("status.save_written_with_backup", Path.GetFileName(_xboxSavePath), backupRoot);
+                _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
                 _hasUnsavedChanges = false;
+                SnapshotExternalFileTimes();
+                _externalDiverged = false;
                 MessageBox.Show(this, UiStrings.Get("dialog.save_success"), UiStrings.Get("dialog.success"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -2238,8 +2500,10 @@ public partial class MainFormResources : Form
                     _ps4NomanSkyPath = _currentFilePath;
                 }
 
-                // Write account data file to disk (if loaded).
-                if (_accountPanel.AccountData != null && _accountPanel.AccountFilePath != null)
+                // Write account data file to disk (if loaded). macOS account data is
+                // MXML-sourced and is written by the account panel's MXML sync instead.
+                if (_accountPanel.AccountData != null && _accountPanel.AccountFilePath != null
+                    && !_accountPanel.IsMxmlSource)
                 {
                     _accountPanel.AccountData.NameMapper ??= JsonParser.GetDefaultMapper();
                     SaveFileManager.SaveToFile(_accountPanel.AccountFilePath, _accountPanel.AccountData,
@@ -2250,7 +2514,10 @@ public partial class MainFormResources : Form
                 _statusLabel.Text = string.IsNullOrEmpty(backupRoot)
                     ? UiStrings.Format("status.save_written", Path.GetFileName(_currentFilePath))
                     : UiStrings.Format("status.save_written_with_backup", Path.GetFileName(_currentFilePath), backupRoot);
+                _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
                 _hasUnsavedChanges = false;
+                SnapshotExternalFileTimes();
+                _externalDiverged = false;
                 MessageBox.Show(this, UiStrings.Get("dialog.save_success"), UiStrings.Get("dialog.success"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -2271,7 +2538,8 @@ public partial class MainFormResources : Form
             // the account file size changes (e.g. after unlocking rewards), otherwise the PS4
             // system reads the stale size from the manifest and may reject the save.
             // (Xbox account data is handled separately via SaveXboxAccountData.)
-            if (_accountPanel.AccountData != null && _accountPanel.AccountFilePath != null)
+            if (_accountPanel.AccountData != null && _accountPanel.AccountFilePath != null
+                && !_accountPanel.IsMxmlSource)
             {
                 if (_detectedPlatform == SaveFileManager.Platform.PS4)
                     _accountPanel.AccountData.NameMapper ??= JsonParser.GetDefaultMapper();
@@ -2284,7 +2552,10 @@ public partial class MainFormResources : Form
             _statusLabel.Text = string.IsNullOrEmpty(backupRoot)
                 ? UiStrings.Format("status.save_written", Path.GetFileName(_currentFilePath!))
                 : UiStrings.Format("status.save_written_with_backup", Path.GetFileName(_currentFilePath!), backupRoot);
+            _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
             _hasUnsavedChanges = false;
+            SnapshotExternalFileTimes();
+            _externalDiverged = false;
             UpdateCurrentSlotLabel();
             MessageBox.Show(this, UiStrings.Get("dialog.save_success"), UiStrings.Get("dialog.success"),
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -2306,7 +2577,7 @@ public partial class MainFormResources : Form
             Title = UiStrings.Get("dialog.save_as_title")
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             _currentFilePath = dialog.FileName;
             OnSave(sender, e);
@@ -2478,7 +2749,7 @@ public partial class MainFormResources : Form
     private void ReloadCurrentSave()
     {
         if (_detectedPlatform == SaveFileManager.Platform.XboxGamePass
-            && _xboxContainersIndexPath != null
+            && _xboxSavePath != null
             && _xboxFileIdentifiers != null)
         {
             int slotIdx = _saveSlotCombo.SelectedIndex;
@@ -2488,7 +2759,7 @@ public partial class MainFormResources : Form
                 int fileIdx = _saveFileCombo.SelectedIndex;
                 if (fileIdx < 0 || fileIdx >= identifiers.Count)
                     fileIdx = 0;
-                LoadXboxSaveData(_xboxContainersIndexPath, identifiers[fileIdx]);
+                LoadXboxSaveData(_xboxSavePath, identifiers[fileIdx]);
                 return;
             }
         }
@@ -2523,7 +2794,7 @@ public partial class MainFormResources : Form
             Title = UiStrings.Get("dialog.export_json_title")
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             // Flush all panel UI state to in-memory JSON before export
             SyncAllPanelData();
@@ -2540,7 +2811,7 @@ public partial class MainFormResources : Form
             Title = UiStrings.Get("dialog.import_json_title")
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             try
             {
@@ -2561,6 +2832,11 @@ public partial class MainFormResources : Form
                 // Capture the diff baseline before any panel LoadData is called so that
                 // the baseline reflects the imported state (see LoadSaveData for details).
                 _rawJsonPanel.CaptureBaseline(_currentSaveData);
+                _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
+
+                // Imported JSON is not tied to a save file on disk; stop watching the
+                // previously loaded save.
+                SetupExternalWatcher(null);
 
                 _mainStatsPanel.LoadData(_currentSaveData);
                 _exosuitPanel.LoadData(_currentSaveData);
@@ -2654,6 +2930,9 @@ public partial class MainFormResources : Form
     private void ReloadAllLoadedPanels()
     {
         if (_currentSaveData == null) return;
+
+        // Flush pending panel edits into the JSON before the panels are reloaded.
+        SyncAllPanelData();
 
         // Reload inventory panels that may display modified data.
         // Panels that haven't been opened yet (not in _loadedTabIndices) will
@@ -2750,6 +3029,10 @@ public partial class MainFormResources : Form
         if (sender is not ToolStripMenuItem menuItem) return;
         string tag = menuItem.Text ?? "";
         if (string.IsNullOrEmpty(tag)) return;
+
+        // Flush pending panel edits into the JSON before the panels are reloaded
+        // with the new language, so unsaved edits are not discarded.
+        SyncAllPanelData();
 
         // Update language menu check marks using stored field reference
         foreach (ToolStripItem sub in _languageMenu.DropDownItems)
@@ -3539,17 +3822,52 @@ public partial class MainFormResources : Form
         _rawJsonPanel.NotifyDataChanged();
     }
 
+    /// <summary>Gets the save data currently loaded in the editor.</summary>
+    internal JsonObject? CurrentSaveData => _currentSaveData;
+
+    /// <summary>Gets the active game localisation service.</summary>
+    internal LocalisationService CurrentLocalisation => _localisationService;
+
+    /// <summary>
+    /// Reloads every loaded panel tab after a direct inventory mutation (such as packing
+    /// or unpacking a technology) so destination inventories repaint immediately, and
+    /// marks the save as modified.
+    /// </summary>
+    internal void RefreshInventoryPanelsAfterPackOperation()
+    {
+        if (_currentSaveData == null) return;
+
+        // Flush pending panel edits into the JSON before the panels are reloaded.
+        SyncAllPanelData();
+
+        if (_loadedTabIndices.Contains(1)) _exosuitPanel.LoadData(_currentSaveData);
+        if (_loadedTabIndices.Contains(2)) _multitoolPanel.LoadData(_currentSaveData);
+        if (_loadedTabIndices.Contains(3)) _shipPanel.LoadData(_currentSaveData);
+        if (_loadedTabIndices.Contains(4)) _fleetPanel.LoadData(_currentSaveData);
+        if (_loadedTabIndices.Contains(5)) _vehiclePanel.LoadData(_currentSaveData);
+        if (_loadedTabIndices.Contains(7)) _basePanel.LoadData(_currentSaveData);
+
+        OnPanelDataModified(this, EventArgs.Empty);
+    }
+
     private void OnFormClosing(object? sender, FormClosingEventArgs e)
     {
+        DisposeExternalWatcher();
         SaveContext.Reset();
+
+        // Flush any pending panel UI edits into the in-memory save before the
+        // baseline comparison, so unsaved edits (including ship-detail fields that
+        // are only written on sync) trigger the prompt instead of being lost.
+        SyncAllPanelData();
 
         // Prompt if there are unsaved changes. A change that has been reverted (for
         // example ticking and unticking a catalogue row) must not prompt, so compare
-        // the live data with the baselines captured at load time.
+        // the live data with the last saved/loaded state. A successful save refreshes
+        // that state, so saving and then closing does not prompt.
         bool changesExist = _hasUnsavedChanges
             && _currentSaveData != null
-            && (!_rawJsonPanel.SaveDataMatchesBaseline(_currentSaveData)
-                || !_rawJsonPanel.AccountDataMatchesBaseline(_accountPanel.AccountData));
+            && (!_rawJsonPanel.SaveDataMatchesSavedBaseline(_currentSaveData)
+                || !_rawJsonPanel.AccountDataMatchesSavedBaseline(_accountPanel.AccountData));
         if (changesExist)
         {
             var result = MessageBox.Show(this,

@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Runtime;
 using System.Security.Cryptography;
 using System.Text;
+using NMSE.Config;
 using NMSE.Models;
 using NMSE.Core;
 using NMSE.Data;
@@ -65,6 +66,14 @@ public partial class RawJsonPanel : UserControl
 
     /// <summary>SHA-256 of the account data baseline text, used to detect real changes.</summary>
     private byte[]? _accountBaselineHash;
+
+    /// <summary>SHA-256 of the save data as of the last load or save, used by the
+    /// unsaved-changes prompt when closing so a successful save is not reported as a change.</summary>
+    private byte[]? _savedSaveBaselineHash;
+
+    /// <summary>SHA-256 of the account data as of the last load or save, used by the
+    /// unsaved-changes prompt when closing so a successful save is not reported as a change.</summary>
+    private byte[]? _savedAccountBaselineHash;
 
     /// <summary>Gzip-compressed bytes of the account data baseline captured at load time.</summary>
     private byte[]? _originalAccountJsonCompressed;
@@ -245,6 +254,11 @@ public partial class RawJsonPanel : UserControl
     {
         InitializeComponent();
         SetupLayout();
+
+        // Restore the persisted view mode; the matching panel layout is applied on load.
+        _viewMode = ParseViewMode(AppConfig.Instance.RawJsonViewMode);
+        SetViewModeButtons(_viewMode);
+
         HandleCreated += OnHandleCreated;
         HandleDestroyed += OnHandleDestroyed;
     }
@@ -308,6 +322,37 @@ public partial class RawJsonPanel : UserControl
     private static byte[] ComputeHash(string text) => SHA256.HashData(Encoding.UTF8.GetBytes(text));
 
     /// <summary>
+    /// Captures the "last saved" baseline used by the unsaved-changes prompt when closing.
+    /// Call once at load time (the loaded state counts as saved) and again after every
+    /// successful save, so a save followed immediately by closing does not prompt.
+    /// <para>
+    /// This is separate from <see cref="CaptureBaseline"/> / <see cref="CaptureAccountBaseline"/>,
+    /// which remain the diff-view baselines captured at load time.
+    /// </para>
+    /// </summary>
+    /// <param name="saveData">The in-memory save data as of the last load or save.</param>
+    /// <param name="accountData">The in-memory account data as of the last load or save, or null.</param>
+    public void CaptureSavedBaseline(JsonObject saveData, JsonObject? accountData)
+    {
+        _savedSaveBaselineHash = ComputeHash(RawJsonLogic.ToDisplayString(saveData));
+        _savedAccountBaselineHash = accountData == null ? null : ComputeHash(RawJsonLogic.ToDisplayString(accountData));
+    }
+
+    /// <summary>True when the save data still matches the last saved/loaded state.</summary>
+    /// <param name="saveData">The in-memory save data to compare.</param>
+    public bool SaveDataMatchesSavedBaseline(JsonObject saveData) =>
+        _savedSaveBaselineHash != null
+        && CryptographicOperations.FixedTimeEquals(_savedSaveBaselineHash, ComputeHash(RawJsonLogic.ToDisplayString(saveData)));
+
+    /// <summary>True when the account data still matches the last saved/loaded state.</summary>
+    /// <param name="accountData">The in-memory account data to compare, or null when absent.</param>
+    public bool AccountDataMatchesSavedBaseline(JsonObject? accountData)
+    {
+        if (_savedAccountBaselineHash == null || accountData == null) return true;
+        return CryptographicOperations.FixedTimeEquals(_savedAccountBaselineHash, ComputeHash(RawJsonLogic.ToDisplayString(accountData)));
+    }
+
+    /// <summary>
     /// Marks the diff cache as stale so the next "Show Changes" click recomputes against
     /// the current in memory JSON. Call this after any 'out of band' modification to the
     /// underlying save data that does not go through the Raw JSON Editor itself (e.g.
@@ -344,6 +389,7 @@ public partial class RawJsonPanel : UserControl
         _redoStack.Clear();
         UpdateFileSelector();
         ResetIsolationState();
+        ApplyViewModeLayout();
         if (_viewMode == ViewMode.Tree)
             BuildTree(saveData);
         else if (_viewMode == ViewMode.Text)
@@ -568,6 +614,50 @@ public partial class RawJsonPanel : UserControl
         _isolateNodeCheck.Visible = mode == ViewMode.Split;
     }
 
+    /// <summary>Parses a persisted view mode name, defaulting to tree view.</summary>
+    private static ViewMode ParseViewMode(string? value)
+    {
+        if (string.Equals(value, "text", StringComparison.OrdinalIgnoreCase)) return ViewMode.Text;
+        if (string.Equals(value, "split", StringComparison.OrdinalIgnoreCase)) return ViewMode.Split;
+        return ViewMode.Tree;
+    }
+
+    /// <summary>
+    /// Applies the panel visibility and button state for the current view mode without
+    /// rebuilding content. Used when a save is loaded into a persisted view mode.
+    /// </summary>
+    private void ApplyViewModeLayout()
+    {
+        SetViewModeButtons(_viewMode);
+        _treePanel.Visible = _viewMode == ViewMode.Tree;
+        _textPanel.Visible = _viewMode == ViewMode.Text;
+        _splitPanel.Visible = _viewMode == ViewMode.Split;
+        if (_viewMode == ViewMode.Tree) _treePanel.BringToFront();
+        else if (_viewMode == ViewMode.Text) _textPanel.BringToFront();
+        else _splitPanel.BringToFront();
+    }
+
+    /// <summary>Persists the current view mode so it is restored on the next start.</summary>
+    private void PersistViewMode()
+    {
+        var config = AppConfig.Instance;
+        config.RawJsonViewMode = _viewMode switch
+        {
+            ViewMode.Text => "text",
+            ViewMode.Split => "split",
+            _ => "tree"
+        };
+        config.Save();
+    }
+
+    /// <summary>Persists the isolate-node preference for the split view.</summary>
+    private static void PersistIsolatePreference(bool enabled)
+    {
+        var config = AppConfig.Instance;
+        config.RawJsonIsolateNode = enabled;
+        config.Save();
+    }
+
     /// <summary>The tree view visible for the active view mode, or null in text view.</summary>
     private TreeView? ActiveTreeView => _viewMode switch
     {
@@ -582,7 +672,8 @@ public partial class RawJsonPanel : UserControl
     /// <summary>
     /// Switches the panel to tree view and attempts to preserve any pending text edits.
     /// </summary>
-    private void ShowTreeView()
+    /// <param name="persist">True to persist the view mode as the user preference.</param>
+    private void ShowTreeView(bool persist = true)
     {
         if (_viewMode == ViewMode.Tree) return;
         bool wasIsolated = _isolateNode;
@@ -619,12 +710,14 @@ public partial class RawJsonPanel : UserControl
         _syntaxTextBox.ClearContent();
         _splitSyntaxTextBox.ClearContent();
         ResetSearchState();
+        if (persist) PersistViewMode();
     }
 
     /// <summary>
     /// Switches the panel to text view and displays the current JSON as text.
     /// </summary>
-    private void ShowTextView()
+    /// <param name="persist">True to persist the view mode as the user preference.</param>
+    private void ShowTextView(bool persist = true)
     {
         if (_viewMode == ViewMode.Text) return;
         LeaveIsolation();
@@ -644,12 +737,14 @@ public partial class RawJsonPanel : UserControl
         _splitSyntaxTextBox.ClearContent();
         ResetSearchState();
         UpdateTextBreadcrumb();
+        if (persist) PersistViewMode();
     }
 
     /// <summary>
     /// Switches the panel to split view and synchronises tree and text content.
     /// </summary>
-    private void ShowSplitView()
+    /// <param name="persist">True to persist the view mode as the user preference.</param>
+    private void ShowSplitView(bool persist = true)
     {
         if (_viewMode == ViewMode.Split) return;
         var previousMode = _viewMode;
@@ -670,11 +765,26 @@ public partial class RawJsonPanel : UserControl
 
         var data = _isShowingAccount ? _accountData : _saveData;
         if (data != null)
+        {
+            // Carry the main tree's current selection into the split tree so the user keeps
+            // their place when switching views.
+            var selectedPath = _treeView.SelectedNode != null ? GetNodePath(_treeView.SelectedNode) : null;
             LoadSplitView(data);
+            if (!_isolateNode && selectedPath is { Count: > 0 })
+            {
+                var node = NavigateTreeToPath(_splitTreeView, selectedPath);
+                if (node != null)
+                {
+                    _splitTreeView.SelectedNode = node;
+                    node.EnsureVisible();
+                }
+            }
+        }
 
         // Free memory held by the hidden text view
         _syntaxTextBox.ClearContent();
         ResetSearchState();
+        if (persist) PersistViewMode();
     }
 
     /// <summary>
@@ -688,6 +798,11 @@ public partial class RawJsonPanel : UserControl
         if (_isolateNode)
             FlushIsolatedEdits();
 
+        // Preserve the selected node across rebuilds (isolation restores its own path below).
+        var selectedPath = !_isolateNode && _splitTreeView.SelectedNode != null
+            ? GetNodePath(_splitTreeView.SelectedNode)
+            : null;
+
         _suppressIsolateReload = _isolateNode;
         BuildSplitTree(data);
         _suppressIsolateReload = false;
@@ -696,10 +811,30 @@ public partial class RawJsonPanel : UserControl
         if (_splitContainer.Width > 0)
             _splitContainer.SplitterDistance = _splitContainer.Width / 3;
 
+        // Restore the persisted isolate preference for the split view.
+        if (!_isolateNode && AppConfig.Instance.RawJsonIsolateNode)
+        {
+            _suppressIsolateToggle = true;
+            _isolateNodeCheck.Checked = true;
+            _suppressIsolateToggle = false;
+            _isolateNode = true;
+        }
+
         if (_isolateNode)
         {
             RestoreIsolatedNode();
             return;
+        }
+
+        // Re-select the node that was selected before the rebuild, when it still exists.
+        if (selectedPath is { Count: > 0 })
+        {
+            var node = NavigateTreeToPath(_splitTreeView, selectedPath);
+            if (node != null)
+            {
+                _splitTreeView.SelectedNode = node;
+                node.EnsureVisible();
+            }
         }
 
         // Load text in split syntax text box
@@ -820,6 +955,7 @@ public partial class RawJsonPanel : UserControl
             var data = ActiveData;
             if (data != null)
                 _splitSyntaxTextBox.JsonText = GetDisplayString(data);
+            PersistIsolatePreference(false);
             return;
         }
 
@@ -834,6 +970,7 @@ public partial class RawJsonPanel : UserControl
         _isolateNode = true;
         var node = _splitTreeView.SelectedNode ?? (_splitTreeView.Nodes.Count > 0 ? _splitTreeView.Nodes[0] : null);
         LoadIsolatedNode(node);
+        PersistIsolatePreference(true);
     }
 
     /// <summary>
@@ -2220,54 +2357,43 @@ public partial class RawJsonPanel : UserControl
         pathSegments = ResolveTransformedPath(pathSegments, data);
         if (pathSegments.Length == 0) return;
 
-        // Ensure we are in Tree view mode
-        if (_viewMode != ViewMode.Tree)
-            ShowTreeView();
+        // Text view cannot display a single node: use tree view for this navigation only,
+        // without changing the persisted view preference.
+        if (_viewMode == ViewMode.Text)
+            ShowTreeView(persist: false);
 
-        // Rebuild tree from current data so navigation uses a fresh tree
-        BuildTree(data);
-
-        TreeNode? current = _treeView.Nodes[0]; // Root node
-        _treeView.BeginUpdate();
-        try
+        if (_viewMode == ViewMode.Split)
         {
-            for (int p = 0; p < pathSegments.Length && current != null; p++)
+            // Rebuild the split view from current data and land on the target node so the
+            // navigation opens in the user's preferred format.
+            if (_isolateNode)
             {
-                // Force-expand lazy children before searching
-                if (current.Nodes.Count == 1 && current.Nodes[0].Tag is LazyTag)
-                {
-                    var tag = current.Tag as NodeTag;
-                    current.Nodes.Clear();
-                    if (tag?.Value is JsonObject obj)
-                        PopulateObjectNode(current, obj, maxDepth: 2, currentDepth: 0);
-                    else if (tag?.Value is JsonArray arr)
-                        PopulateArrayNode(current, arr, maxDepth: 2, currentDepth: 0);
-                }
-
-                current.Expand();
-                string segment = pathSegments[p];
-
-                TreeNode? found = null;
-                foreach (TreeNode child in current.Nodes)
-                {
-                    if (child.Tag is NodeTag childTag && childTag.Key == segment)
-                    {
-                        found = child;
-                        break;
-                    }
-                }
-                current = found;
+                FlushIsolatedEdits();
+                // RestoreIsolatedNode (inside LoadSplitView) restores this path directly.
+                _isolatedPath = [.. pathSegments];
             }
-        }
-        finally
-        {
-            _treeView.EndUpdate();
+
+            LoadSplitView(data);
+
+            if (!_isolateNode)
+            {
+                var node = NavigateTreeToPath(_splitTreeView, [.. pathSegments]);
+                if (node != null)
+                {
+                    _splitTreeView.SelectedNode = node;
+                    node.EnsureVisible();
+                }
+            }
+            return;
         }
 
-        if (current != null)
+        // Tree view: rebuild the tree from current data so navigation uses a fresh tree.
+        BuildTree(data);
+        var target = NavigateTreeToPath(_treeView, [.. pathSegments]);
+        if (target != null)
         {
-            _treeView.SelectedNode = current;
-            current.EnsureVisible();
+            _treeView.SelectedNode = target;
+            target.EnsureVisible();
         }
     }
 
@@ -2525,7 +2651,7 @@ public partial class RawJsonPanel : UserControl
             FileName = $"save_{DateTime.Now:yyyyMMdd_HHmmss}.json",
             Title = UiStrings.Get("raw_json.export_title")
         };
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             File.WriteAllText(dialog.FileName, RawJsonLogic.ToDisplayString(data));
             _statusLabel.Text = UiStrings.Format("raw_json.exported", Path.GetFileName(dialog.FileName));
@@ -2545,7 +2671,7 @@ public partial class RawJsonPanel : UserControl
             Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
             Title = UiStrings.Get("raw_json.import_title")
         };
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             try
             {
@@ -2600,7 +2726,7 @@ public partial class RawJsonPanel : UserControl
             Title = UiStrings.Get("raw_json.export_node_title")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -2631,7 +2757,7 @@ public partial class RawJsonPanel : UserControl
             Title = UiStrings.Get("raw_json.import_node_title")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
