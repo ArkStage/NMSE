@@ -232,8 +232,9 @@ public static class JsonParser
     private static void AppendQuotedString(StringBuilder sb, string s)
     {
         sb.Append('"');
-        foreach (char c in s)
+        for (int i = 0; i < s.Length; i++)
         {
+            char c = s[i];
             switch (c)
             {
                 case '\r': sb.Append("\\r"); break;
@@ -248,19 +249,40 @@ public static class JsonParser
                     {
                         sb.Append(c);
                     }
+                    else if (char.IsHighSurrogate(c) && i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+                    {
+                        // A surrogate pair represents a character outside the BMP
+                        // (most emoji, rare glyphs). Combine the pair into a single code
+                        // point and emit it as one 4-byte UTF-8 sequence. Encoding the
+                        // two halves separately produces CESU-8, which is not valid
+                        // UTF-8 and breaks strict JSON parsers and other tools.
+                        AppendUtf8Bytes(sb, char.ConvertToUtf32(c, s[i + 1]));
+                        i++;
+                    }
+                    else if (char.IsSurrogate(c))
+                    {
+                        // A lone (unpaired) surrogate cannot be encoded as UTF-8; emit
+                        // it as a \uXXXX escape so the output stays valid JSON.
+                        sb.Append("\\u");
+                        sb.Append(HexChars[(c >> 12) & 0xF]);
+                        sb.Append(HexChars[(c >> 8) & 0xF]);
+                        sb.Append(HexChars[(c >> 4) & 0xF]);
+                        sb.Append(HexChars[c & 0xF]);
+                    }
                     else if (c >= 0x80)
                     {
-                        // All non-ASCII characters (U+0080+): encode as raw UTF-8 bytes,
-                        // each byte written as a Latin-1 character in the StringBuilder.
-                        // The NMS game engine stores every non-ASCII character as a raw
-                        // UTF-8 multi-byte sequence inside its Latin-1-encoded JSON.
-                        // This includes the Latin-1 supplement range (U+0080-U+00FF):
-                        // e.g. U+00C9 must be emitted as bytes 0xC3 0x89, not as the
-                        // single byte 0xC9.  Emitting a single Latin-1 byte for U+0080-U+00FF
-                        // was the bug that silently corrupted accented/French names when the
-                        // StringBuilder output was passed to Latin1.GetBytes() on save.
-                        // Writing \uXXXX escapes would break NMSSaveEditor.jar (only accepts
-                        // \u values <= 255), so raw UTF-8 bytes are the correct form here.
+                        // All other non-ASCII characters (U+0080+): encode as raw UTF-8
+                        // bytes, each byte written as a Latin-1 character in the
+                        // StringBuilder. The NMS game engine stores every non-ASCII
+                        // character as a raw UTF-8 multi-byte sequence inside its
+                        // Latin-1-encoded JSON. This includes the Latin-1 supplement
+                        // range (U+0080-U+00FF): e.g. U+00C9 must be emitted as bytes
+                        // 0xC3 0x89, not as the single byte 0xC9.  Emitting a single
+                        // Latin-1 byte for U+0080-U+00FF was the bug that silently
+                        // corrupted accented/French names when the StringBuilder output
+                        // was passed to Latin1.GetBytes() on save.  Writing \uXXXX
+                        // escapes would break NMSSaveEditor.jar (only accepts \u values
+                        // <= 255), so raw UTF-8 bytes are the correct form here.
                         AppendUtf8Bytes(sb, c);
                     }
                     else
@@ -278,30 +300,37 @@ public static class JsonParser
     }
 
     /// <summary>
-    /// Encode a single Unicode character (U+0080 and above) as UTF-8 and append
-    /// each resulting byte as a raw Latin-1 character to the StringBuilder.
+    /// Encode a Unicode code point as UTF-8 and append each resulting byte as a raw
+    /// Latin-1 character to the StringBuilder.
     /// This matches the NMS game engine's convention of embedding multi-byte UTF-8
     /// sequences directly in the Latin-1-encoded JSON byte stream for all non-ASCII
     /// characters, including the Latin-1 supplement (U+0080-U+00FF), CJK, Greek,
-    /// Cyrillic, and any other Unicode range.
+    /// Cyrillic, and any other Unicode range up to and including code points outside
+    /// the BMP, which are encoded as a single 4-byte sequence.
     /// </summary>
-    private static void AppendUtf8Bytes(StringBuilder sb, char c)
+    private static void AppendUtf8Bytes(StringBuilder sb, int codePoint)
     {
-        int cp = c;
-        if (cp <= 0x7F)
+        if (codePoint <= 0x7F)
         {
-            sb.Append(c);
+            sb.Append((char)codePoint);
         }
-        else if (cp <= 0x7FF)
+        else if (codePoint <= 0x7FF)
         {
-            sb.Append((char)(0xC0 | (cp >> 6)));
-            sb.Append((char)(0x80 | (cp & 0x3F)));
+            sb.Append((char)(0xC0 | (codePoint >> 6)));
+            sb.Append((char)(0x80 | (codePoint & 0x3F)));
+        }
+        else if (codePoint <= 0xFFFF)
+        {
+            sb.Append((char)(0xE0 | (codePoint >> 12)));
+            sb.Append((char)(0x80 | ((codePoint >> 6) & 0x3F)));
+            sb.Append((char)(0x80 | (codePoint & 0x3F)));
         }
         else
         {
-            sb.Append((char)(0xE0 | (cp >> 12)));
-            sb.Append((char)(0x80 | ((cp >> 6) & 0x3F)));
-            sb.Append((char)(0x80 | (cp & 0x3F)));
+            sb.Append((char)(0xF0 | (codePoint >> 18)));
+            sb.Append((char)(0x80 | ((codePoint >> 12) & 0x3F)));
+            sb.Append((char)(0x80 | ((codePoint >> 6) & 0x3F)));
+            sb.Append((char)(0x80 | (codePoint & 0x3F)));
         }
     }
 
