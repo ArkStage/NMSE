@@ -892,6 +892,31 @@ partial class CompanionPanel
         statClassPanel.SetColumnSpan(overrideRow, 2);
         scRow++;
 
+        // True classes rolled from the pet's SpeciesSeed/GenusSeed, plus the seed search button
+        statClassPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var trueClassesRow = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 3, 0, 0) };
+        _battleTrueClassesLabel = new Label { Text = "True Classes:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 3, 5, 0) };
+        _battleTrueClassesValue = new Label { Text = "-", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 3, 10, 0) };
+        _battleSeedSearchButton = new Button { Text = "Search Seed...", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 0, 0, 0) };
+        _battleSeedSearchButton.Click += (s, e) => { if (!_loading) OnBattleSeedSearch(); };
+        trueClassesRow.Controls.Add(_battleTrueClassesLabel);
+        trueClassesRow.Controls.Add(_battleTrueClassesValue);
+        trueClassesRow.Controls.Add(_battleSeedSearchButton);
+        statClassPanel.Controls.Add(trueClassesRow, 0, scRow);
+        statClassPanel.SetColumnSpan(trueClassesRow, 2);
+        scRow++;
+
+        // Predicted core stat values (rolled from the seeds, scale and gene edits)
+        statClassPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var predictedStatsRow = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 3, 0, 0) };
+        _battlePredictedStatsLabel = new Label { Text = "Predicted Stats:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 3, 5, 0) };
+        _battlePredictedStatsValue = new Label { Text = "-", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 3, 0, 0) };
+        predictedStatsRow.Controls.Add(_battlePredictedStatsLabel);
+        predictedStatsRow.Controls.Add(_battlePredictedStatsValue);
+        statClassPanel.Controls.Add(predictedStatsRow, 0, scRow);
+        statClassPanel.SetColumnSpan(predictedStatsRow, 2);
+        scRow++;
+
         string[] classItems = { "C", "B", "A", "S" };
 
         // Health class
@@ -937,6 +962,21 @@ partial class CompanionPanel
         _battleVictories.NumericValueChanged += (s, e) => { if (!_loading) WriteBattleVictories(); };
         statClassPanel.Controls.Add(_battleVictoriesLabel, 0, scRow);
         statClassPanel.Controls.Add(_battleVictories, 1, scRow);
+        scRow++;
+
+        // Reset battle record action
+        statClassPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _battleResetButton = new Button { Text = "Reset Battle Record", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0, 8, 0, 0) };
+        _battleResetButton.Click += (s, e) => { if (!_loading) OnBattleResetRecord(); };
+        statClassPanel.Controls.Add(_battleResetButton, 0, scRow);
+        statClassPanel.SetColumnSpan(_battleResetButton, 2);
+        scRow++;
+
+        // Arena League reward species note
+        statClassPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _battleRewardNote = new Label { Text = "", AutoSize = true, MaximumSize = new Size(330, 0), ForeColor = Color.FromArgb(150, 90, 20), Visible = false, Margin = new Padding(0, 4, 0, 0) };
+        statClassPanel.Controls.Add(_battleRewardNote, 0, scRow);
+        statClassPanel.SetColumnSpan(_battleRewardNote, 2);
 
         topRow.Controls.Add(statClassPanel, 0, 0);
 
@@ -1297,6 +1337,13 @@ partial class CompanionPanel
     private Label _battleCombatClassPlaceholder = null!;
     private Label _battleAverageClassLabel = null!;
     private Label _battleAverageClassValue = null!;
+    private Label _battleTrueClassesLabel = null!;
+    private Label _battleTrueClassesValue = null!;
+    private Button _battleSeedSearchButton = null!;
+    private Label _battlePredictedStatsLabel = null!;
+    private Label _battlePredictedStatsValue = null!;
+    private Button _battleResetButton = null!;
+    private Label _battleRewardNote = null!;
     private Label _battleTreatsHeadingLabel = null!;
     private Label _battleTreatHealthLabel = null!;
     private InvariantNumericTextBox _battleTreatHealth = null!;

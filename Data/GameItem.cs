@@ -95,6 +95,50 @@ public class GameItem
     public bool IsCore { get; set; }
     /// <summary>Whether this technology generates procedurally.</summary>
     public bool IsProcedural { get; set; }
+    /// <summary>Minimum number of stat bonuses rolled for procedural technologies.</summary>
+    public int NumStatsMin { get; set; }
+    /// <summary>Maximum number of stat bonuses rolled for procedural technologies.</summary>
+    public int NumStatsMax { get; set; }
+    /// <summary>
+    /// Weighting curve name for the number of rolled stats (e.g. "MaxIsRare").
+    /// Only populated for procedural technologies.
+    /// </summary>
+    public string WeightingCurve { get; set; } = "";
+    /// <summary>
+    /// Base stats type of the underlying technology (e.g. "Suit_Armour_Shield").
+    /// Used to resolve base stat amounts for display (GetBaseStatAmount).
+    /// </summary>
+    public string BaseStat { get; set; } = "";
+    /// <summary>Stat level definitions for procedural technologies.</summary>
+    public List<ProceduralStatLevel> StatLevels { get; } = new();
+    /// <summary>
+    /// Fixed stat bonuses from the technology table (GcTechnology.StatBonuses), in table
+    /// order. Only populated for non-procedural technologies.
+    /// </summary>
+    public List<StatBonus> StatBonuses { get; } = new();
+
+    /// <summary>A fixed stat bonus on a technology.</summary>
+    public sealed record StatBonus(string Stat, float Bonus, int Level);
+
+    /// <summary>
+    /// A single possible stat bonus for a procedural technology, as defined by the
+    /// game's procedural technology table.
+    /// </summary>
+    public sealed class ProceduralStatLevel
+    {
+        /// <summary>Game stats type ID (e.g. "Suit_Armour_Shield_Strength").</summary>
+        public string Stat { get; set; } = "";
+        /// <summary>English display name (e.g. "Suit Armour Shield Strength").</summary>
+        public string Name { get; set; } = "";
+        /// <summary>Minimum roll value.</summary>
+        public float ValueMin { get; set; }
+        /// <summary>Maximum roll value.</summary>
+        public float ValueMax { get; set; }
+        /// <summary>Weighting curve name for the value roll.</summary>
+        public string WeightingCurve { get; set; } = "";
+        /// <summary>Whether this stat is always included in the roll.</summary>
+        public bool AlwaysChoose { get; set; }
+    }
     /// <summary>
     /// Whether this product item can be crafted by the player.
     /// Populated from the IsCraftable field in the game product table.

@@ -346,6 +346,21 @@ partial class InventoryGridPanel
         detailLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         row++;
 
+        // Choose Stats button (procedural technologies only)
+        _detailChooseStatsButton = new Button
+        {
+            Text = "Choose Stats...",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Visible = false
+        };
+        _detailChooseStatsButton.Click += OnDetailChooseStats;
+        detailLayout.Controls.Add(_detailChooseStatsButton, 0, row);
+        detailLayout.SetColumnSpan(_detailChooseStatsButton, 2);
+        detailLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        row++;
+
         // Amount
         _detailAmount = new InvariantNumericTextBox { Dock = DockStyle.Fill, Minimum = int.MinValue, Maximum = int.MaxValue };
         _detailAmountLabel = CreateLabel("Amount:");
@@ -448,6 +463,7 @@ partial class InventoryGridPanel
             DropDownStyle = ComboBoxStyle.DropDownList
         };
         _typeFilter.SelectedIndexChanged += OnTypeFilterChanged;
+        _typeFilter.DropDown += (_, _) => EnsureFiltersPopulated();
         _typeFilterLabel = CreateLabel("Type:");
         detailLayout.Controls.Add(_typeFilterLabel, 0, row);
         detailLayout.Controls.Add(_typeFilter, 1, row);
@@ -461,6 +477,7 @@ partial class InventoryGridPanel
             DropDownStyle = ComboBoxStyle.DropDownList
         };
         _categoryFilter.SelectedIndexChanged += OnCategoryFilterChanged;
+        _categoryFilter.DropDown += (_, _) => EnsureFiltersPopulated();
         _categoryFilterLabel = CreateLabel("Category:");
         detailLayout.Controls.Add(_categoryFilterLabel, 0, row);
         detailLayout.Controls.Add(_categoryFilter, 1, row);
@@ -475,6 +492,7 @@ partial class InventoryGridPanel
             MaxDropDownItems = 20
         };
         _itemPicker.SelectedIndexChanged += OnItemPickerChanged;
+        _itemPicker.DropDown += (_, _) => EnsureFiltersPopulated();
         _itemFilterLabel = CreateLabel("Item:");
         detailLayout.Controls.Add(_itemFilterLabel, 0, row);
         detailLayout.Controls.Add(_itemPicker, 1, row);
@@ -599,6 +617,7 @@ partial class InventoryGridPanel
         _pickerSeedFieldPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _pickerSeedFieldPanel.Controls.Add(_pickerSeedLabel, 0, 0);
         _pickerSeedFieldPanel.Controls.Add(_pickerSeedField, 1, 0);
+        _pickerSeedField.TextChanged += (s, e) => UpdatePickerDescriptionPreview();
 
         _pickerGenSeedButton = new Button
         {
@@ -613,6 +632,29 @@ partial class InventoryGridPanel
         };
         _pickerGenSeedButton.Click += OnPickerGenSeedClick;
         _pickerSeedFieldPanel.Controls.Add(_pickerGenSeedButton, 1, 1);
+
+        _pickerBestRollCheck = new CheckBox
+        {
+            Text = "Use best roll",
+            AutoSize = true,
+            Visible = false,
+            Margin = new Padding(0, 2, 0, 0)
+        };
+        _pickerBestRollCheck.CheckedChanged += OnPickerBestRollChanged;
+        _pickerSeedFieldPanel.RowCount = 3;
+        _pickerSeedFieldPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _pickerSeedFieldPanel.Controls.Add(_pickerBestRollCheck, 0, 2);
+        _pickerSeedFieldPanel.SetColumnSpan(_pickerBestRollCheck, 2);
+
+        _pickerChooseStatsButton = new Button
+        {
+            Text = "Choose Stats...",
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Visible = false
+        };
+        _pickerChooseStatsButton.Click += OnPickerChooseStats;
 
         var _pickerSeedEntryPanel = new TableLayoutPanel
         {
@@ -631,6 +673,11 @@ partial class InventoryGridPanel
 
         detailLayout.Controls.Add(_pickerItemIdLabel, 0, row);
         detailLayout.Controls.Add(_pickerSeedEntryPanel, 1, row);
+        detailLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        row++;
+
+        detailLayout.Controls.Add(_pickerChooseStatsButton, 0, row);
+        detailLayout.SetColumnSpan(_pickerChooseStatsButton, 2);
         detailLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         row++;
 
@@ -693,6 +740,10 @@ partial class InventoryGridPanel
         _fillStackMenuItem = new ToolStripMenuItem("Fill Stack", null, OnFillStack);
         _rechargeAllTechMenuItem = new ToolStripMenuItem("Recharge All Technology", null, OnRechargeAllTech);
         _refillAllStacksMenuItem = new ToolStripMenuItem("Refill All Stacks", null, OnRefillAllStacks);
+        _packTechMenuItem = new ToolStripMenuItem("Pack Technology", null, OnPackTech);
+        _unpackTechMenuItem = new ToolStripMenuItem("Unpack Technology", null, OnUnpackTech);
+        _setBestRollMenuItem = new ToolStripMenuItem("Set to Best Roll", null, OnSetBestRoll);
+        _chooseStatsMenuItem = new ToolStripMenuItem("Choose Stats...", null, OnChooseStats);
         _copyItemMenuItem = new ToolStripMenuItem("Copy Item", null, OnCopyItem);
         _pasteItemMenuItem = new ToolStripMenuItem("Paste Item", null, OnPasteItem);
         _sortByNameMenuItem = new ToolStripMenuItem("Sort by Name", null, OnSortByName);
@@ -716,6 +767,11 @@ partial class InventoryGridPanel
         _cellContextMenu.Items.Add(_fillStackMenuItem);
         _cellContextMenu.Items.Add(_rechargeAllTechMenuItem);
         _cellContextMenu.Items.Add(_refillAllStacksMenuItem);
+        _cellContextMenu.Items.Add(new ToolStripSeparator());
+        _cellContextMenu.Items.Add(_packTechMenuItem);
+        _cellContextMenu.Items.Add(_unpackTechMenuItem);
+        _cellContextMenu.Items.Add(_setBestRollMenuItem);
+        _cellContextMenu.Items.Add(_chooseStatsMenuItem);
         _cellContextMenu.Items.Add(new ToolStripSeparator());
         _cellContextMenu.Items.Add(_copyItemMenuItem);
         _cellContextMenu.Items.Add(_pasteItemMenuItem);
@@ -778,6 +834,7 @@ partial class InventoryGridPanel
     private Label _detailSeedLabel = null!;
     private FlowLayoutPanel _detailIdSeedPanel = null!;
     private Button _detailGenSeedButton = null!;
+    private Button _detailChooseStatsButton = null!;
     private PictureBox _detailInfoButton = null!;
     private Label _detailInfoHintLabel = null!;
     private Label _detailDescription = null!;
@@ -803,6 +860,8 @@ partial class InventoryGridPanel
     private TextBox _pickerItemId = null!;
     private TextBox _pickerSeedField = null!;
     private Label _pickerSeedLabel = null!;
+    private CheckBox _pickerBestRollCheck = null!;
+    private Button _pickerChooseStatsButton = null!;
     private FlowLayoutPanel _pickerIdSeedPanel = null!;
     private Button _pickerGenSeedButton = null!;
     private PictureBox _pickerInfoButton = null!;
@@ -860,6 +919,10 @@ partial class InventoryGridPanel
     private ToolStripMenuItem _fillStackMenuItem = null!;
     private ToolStripMenuItem _rechargeAllTechMenuItem = null!;
     private ToolStripMenuItem _refillAllStacksMenuItem = null!;
+    private ToolStripMenuItem _packTechMenuItem = null!;
+    private ToolStripMenuItem _unpackTechMenuItem = null!;
+    private ToolStripMenuItem _setBestRollMenuItem = null!;
+    private ToolStripMenuItem _chooseStatsMenuItem = null!;
     private ToolStripMenuItem _copyItemMenuItem = null!;
     private ToolStripMenuItem _pasteItemMenuItem = null!;
     private ToolStripMenuItem _sortByNameMenuItem = null!;

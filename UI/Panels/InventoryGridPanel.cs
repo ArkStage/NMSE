@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using NMSE.Core;
 using NMSE.Core.Utilities;
 using NMSE.Data;
 using NMSE.Models;
+using NMSE.UI.Dialogs;
 using NMSE.UI.Util;
 
 namespace NMSE.UI.Panels;
@@ -686,9 +689,20 @@ public partial class InventoryGridPanel : UserControl
         return _currentInventory;
     }
 
-    private void PopulateTypeFilter()
+    /// <summary>
+    /// Populates the type/category/item filter ComboBoxes if they have not been built yet.
+    /// Called when the grid is first loaded or a filter dropdown is opened, so the
+    /// ~5000-entry item list is never built for grids the user has not displayed.
+    /// </summary>
+    private void EnsureFiltersPopulated()
     {
-        _suppressFilterEvents = true;
+        if (_filtersPopulated || _database == null) return;
+        _filtersPopulated = true;
+        PopulateTypeFilter();
+    }
+
+    private void PopulateTypeFilter()
+    {        _suppressFilterEvents = true;
         _typeFilter.BeginUpdate();
         _typeFilter.Items.Clear();
         _typeFilter.Items.Add(UiStrings.Get("common.all_types"));
@@ -748,11 +762,15 @@ public partial class InventoryGridPanel : UserControl
         _itemPicker.Items.AddRange(items);
 
         // Auto-size the dropdown width to fit the longest item name so that
-        // long names are not cut off by the combobox field width.
+        // long names are not cut off by the combobox field width. Measuring every
+        // entry is thousands of GDI calls per grid, so only the longest names by
+        // character count are measured; they dominate the required width.
         int maxWidth = _itemPicker.Width;
         using (var g = _itemPicker.CreateGraphics())
         {
-            foreach (var obj in _itemPicker.Items)
+            foreach (var obj in _itemPicker.Items.Cast<object>()
+                         .OrderByDescending(o => (o.ToString() ?? "").Length)
+                         .Take(25))
             {
                 int w = (int)g.MeasureString(obj.ToString() ?? "", _itemPicker.Font).Width
                         + SystemInformation.VerticalScrollBarWidth + 4;
@@ -896,10 +914,12 @@ public partial class InventoryGridPanel : UserControl
         // Populate picker detail fields with the selected item (independent of slot details)
         _pickerItemId.Text = EnsureCaretPrefix(selectedItem.Id);
         _pickerItemName.Text = selectedItem.Name;
-        _pickerDescription.Text = selectedItem.Description;
 
         // Show/hide seed field and auto-generate a 5-digit seed for procedural items
         UpdatePickerSeedFieldVisibility(selectedItem);
+
+        // Show the generated stat preview for the picker's seed
+        UpdatePickerDescriptionPreview();
 
         // Set icon
         if (_iconManager != null && !string.IsNullOrEmpty(selectedItem.Icon))
@@ -1188,11 +1208,7 @@ public partial class InventoryGridPanel : UserControl
         // Populate type/category/item filter ComboBoxes once per database.
         // _allItems is already built by SetDatabase, so we only need to
         // populate the filter controls on the first LoadInventory call.
-        if (_database != null && !_filtersPopulated)
-        {
-            _filtersPopulated = true;
-            PopulateTypeFilter();
-        }
+        EnsureFiltersPopulated();
 
         // Resume the outer layout that was suspended at the start of this method,
         // then re-enable painting for one flicker-free repaint of the whole grid.
@@ -1344,6 +1360,8 @@ public partial class InventoryGridPanel : UserControl
         _detailSeedLabel.Visible = isProcedural;
         _detailSeedField.Visible = isProcedural;
         _detailGenSeedButton.Visible = isProcedural;
+        _detailChooseStatsButton.Visible = isProcedural && gameItem!.StatLevels.Count > 0;
+        _detailChooseStatsButton.Text = UiStrings.Get("techstats.choose_stats");
         if (isProcedural)
         {
             _detailSeedField.Text = string.IsNullOrEmpty(seed)
@@ -1364,6 +1382,19 @@ public partial class InventoryGridPanel : UserControl
         _detailSeedField.Text = GenerateProceduralSeed();
     }
 
+    /// <summary>Opens the stat chooser for the detail panel's procedural item and places the chosen seed.</summary>
+    private void OnDetailChooseStats(object? sender, EventArgs e)
+    {
+        var (gameItem, _, _) = ResolveGameItem(_detailItemId.Text.Trim());
+        if (gameItem == null || !gameItem.IsProcedural || gameItem.StatLevels.Count == 0)
+            return;
+
+        using var dialog = new ProcTechStatSearchDialog(gameItem, ActiveLocalisation);
+        if (dialog.ShowDialog(this) != DialogResult.OK || !dialog.Applied) return;
+
+        _detailSeedField.Text = dialog.SelectedSeed.ToString("D5", CultureInfo.InvariantCulture);
+    }
+
     /// <summary>
     /// Shows or hides the picker procedural seed field based on whether the given item is procedural.
     /// When shown and seed is empty, auto-generates a 5-digit seed.
@@ -1371,9 +1402,15 @@ public partial class InventoryGridPanel : UserControl
     private void UpdatePickerSeedFieldVisibility(GameItem? gameItem, string seed = "")
     {
         bool isProcedural = gameItem != null && gameItem.IsProcedural;
+        bool hasBestRoll = isProcedural && ProcTechData.TryGetBestSeed(gameItem!.Id, out _);
         _pickerSeedLabel.Visible = isProcedural;
         _pickerSeedField.Visible = isProcedural;
         _pickerGenSeedButton.Visible = isProcedural;
+        _pickerBestRollCheck.Visible = hasBestRoll;
+        _pickerBestRollCheck.Text = UiStrings.Get("techstats.use_best_roll");
+        _pickerBestRollCheck.Checked = false;
+        _pickerChooseStatsButton.Visible = isProcedural && gameItem!.StatLevels.Count > 0;
+        _pickerChooseStatsButton.Text = UiStrings.Get("techstats.choose_stats");
         if (isProcedural)
         {
             _pickerSeedField.Text = string.IsNullOrEmpty(seed)
@@ -1386,12 +1423,60 @@ public partial class InventoryGridPanel : UserControl
         }
     }
 
+    /// <summary>Refreshes the picker description with the generated stat preview for its seed.</summary>
+    private void UpdatePickerDescriptionPreview()
+    {
+        if (_itemPicker.SelectedItem is not GameItem item)
+        {
+            _pickerDescription.Text = "";
+            return;
+        }
+
+        string description = ControlTokens.Resolve(item.Description);
+        string? statsText = item.IsProcedural
+            ? BuildProceduralStatsText(item, _pickerSeedField.Text.Trim())
+            : null;
+        if (!string.IsNullOrEmpty(statsText))
+        {
+            description = string.IsNullOrEmpty(description)
+                ? statsText
+                : description + Environment.NewLine + Environment.NewLine + statsText;
+        }
+        _pickerDescription.Text = description;
+    }
+
+    /// <summary>
+    /// Places the precomputed best seed for the selected procedural item into the seed field.
+    /// </summary>
+    private void OnPickerBestRollChanged(object? sender, EventArgs e)
+    {
+        if (!_pickerBestRollCheck.Checked)
+            return;
+        if (_itemPicker.SelectedItem is GameItem item
+            && ProcTechData.TryGetBestSeed(item.Id, out uint bestSeed))
+        {
+            _pickerSeedField.Text = bestSeed.ToString("D5", CultureInfo.InvariantCulture);
+        }
+    }
+
     /// <summary>
     /// Generates a new random procedural seed for the picker seed text field.
     /// </summary>
     private void OnPickerGenSeedClick(object? sender, EventArgs e)
     {
         _pickerSeedField.Text = GenerateProceduralSeed();
+    }
+
+    /// <summary>Opens the stat chooser for the picker's procedural item and places the chosen seed.</summary>
+    private void OnPickerChooseStats(object? sender, EventArgs e)
+    {
+        if (_itemPicker.SelectedItem is not GameItem item || !item.IsProcedural || item.StatLevels.Count == 0)
+            return;
+
+        using var dialog = new ProcTechStatSearchDialog(item, ActiveLocalisation);
+        if (dialog.ShowDialog(this) != DialogResult.OK || !dialog.Applied) return;
+
+        _pickerSeedField.Text = dialog.SelectedSeed.ToString("D5", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -1710,14 +1795,13 @@ public partial class InventoryGridPanel : UserControl
 
     /// <summary>
     /// Checks whether the given ID (without any #variant suffix) is a TechPack hash.
-    /// TechPack hashes are a '^' prefix followed by exactly 12 uppercase hex characters.
+    /// TechPack hashes are a '^' prefix followed by exactly 12 hex characters.
     /// </summary>
-    private static bool IsTechPackHash(string baseId) =>
-        baseId.Length == 13 && baseId[0] == '^' && Regex.IsMatch(baseId, @"^\^[0-9A-Fa-f]{12}$");
+    private static bool IsTechPackHash(string baseId) => TechPackLogic.IsPackHashId(baseId);
 
     /// <summary>
-    /// Resolves a GameItem from an item ID, checking the TechPacks dictionary as a fallback
-    /// for hash-based IDs (^+12 hex chars, with optional #variant suffix).
+    /// Resolves a GameItem from an item ID, checking the TechPacks dictionary and the
+    /// TechPack codec as fallbacks for hash-based IDs (^+12 hex chars, with optional #variant suffix).
     /// Returns the resolved GameItem and, when the item was resolved via TechPacks, the TechPack icon filename.
     /// </summary>
     private (GameItem? gameItem, string? techPackIcon, string? techPackClass) ResolveGameItem(string itemId)
@@ -1750,7 +1834,313 @@ public partial class InventoryGridPanel : UserControl
                 return (gi, techPack.Icon, techPack.Class);
         }
 
+        // Fallback: resolve the hash with the codec, which covers pack hashes outside the
+        // mined dictionary (and any casing). The packaged technology's own icon is used.
+        if (IsTechPackHash(baseId) && TechPackLogic.TryResolveTechId(baseId, _database, out var techId, out _))
+        {
+            gi = _database.GetItem(techId);
+            if (gi != null)
+                return (gi, null, TechPacks.GetClassById(techId) ?? CatalogClassFor(techId));
+        }
+
         return (null, null, null);
+    }
+
+    /// <summary>
+    /// Returns the technology class letter from the extractor-generated catalog,
+    /// or null when the technology is unknown or has no inferred class.
+    /// </summary>
+    private static string? CatalogClassFor(string techId)
+    {
+        var entry = TechPacks.GetTechCatalogEntry(techId);
+        if (entry == null || string.IsNullOrEmpty(entry.InferredClass) || entry.InferredClass == "NONE")
+            return null;
+        return entry.InferredClass;
+    }
+
+    /// <summary>
+    /// Returns the save-file InventoryType of a cell's slot ("Technology", "Product", ...),
+    /// or an empty string when unavailable.
+    /// </summary>
+    private static string SlotInventoryType(SlotCell cell)
+    {
+        try
+        {
+            return cell.SlotData?.GetObject("Type")?.GetString("InventoryType") ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    /// <summary>True when the cell holds an installed technology rather than a carried item.</summary>
+    private static bool IsInstalledTechnology(SlotCell cell) =>
+        string.Equals(SlotInventoryType(cell), "Technology", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when the game would allow packaging the cell's technology.</summary>
+    private bool CanPackCell(SlotCell cell)
+    {
+        if (_database == null) return false;
+        var (gameItem, _, _) = ResolveGameItem(cell.ItemId);
+        if (gameItem == null) return false;
+        return TechPackLogic.CanPackageTech(gameItem, cell.ItemId, cell.DamageFactor, _slots);
+    }
+
+    /// <summary>
+    /// Resolves the technology and optional procedural seed behind a pack item held in a slot.
+    /// Handles hashed packs (seed stored after '#'), procedural TECHID#seed products and
+    /// deployable module products (U_* with a DeploysInto mapping).
+    /// </summary>
+    private bool TryResolvePackCell(SlotCell cell, out string techId, out string? seed)
+    {
+        techId = "";
+        seed = null;
+        if (_database == null) return false;
+        if (TechPackLogic.TryResolveTechId(cell.ItemId, _database, out techId, out seed)
+            && _database.GetItem(techId) != null)
+        {
+            return true;
+        }
+
+        var (module, _, _) = ResolveGameItem(cell.ItemId);
+        if (module != null && TechPackLogic.TryResolveModuleTech(module, out techId)
+            && _database.GetItem(techId) != null)
+        {
+            seed = null;
+            return true;
+        }
+
+        techId = "";
+        return false;
+    }
+
+    /// <summary>True when the item ID carries a '#seed' suffix.</summary>
+    private static bool HasSeedSuffix(string itemId)
+    {
+        string bare = CatalogueLogic.StripCaretPrefix(itemId);
+        int hashIndex = bare.IndexOf('#');
+        return hashIndex >= 0 && hashIndex + 1 < bare.Length;
+    }
+
+    /// <summary>
+    /// True when the cell holds a seeded procedural item or pack whose technology has a
+    /// precomputed best seed.
+    /// </summary>
+    private bool HasBestRollForCell(SlotCell cell)
+    {
+        if (_database == null || !HasSeedSuffix(cell.ItemId)) return false;
+        var (gameItem, _, _) = ResolveGameItem(cell.ItemId);
+        return gameItem != null && gameItem.IsProcedural && ProcTechData.TryGetBestSeed(gameItem.Id, out _);
+    }
+
+    /// <summary>
+    /// True when the cell holds a seeded procedural item or pack whose technology has rollable
+    /// stats (so the stat chooser can search it).
+    /// </summary>
+    private bool CanChooseStatsForCell(SlotCell cell)
+    {
+        if (_database == null || !HasSeedSuffix(cell.ItemId)) return false;
+        var (gameItem, _, _) = ResolveGameItem(cell.ItemId);
+        return gameItem != null && gameItem.IsProcedural && gameItem.StatLevels.Count > 0;
+    }
+
+    /// <summary>
+    /// Builds the stat preview text for an item: the generated roll for procedural
+    /// technologies, or the fixed technology bonuses for other upgrades. Returns null
+    /// when the item has no displayable stats.
+    /// </summary>
+    private string? BuildStatsText(SlotCell cell)
+    {
+        if (_database == null) return null;
+        var (gameItem, _, _) = ResolveGameItem(cell.ItemId);
+        if (gameItem == null) return null;
+
+        if (gameItem.IsProcedural)
+            return BuildProceduralStatsText(cell, gameItem);
+        return BuildFixedStatsText(gameItem);
+    }
+
+    /// <summary>
+    /// Builds the generated stat preview text for a procedural item or pack, or null when
+    /// the item has no seed.
+    /// </summary>
+    private string? BuildProceduralStatsText(SlotCell cell, GameItem gameItem)
+    {
+        string bare = CatalogueLogic.StripCaretPrefix(cell.ItemId);
+        int hashIndex = bare.IndexOf('#');
+        if (hashIndex < 0 || hashIndex + 1 >= bare.Length) return null;
+        return BuildProceduralStatsText(gameItem, bare[(hashIndex + 1)..]);
+    }
+
+    /// <summary>
+    /// Builds the generated stat preview text for a procedural item and a seed string, or null
+    /// when the seed is invalid or the template has no rollable stats.
+    /// </summary>
+    private string? BuildProceduralStatsText(GameItem gameItem, string seedText)
+    {
+        if (!uint.TryParse(seedText, NumberStyles.None, CultureInfo.InvariantCulture, out uint seed))
+            return null;
+
+        var rolls = ProcTechLogic.Roll(gameItem, seed);
+        if (rolls.Count == 0) return null;
+
+        var localisation = ActiveLocalisation;
+        string? lightYearTemplate = ProcTechLogic.LookupGameString(localisation, "STATS_UNIT_LIGHTYEAR_DISTANCE");
+        var sb = new StringBuilder();
+        sb.Append(UiStrings.Get("techstats.header"));
+        foreach (var roll in rolls)
+        {
+            // The game hides non-displayable stats in the technology stat section.
+            if (!ProcTechData.IsStatDisplayable(roll.Stat))
+                continue;
+
+            sb.AppendLine();
+            sb.Append("  ").Append(ProcTechLogic.FormatRollLine(roll, gameItem.BaseStat, localisation, lightYearTemplate));
+        }
+
+        if (ProcTechData.TryGetBestSeed(gameItem.Id, out uint bestSeed) && bestSeed != seed)
+        {
+            sb.AppendLine();
+            sb.Append(UiStrings.Format("techstats.best_seed",
+                bestSeed.ToString("D5", CultureInfo.InvariantCulture)));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds the full description for the detail tooltip: the item description followed by the
+    /// generated stat preview (or the fixed bonuses for other upgrades).
+    /// </summary>
+    private string BuildItemDescription(GameItem? item, SlotCell cell)
+    {
+        string description = ControlTokens.Resolve(item?.Description);
+        string? statsText = BuildStatsText(cell);
+        if (string.IsNullOrEmpty(statsText))
+            return description;
+        return string.IsNullOrEmpty(description)
+            ? statsText
+            : description + Environment.NewLine + Environment.NewLine + statsText;
+    }
+
+    /// <summary>
+    /// Builds the fixed stat bonus text for a non-procedural upgrade technology using the
+    /// game's technology table bonuses. Mirrors cGcFrontendPageFunctions::DoTechStatSection:
+    /// only upgrade technologies show stats, stats must be displayable, and Multiply stats
+    /// with a value of 1 (or Add/Set stats at or below 0) are hidden.
+    /// </summary>
+    private string? BuildFixedStatsText(GameItem gameItem)
+    {
+        if (!gameItem.IsUpgrade || gameItem.StatBonuses.Count == 0)
+        {
+            return null;
+        }
+
+        var localisation = ActiveLocalisation;
+        string? lightYearTemplate = ProcTechLogic.LookupGameString(localisation, "STATS_UNIT_LIGHTYEAR_DISTANCE");
+        var sb = new StringBuilder();
+        bool wroteHeader = false;
+        foreach (var bonus in gameItem.StatBonuses)
+        {
+            if (!ProcTechData.IsStatDisplayable(bonus.Stat))
+                continue;
+
+            string? function = ProcTechData.GetStatFunction(bonus.Stat);
+            if (string.Equals(function, "Multiply", StringComparison.OrdinalIgnoreCase))
+            {
+                if (MathF.Abs(1f - bonus.Bonus) <= 7.6293945e-6f)
+                    continue;
+            }
+            else if (bonus.Bonus <= 0f)
+            {
+                continue;
+            }
+
+            if (!wroteHeader)
+            {
+                sb.Append(UiStrings.Get("techstats.fixed_header"));
+                wroteHeader = true;
+            }
+
+            string displayKey = bonus.Stat.ToUpperInvariant();
+            if (displayKey.Length > 31) displayKey = displayKey[..31];
+            string displayName = ProcTechLogic.LookupGameString(localisation, displayKey)
+                ?? bonus.Stat;
+            bool baseKnown = ProcTechData.TryGetBaseStatAmount(bonus.Stat, gameItem.BaseStat, out float baseAmount);
+            var roll = new ProcTechLogic.ProcStatRoll(bonus.Stat, bonus.Stat, bonus.Level,
+                bonus.Bonus, bonus.Bonus, bonus.Bonus);
+            sb.AppendLine();
+            sb.Append("  ").Append(displayName).Append(": ")
+                .Append(ProcTechLogic.FormatValue(roll, baseAmount, baseKnown, lightYearTemplate));
+        }
+
+        return wroteHeader ? sb.ToString() : null;
+    }
+
+    /// <summary>
+    /// Rewrites the seed of the selected procedural item or pack to the precomputed best
+    /// ("god roll") seed for its technology template.
+    /// </summary>
+    private void OnSetBestRoll(object? sender, EventArgs e)
+    {
+        if (_contextCell?.SlotData == null || _slots == null || _database == null) return;
+        var (gameItem, _, _) = ResolveGameItem(_contextCell.ItemId);
+        if (gameItem == null || !ProcTechData.TryGetBestSeed(gameItem.Id, out uint bestSeed)) return;
+
+        string bare = CatalogueLogic.StripCaretPrefix(_contextCell.ItemId);
+        int hashIndex = bare.IndexOf('#');
+        if (hashIndex < 0) return;
+
+        string newId = "^" + bare[..hashIndex] + "#" + bestSeed.ToString("D5", CultureInfo.InvariantCulture);
+        object idValue = BuildBinaryIdValue(newId, _contextCell.OriginalBinaryIdBody);
+        _contextCell.SlotData.Set("Id", idValue);
+        LoadInventory(_currentInventory);
+        RaiseDataModified();
+    }
+
+    /// <summary>
+    /// Opens the stat chooser for the selected procedural item or pack and applies the chosen
+    /// seed (preserving the pack binary body).
+    /// </summary>
+    private void OnChooseStats(object? sender, EventArgs e)
+    {
+        if (_contextCell?.SlotData == null || _slots == null || _database == null) return;
+        var (gameItem, _, _) = ResolveGameItem(_contextCell.ItemId);
+        if (gameItem == null || !gameItem.IsProcedural || gameItem.StatLevels.Count == 0) return;
+
+        using var dialog = new ProcTechStatSearchDialog(gameItem, ActiveLocalisation);
+        if (dialog.ShowDialog(this) != DialogResult.OK || !dialog.Applied) return;
+
+        string bare = CatalogueLogic.StripCaretPrefix(_contextCell.ItemId);
+        int hashIndex = bare.IndexOf('#');
+        if (hashIndex < 0) return;
+
+        string newId = "^" + bare[..hashIndex] + "#" + dialog.SelectedSeed.ToString("D5", CultureInfo.InvariantCulture);
+        object idValue = BuildBinaryIdValue(newId, _contextCell.OriginalBinaryIdBody);
+        _contextCell.SlotData.Set("Id", idValue);
+        LoadInventory(_currentInventory);
+        RaiseDataModified();
+    }
+
+    /// <summary>
+    /// Returns the procedural seed stored after '#' in an item ID, or null when the ID
+    /// is not a procedural form (pack hash IDs are excluded).
+    /// </summary>
+    private static string? ExtractProceduralSeed(string itemId)
+    {
+        string bare = CatalogueLogic.StripCaretPrefix(itemId);
+        int suffixIndex = bare.IndexOf('#');
+        if (suffixIndex <= 0 || suffixIndex + 1 >= bare.Length)
+            return null;
+        if (TechPackLogic.IsPackHashId(bare[..suffixIndex]))
+            return null;
+        string seed = bare[(suffixIndex + 1)..];
+        foreach (char ch in seed)
+        {
+            if (!char.IsAsciiDigit(ch))
+                return null;
+        }
+        return seed;
     }
 
     /// <summary>
@@ -1783,9 +2173,37 @@ public partial class InventoryGridPanel : UserControl
             displayBase = gi.NameLower;
         else
             displayBase = gi?.Name ?? baseId;
-        string displayName = string.IsNullOrEmpty(variant) ? displayBase : $"{displayBase} [{variant}]";
+
+        // Procedural technologies and their packs get the game's generated names, e.g.
+        // "Writhing Energy Field" and "Writhing Energy Field Package".
+        string? generatedName = null;
+        if (gi != null && !string.IsNullOrEmpty(variant))
+        {
+            var localisation = ActiveLocalisation;
+            string seed = variant.TrimStart('#');
+            if (TechPackLogic.IsPackHashId(baseId))
+            {
+                generatedName = ProcTechLogic.GeneratePackName(
+                    ProcTechLogic.GenerateTechName(gi, seed, localisation), gi, localisation);
+            }
+            else if (gi.IsProcedural)
+            {
+                generatedName = ProcTechLogic.GenerateTechName(gi, seed, localisation);
+            }
+        }
+        if (!string.IsNullOrEmpty(generatedName))
+            displayBase = generatedName;
+
+        // Generated names already identify the item; other variants keep the [#seed] marker.
+        string displayName = string.IsNullOrEmpty(variant) || !string.IsNullOrEmpty(generatedName)
+            ? displayBase
+            : $"{displayBase} [{variant}]";
         return (gi, displayName, techPackIcon, techPackClass);
     }
+
+    /// <summary>The active game localisation service, when hosted in the main form.</summary>
+    private LocalisationService? ActiveLocalisation =>
+        (FindForm() as MainFormResources)?.CurrentLocalisation;
 
     private bool IsSlotInValidIndices(int x, int y)
     {
@@ -2213,6 +2631,21 @@ public partial class InventoryGridPanel : UserControl
         // Show "Refill All Stacks" only in non-tech (cargo) inventories
         _refillAllStacksMenuItem.Visible = !_isTechInventory && _currentInventory != null;
 
+        // Pack applies to installed technology; Unpack applies to packs carried as items.
+        _packTechMenuItem.Text = UiStrings.Get("techpack.ctx_pack");
+        _unpackTechMenuItem.Text = UiStrings.Get("techpack.ctx_unpack");
+        _packTechMenuItem.Visible = hasItem && IsInstalledTechnology(cell) && CanPackCell(cell);
+        _unpackTechMenuItem.Visible = hasItem && !IsInstalledTechnology(cell) && TryResolvePackCell(cell, out _, out _);
+
+        // Best-roll action applies to any seeded procedural item or pack with a
+        // precomputed best seed.
+        _setBestRollMenuItem.Text = UiStrings.Get("techstats.set_best_roll");
+        _setBestRollMenuItem.Visible = hasItem && HasBestRollForCell(cell);
+
+        // Stat chooser applies to any seeded procedural item or pack with rollable stats.
+        _chooseStatsMenuItem.Text = UiStrings.Get("techstats.choose_stats");
+        _chooseStatsMenuItem.Visible = hasItem && CanChooseStatsForCell(cell);
+
         _sortByNameMenuItem.Visible = false;
         _sortByCategoryMenuItem.Visible = false;
         bool canAutoStack = _isCargoInventory && !_isStorageInventory && _currentInventory != null;
@@ -2352,7 +2785,7 @@ public partial class InventoryGridPanel : UserControl
         if (_database != null && !string.IsNullOrEmpty(cell.ItemId))
         {
             var (item, _, _, _) = ResolveItemAndDisplayName(cell.ItemId);
-            _detailDescription.Text = item?.Description ?? "";
+            _detailDescription.Text = BuildItemDescription(item, cell);
         }
         else
         {
@@ -2504,7 +2937,7 @@ public partial class InventoryGridPanel : UserControl
                 _detailItemName.Text = displayName;
                 _detailItemType.Text = resolvedItem.ItemType;
                 _detailItemCategory.Text = GetLocalisedCategoryName(resolvedItem.Category);
-                _detailDescription.Text = resolvedItem.Description;
+                _detailDescription.Text = BuildItemDescription(resolvedItem, _selectedCell);
 
                 // Set item class from TechPack if available, else from Quality field
                 if (!string.IsNullOrEmpty(techPackClass))
@@ -3329,6 +3762,102 @@ public partial class InventoryGridPanel : UserControl
         if (refilled > 0) RaiseDataModified();
     }
 
+    /// <summary>
+    /// Packages the selected installed technology into a pack item placed in a chosen
+    /// destination cargo inventory, mirroring the game's PackageTechnology.
+    /// </summary>
+    private void OnPackTech(object? sender, EventArgs e)
+    {
+        if (_contextCell?.SlotData == null || _slots == null || _database == null) return;
+
+        if (!CanPackCell(_contextCell))
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.not_packable"), UiStrings.Get("techpack.pack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var mainForm = FindForm() as MainFormResources;
+        var playerState = mainForm?.CurrentSaveData?.GetObject("PlayerStateData");
+        if (playerState == null) return;
+
+        var destinations = TechPackLogic.EnumerateDestinations(playerState, tech: false);
+        if (destinations.Count == 0)
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.no_destinations"), UiStrings.Get("techpack.pack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var (gameItem, _, _) = ResolveGameItem(_contextCell.ItemId);
+        if (gameItem == null) return;
+        if (!TryResolvePackCell(_contextCell, out string techId, out string? seed))
+        {
+            techId = CatalogueLogic.StripCaretPrefix(gameItem.Id);
+            seed = ExtractProceduralSeed(_contextCell.ItemId);
+        }
+
+        using var dialog = new TechPackDestinationDialog(UiStrings.Get("techpack.pack_title"), destinations);
+        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.SelectedDestination == null) return;
+
+        if (!TechPackLogic.TryPack(_slots, _contextCell.SlotIndex, techId, seed,
+                dialog.SelectedDestination, dialog.SelectedX, dialog.SelectedY, _database))
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.pack_failed"), UiStrings.Get("techpack.pack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        mainForm?.RefreshInventoryPanelsAfterPackOperation();
+        LoadInventory(_currentInventory);
+        RaiseDataModified();
+    }
+
+    /// <summary>
+    /// Unpacks the selected technology pack into a chosen destination technology
+    /// inventory slot, mirroring the game's unpack behaviour.
+    /// </summary>
+    private void OnUnpackTech(object? sender, EventArgs e)
+    {
+        if (_contextCell?.SlotData == null || _slots == null || _database == null) return;
+        if (!TryResolvePackCell(_contextCell, out string techId, out string? seed)) return;
+
+        var techItem = _database.GetItem(techId);
+        if (techItem == null)
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.unknown_tech"), UiStrings.Get("techpack.unpack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var mainForm = FindForm() as MainFormResources;
+        var playerState = mainForm?.CurrentSaveData?.GetObject("PlayerStateData");
+        if (playerState == null) return;
+
+        var destinations = TechPackLogic.EnumerateDestinations(playerState, tech: true);
+        if (destinations.Count == 0)
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.no_destinations"), UiStrings.Get("techpack.unpack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new TechPackDestinationDialog(UiStrings.Get("techpack.unpack_title"), destinations);
+        if (dialog.ShowDialog(this) != DialogResult.OK || dialog.SelectedDestination == null) return;
+
+        if (!TechPackLogic.TryUnpack(_slots, _contextCell.SlotIndex, dialog.SelectedDestination, techItem, techId, seed,
+                dialog.SelectedX, dialog.SelectedY))
+        {
+            MessageBox.Show(this, UiStrings.Get("techpack.unpack_failed"), UiStrings.Get("techpack.unpack_title"),
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        mainForm?.RefreshInventoryPanelsAfterPackOperation();
+        LoadInventory(_currentInventory);
+        RaiseDataModified();
+    }
+
     private sealed class SlotSortEntry
     {
         public required JsonObject Slot { get; init; }
@@ -3683,7 +4212,7 @@ public partial class InventoryGridPanel : UserControl
             FileName = _exportFileName
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -3710,7 +4239,7 @@ public partial class InventoryGridPanel : UserControl
             DefaultExt = _exportDefaultExt
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -3896,8 +4425,11 @@ public partial class InventoryGridPanel : UserControl
         _categoryFilterLabel.Text = UiStrings.Get("inventory.label_filter_category");
         _itemFilterLabel.Text = UiStrings.Get("inventory.label_filter_item");
 
-        // Re-populate type filter to pick up localised display names
-        PopulateTypeFilter();
+        // Re-populate the filters only when they have already been built so loaded
+        // grids pick up the new language. Unloaded grids populate on first display
+        // or when a filter dropdown is opened (see EnsureFiltersPopulated), which
+        // keeps the ~5000-entry picker out of the startup path.
+        RefreshItemFilters();
     }
 
     /// <summary>

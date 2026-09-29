@@ -3,6 +3,7 @@ using NMSE.Core.Utilities;
 using NMSE.Data;
 using NMSE.Models;
 using NMSE.UI.Controls;
+using NMSE.UI.Dialogs;
 using NMSE.UI.Util;
 using System.Globalization;
 
@@ -712,6 +713,7 @@ public partial class CompanionPanel : UserControl
         {
             comp.Set("SpeciesSeed", normalized);
             RaiseDataModified();
+            UpdateTrueClasses(comp);
         }
     }
 
@@ -724,6 +726,7 @@ public partial class CompanionPanel : UserControl
         {
             comp.Set("GenusSeed", normalized);
             RaiseDataModified();
+            UpdateTrueClasses(comp);
         }
     }
 
@@ -776,6 +779,7 @@ public partial class CompanionPanel : UserControl
             // the exact representation in serialised output.
             comp.Set("Scale", new RawDouble(val, _scaleField.DisplayText));
             RaiseDataModified();
+            UpdatePredictedStats(comp);
         }
     }
 
@@ -1708,6 +1712,7 @@ public partial class CompanionPanel : UserControl
 
         UpdateClassOverrideEnabled();
         UpdateAverageClass();
+        UpdateTrueClasses(comp);
 
         // Clear raw battle values for the newly selected companion
         _rawBattleIntValues.Clear();
@@ -2104,6 +2109,7 @@ public partial class CompanionPanel : UserControl
         comp.Set("PetBattlerUseCoreStatClassOverrides", _battleOverrideCheck.Checked);
         UpdateClassOverrideEnabled();
         UpdateAverageClass();
+        UpdatePredictedStats(comp);
         RaiseDataModified();
     }
 
@@ -2148,6 +2154,7 @@ public partial class CompanionPanel : UserControl
         catch { }
 
         UpdateAverageClass();
+        UpdatePredictedStats(comp);
     }
 
     /// <summary>Writes a class letter to a stat class override array element.</summary>
@@ -2177,6 +2184,142 @@ public partial class CompanionPanel : UserControl
         _battleAverageClassValue.Text = IntToClass(sum / 3);
     }
 
+    /// <summary>Updates the true (seed-rolled) battle classes display for the given companion.</summary>
+    private void UpdateTrueClasses(JsonObject comp)
+    {
+        var speciesSeed = TryParseSeed(comp.GetString("SpeciesSeed"));
+        var genusSeed = TryParseSeed(comp.GetString("GenusSeed"));
+        if (speciesSeed == null || genusSeed == null)
+        {
+            _battleTrueClassesValue.Text = UiStrings.Get("common.na");
+            UpdatePredictedStats(comp);
+            return;
+        }
+
+        var classes = PetBattleLogic.RollClasses(speciesSeed.Value, genusSeed.Value);
+        _battleTrueClassesValue.Text = string.Format(CultureInfo.CurrentCulture,
+            UiStrings.Get("companion.battle_true_classes_format"),
+            PetBattleLogic.ClassLetter(classes.Health),
+            PetBattleLogic.ClassLetter(classes.Speed),
+            PetBattleLogic.ClassLetter(classes.Combat),
+            PetBattleLogic.ClassLetter(classes.Overall));
+        UpdatePredictedStats(comp);
+    }
+
+    /// <summary>Updates the predicted core stat values display for the given companion.</summary>
+    private void UpdatePredictedStats(JsonObject comp)
+    {
+        var speciesSeed = TryParseSeed(comp.GetString("SpeciesSeed"));
+        var genusSeed = TryParseSeed(comp.GetString("GenusSeed"));
+        if (speciesSeed == null || genusSeed == null)
+        {
+            _battlePredictedStatsValue.Text = UiStrings.Get("common.na");
+            return;
+        }
+
+        float scale;
+        try { scale = (float)comp.GetDouble("Scale"); } catch { scale = 0f; }
+
+        var classes = GetBattleClasses(comp, speciesSeed.Value, genusSeed.Value);
+        var (healthLevel, speedLevel, combatLevel) = GetTreatLevels(comp);
+        var stats = PetBattleLogic.PredictCoreStats(speciesSeed.Value, genusSeed.Value, scale,
+            classes, healthLevel, speedLevel, combatLevel);
+        _battlePredictedStatsValue.Text = string.Format(CultureInfo.CurrentCulture,
+            UiStrings.Get("companion.battle_predicted_stats_format"),
+            stats.Health.ToString("N0", CultureInfo.CurrentCulture),
+            stats.Speed.ToString("N0", CultureInfo.CurrentCulture),
+            stats.Combat.ToString("N0", CultureInfo.CurrentCulture));
+    }
+
+    /// <summary>Returns the pet's battle classes: class overrides when enabled, otherwise the true roll.</summary>
+    private static PetBattleLogic.Classes GetBattleClasses(JsonObject comp, ulong speciesSeed, ulong genusSeed)
+    {
+        try
+        {
+            if (comp.GetBool("PetBattlerUseCoreStatClassOverrides"))
+            {
+                var overrides = comp.GetArray("PetBattlerCoreStatClassOverrides");
+                return new PetBattleLogic.Classes(
+                    ClassToInt(ReadClassOverride(overrides, 2)),
+                    ClassToInt(ReadClassOverride(overrides, 1)),
+                    ClassToInt(ReadClassOverride(overrides, 0)));
+            }
+        }
+        catch { }
+        return PetBattleLogic.RollClasses(speciesSeed, genusSeed);
+    }
+
+    /// <summary>Reads the pet's gene edit levels (Health, Speed, Combat).</summary>
+    private static (int Health, int Speed, int Combat) GetTreatLevels(JsonObject comp)
+    {
+        try
+        {
+            var treats = comp.GetArray("PetBattlerTreatsEaten");
+            if (treats != null)
+            {
+                return (treats.Length > 0 ? treats.GetInt(0) : 0,
+                        treats.Length > 1 ? treats.GetInt(1) : 0,
+                        treats.Length > 2 ? treats.GetInt(2) : 0);
+            }
+        }
+        catch { }
+        return (0, 0, 0);
+    }
+
+    /// <summary>Parses a save seed string ("0x..." hex or a plain integer) into a 64-bit value.</summary>
+    private static ulong? TryParseSeed(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var trimmed = text.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return ulong.TryParse(trimmed[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hex) ? hex : null;
+        return ulong.TryParse(trimmed, NumberStyles.None, CultureInfo.InvariantCulture, out var dec) ? dec : null;
+    }
+
+    /// <summary>Resets the pet battle record after confirmation (reward species keep S/S/S).</summary>
+    private void OnBattleResetRecord()
+    {
+        var comp = SelectedCompanion;
+        if (comp == null) return;
+
+        var result = MessageBox.Show(this, UiStrings.Get("companion.battle_reset_confirm"),
+            UiStrings.Get("companion.battle_reset_record"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        if (result != DialogResult.Yes) return;
+
+        PetBattleLogic.ResetBattleRecord(comp);
+        RaiseDataModified();
+
+        bool wasLoading = _loading;
+        _loading = true;
+        try { LoadBattleData(comp, SelectedEntry); }
+        finally { _loading = wasLoading; }
+    }
+
+    /// <summary>Opens the seed solver dialog and applies the chosen seeds and scale.</summary>
+    private void OnBattleSeedSearch()
+    {
+        var comp = SelectedCompanion;
+        if (comp == null) return;
+
+        double currentScale = 0.0;
+        try { currentScale = comp.GetDouble("Scale"); } catch { }
+        var (healthLevel, speedLevel, combatLevel) = GetTreatLevels(comp);
+
+        using var dialog = new PetBattleSeedSearchDialog(healthLevel, speedLevel, combatLevel, currentScale);
+        if (dialog.ShowDialog(this) != DialogResult.OK || !dialog.Applied) return;
+
+        _speciesSeedField.Text = SeedHelper.FormatSeed(dialog.SpeciesSeed);
+        _genusSeedField.Text = SeedHelper.FormatSeed(dialog.GenusSeed);
+        if (dialog.HasScale)
+        {
+            _scaleField.SetValueWithText(dialog.Scale, dialog.Scale.ToString(CultureInfo.InvariantCulture));
+            WriteScale();
+        }
+        WriteSpeciesSeed();
+        WriteGenusSeed();
+        UpdateTrueClasses(comp);
+    }
+
     /// <summary>Handles treat InvariantNumericTextBox changes.</summary>
     private void OnBattleTreatChanged()
     {
@@ -2200,6 +2343,7 @@ public partial class CompanionPanel : UserControl
         catch { }
 
         UpdateGenesLevel();
+        UpdatePredictedStats(comp);
     }
 
     /// <summary>Updates the genes level display label.</summary>
@@ -2258,6 +2402,14 @@ public partial class CompanionPanel : UserControl
     private void SetBattleControlsEnabled(bool enabled)
     {
         _battleOverrideCheck.Enabled = enabled;
+        _battleTrueClassesLabel.Visible = enabled;
+        _battleTrueClassesValue.Visible = enabled;
+        _battleSeedSearchButton.Enabled = enabled;
+        _battlePredictedStatsLabel.Visible = enabled;
+        _battlePredictedStatsValue.Visible = enabled;
+        _battleResetButton.Enabled = enabled;
+        _battleRewardNote.Visible = enabled && SelectedCompanion != null
+            && PetBattleLogic.IsRewardSpecies(SelectedCompanion.GetString("CreatureID"));
         _battleHealthClassLabel.Visible = enabled;
         _battleAgilityClassLabel.Visible = enabled;
         _battleCombatClassLabel.Visible = enabled;
@@ -2331,7 +2483,7 @@ public partial class CompanionPanel : UserControl
             FileName = ExportConfig.BuildFileName(config.CompanionTemplate, config.CompanionExt, vars)
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
         {
             try
             {
@@ -2361,7 +2513,7 @@ public partial class CompanionPanel : UserControl
             Filter = ExportConfig.BuildImportFilter(config.CompanionExt, "Companion files", ".pet", ".cmp")
         };
 
-        if (dialog.ShowDialog() != DialogResult.OK) return;
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
         try
         {
@@ -2986,6 +3138,11 @@ public partial class CompanionPanel : UserControl
         _battleAgilityClassPlaceholder.Text = UiStrings.GetOrNull("common.na") ?? "N/A";
         _battleCombatClassPlaceholder.Text = UiStrings.GetOrNull("common.na") ?? "N/A";
         _battleAverageClassLabel.Text = UiStrings.GetOrNull("companion.battle_average_class") ?? "Average Class:";
+        _battleTrueClassesLabel.Text = UiStrings.GetOrNull("companion.battle_true_classes") ?? "True Classes:";
+        _battleSeedSearchButton.Text = UiStrings.GetOrNull("companion.battle_search_seed") ?? "Search Seed...";
+        _battlePredictedStatsLabel.Text = UiStrings.GetOrNull("companion.battle_predicted_stats") ?? "Predicted Stats:";
+        _battleResetButton.Text = UiStrings.GetOrNull("companion.battle_reset_record") ?? "Reset Battle Record";
+        _battleRewardNote.Text = UiStrings.GetOrNull("companion.battle_reward_note") ?? "Arena League reward pet (S/S/S class set).";
         _battleTreatsHeadingLabel.Text = UiStrings.GetOrNull("companion.battle_treats_heading") ?? "Gene Edits";
         _battleTreatHealthLabel.Text = UiStrings.GetOrNull("companion.battle_treats_health") ?? "Health:";
         _battleTreatAgilityLabel.Text = UiStrings.GetOrNull("companion.battle_treats_agility") ?? "Agility:";

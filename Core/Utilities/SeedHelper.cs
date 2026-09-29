@@ -73,4 +73,10 @@ internal static class SeedHelper
 
         return NormalizeSeed(seed);
     }
+
+    /// <summary>Formats a 64-bit seed in the save file format (lowercase "0x" prefix, uppercase hex).</summary>
+    /// <param name="seed">The seed value to format.</param>
+    /// <returns>The formatted seed string.</returns>
+    internal static string FormatSeed(ulong seed) =>
+        "0x" + seed.ToString("X16", System.Globalization.CultureInfo.InvariantCulture);
 }

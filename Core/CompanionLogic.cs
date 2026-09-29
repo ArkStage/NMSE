@@ -144,7 +144,7 @@ internal static class CompanionLogic
         ResetAccessoryCustomisation(companion);
 
         // Reset battle data fields
-        ResetBattleData(companion);
+        PetBattleLogic.ResetBattleData(companion);
     }
 
     /// <summary>
@@ -218,85 +218,6 @@ internal static class CompanionLogic
                 foreach (var name in accessory.Names())
                     accessory.Set(name, "");
             }
-        }
-        catch { }
-    }
-
-    //  Pet Battle Data Helpers
-
-    /// <summary>Names of all battle-related keys stored in a companion JSON object.</summary>
-    internal static readonly string[] BattleKeys =
-    {
-        "PetBattlerUseCoreStatClassOverrides",
-        "PetBattlerCoreStatClassOverrides",
-        "PetBattlerTreatsEaten",
-        "PetBattlerTreatsAvailable",
-        "PetBattleProgressToTreat",
-        "PetBattlerVictories",
-        "PetBattlerMoveList",
-        "PetBattlerMoves",
-    };
-
-    /// <summary>
-    /// Resets all pet battle data fields to their default state.
-    /// </summary>
-    internal static void ResetBattleData(JsonObject companion)
-    {
-        try { companion.Set("PetBattlerUseCoreStatClassOverrides", false); } catch { }
-
-        // PetBattlerCoreStatClassOverrides: array of 3 InventoryClass objects -> "C"
-        try
-        {
-            var overrides = companion.GetArray("PetBattlerCoreStatClassOverrides");
-            if (overrides != null)
-                for (int i = 0; i < overrides.Length; i++)
-                {
-                    var obj = overrides.GetObject(i);
-                    obj?.Set("InventoryClass", "C");
-                }
-        }
-        catch { }
-
-        // PetBattlerTreatsEaten: array of 3 integers -> 0
-        try
-        {
-            var treats = companion.GetArray("PetBattlerTreatsEaten");
-            if (treats != null)
-                for (int i = 0; i < treats.Length; i++)
-                    treats.Set(i, 0);
-        }
-        catch { }
-
-        try { companion.Set("PetBattlerTreatsAvailable", 0); } catch { }
-        try { companion.Set("PetBattleProgressToTreat", 0.0); } catch { }
-        try { companion.Set("PetBattlerVictories", 0); } catch { }
-
-        // PetBattlerMoveList: array of 5 move objects -> reset MoveTemplateID/Cooldown/ScoreBoost
-        // (legacy key, no longer used by the game but still present in saves)
-        try
-        {
-            var moveList = companion.GetArray("PetBattlerMoveList");
-            if (moveList != null)
-                for (int i = 0; i < moveList.Length; i++)
-                {
-                    var obj = moveList.GetObject(i);
-                    if (obj != null)
-                    {
-                        obj.Set("MoveTemplateID", "^");
-                        obj.Set("Cooldown", 0);
-                        obj.Set("ScoreBoost", 0.0);
-                    }
-                }
-        }
-        catch { }
-
-        // PetBattlerMoves: array of 5 move ID strings -> reset to "^"
-        try
-        {
-            var moves = companion.GetArray("PetBattlerMoves");
-            if (moves != null)
-                for (int i = 0; i < moves.Length; i++)
-                    moves.Set(i, "^");
         }
         catch { }
     }
