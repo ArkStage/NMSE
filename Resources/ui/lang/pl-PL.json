@@ -705,6 +705,7 @@
   "discovery.import_no_words": "Nie znaleziono przedmiotów w zaimportowanym pliku.",
   "discovery.import_success_items": "Zaimportowano {0} nowych przedmiotów.",
   "discovery.import_title": "Importuj",
+  "discovery.import_words_skipped": "Pominięto {0} wpisów, których nie znaleziono w bazie słów.",
   "discovery.import_words_success": "Zaimportowano {0} nowych słów.",
   "discovery.imported_items": "Zaimportowano {0} nowych przedmiotów.",
   "discovery.imported_locations": "Zaimportowano {0} lokalizacji.",

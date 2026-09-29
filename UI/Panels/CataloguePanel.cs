@@ -1491,8 +1491,45 @@ public partial class CataloguePanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Exports the words known for at least one race as a flat list of word IDs. The word grid
+    /// lists every word in the database (with per-race checkboxes), so exporting the grid rows
+    /// would always write the full list regardless of the save.
+    /// </summary>
+    private void ExportKnownWordsList()
+    {
+        if (_knownWordGroups == null || _wordDatabase == null) return;
+
+        var config = ExportConfig.Instance;
+        var vars = new Dictionary<string, string> { ["name"] = "Words" };
+        using var dialog = new SaveFileDialog
+        {
+            Filter = ExportConfig.BuildDialogFilter(config.DiscoveryExt, "Discovery files"),
+            DefaultExt = config.DiscoveryExt.TrimStart('.'),
+            FileName = ExportConfig.BuildFileName(config.DiscoveryTemplate, config.DiscoveryExt, vars)
+        };
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
+
+        try
+        {
+            var ids = CatalogueLogic.CollectKnownWordIds(_knownWordGroups, _wordDatabase.Words);
+            var root = new JsonObject();
+            var arr = new JsonArray();
+            foreach (var id in ids)
+                arr.Add(id);
+            root.Set("KnownWords", arr);
+            root.ExportToFile(dialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, UiStrings.Format("discovery.export_failed", ex.Message), UiStrings.Get("common.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private void ImportWordsList()
     {
+        if (_knownWordGroups == null || _wordDatabase == null || _savedPlayerState == null) return;
+
         var config = ExportConfig.Instance;
         using var dialog = new OpenFileDialog
         {
@@ -1514,30 +1551,21 @@ public partial class CataloguePanel : UserControl
                 return;
             }
 
-            // Import format: each entry is a word ID. Set all race columns to true for imported words.
-            int added = 0;
-            var existingWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (DataGridViewRow row in _wordGrid.Rows)
-                existingWords.Add(row.Cells["Word"].Value?.ToString() ?? "");
-
+            var entries = new List<string>(arr.Length);
             for (int i = 0; i < arr.Length; i++)
+                entries.Add(arr.GetString(i) ?? "");
+
+            var (applied, skipped) = CatalogueLogic.ApplyKnownWords(
+                _knownWordGroups, _wordDatabase.Words, entries);
+
+            // Refresh the checkboxes so the imported words show as known.
+            LoadKnownWords(_savedPlayerState);
+
+            MessageBox.Show(this, UiStrings.Format("discovery.import_words_success", applied), UiStrings.Get("discovery.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (skipped > 0)
             {
-                string wordId = arr.GetString(i) ?? "";
-                if (string.IsNullOrEmpty(wordId) || existingWords.Contains(wordId)) continue;
-
-                var checkValues = new object[RaceColumns.Length];
-                for (int j = 0; j < checkValues.Length; j++)
-                    checkValues[j] = true;
-                var cells = new object[2 + checkValues.Length];
-                cells[0] = wordId;
-                cells[1] = wordId;
-                Array.Copy(checkValues, 0, cells, 2, checkValues.Length);
-                _wordGrid.Rows.Add(cells);
-                existingWords.Add(wordId);
-                added++;
+                MessageBox.Show(this, UiStrings.Format("discovery.import_words_skipped", skipped), UiStrings.Get("discovery.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-
-            MessageBox.Show(this, UiStrings.Format("discovery.import_words_success", added), UiStrings.Get("discovery.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             RaiseDataModified();
         }
         catch (Exception ex)

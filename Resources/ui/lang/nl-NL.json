@@ -705,6 +705,7 @@
   "discovery.import_no_words": "In het geïmporteerde bestand zijn geen items gevonden.",
   "discovery.import_success_items": "{0} nieuwe items geïmporteerd.",
   "discovery.import_title": "Importeren",
+  "discovery.import_words_skipped": "{0} items overgeslagen die niet in de woorden database zijn gevonden.",
   "discovery.import_words_success": "{0} nieuwe woorden geïmporteerd.",
   "discovery.imported_items": "{0} nieuwe items geïmporteerd.",
   "discovery.imported_locations": "{0} locaties geïmporteerd.",

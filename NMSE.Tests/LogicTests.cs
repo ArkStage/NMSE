@@ -2879,6 +2879,58 @@ public class LogicTests
         Assert.False(CatalogueLogic.IsWordKnown(groups, "NoSuchGroup", 0));
     }
 
+    [Fact]
+    public void CatalogueLogic_CollectKnownWordIds_ReturnsKnownWordsInDatabaseOrder()
+    {
+        var known = new JsonArray();
+        var groupA = new JsonObject();
+        groupA.Set("Group", "^TRA_A");
+        var racesA = new JsonArray();
+        racesA.Add(true);
+        groupA.Set("Races", racesA);
+        known.Add(groupA);
+        var groupC = new JsonObject();
+        groupC.Set("Group", "^WAR_C");
+        var racesC = new JsonArray();
+        racesC.Add(false);
+        racesC.Add(true);
+        groupC.Set("Races", racesC);
+        known.Add(groupC);
+
+        var wordA = new WordEntry("^A", "a");
+        wordA.Groups["^TRA_A"] = 0;
+        var wordB = new WordEntry("^B", "b");
+        wordB.Groups["^WAR_B"] = 1;
+        var wordC = new WordEntry("^C", "c");
+        wordC.Groups["^TRA_C"] = 0;
+        wordC.Groups["^WAR_C"] = 1;
+
+        var ids = CatalogueLogic.CollectKnownWordIds(known, new[] { wordA, wordB, wordC });
+
+        Assert.Equal(new[] { "^A", "^C" }, ids);
+        Assert.Empty(CatalogueLogic.CollectKnownWordIds(new JsonArray(), new[] { wordA }));
+    }
+
+    [Fact]
+    public void CatalogueLogic_ApplyKnownWords_MatchesByIdAndTextAcrossAllRaces()
+    {
+        var known = new JsonArray();
+        var wordA = new WordEntry("^A", "a");
+        wordA.Groups["^TRA_A"] = 0;
+        wordA.Groups["^WAR_A"] = 1;
+        var wordB = new WordEntry("^B", "b");
+        wordB.Groups["^TRA_B"] = 2;
+
+        var (applied, skipped) = CatalogueLogic.ApplyKnownWords(
+            known, new[] { wordA, wordB }, new[] { "A", "b", "missing" });
+
+        Assert.Equal(2, applied);
+        Assert.Equal(1, skipped);
+        Assert.True(CatalogueLogic.IsWordKnown(known, "^TRA_A", 0));
+        Assert.True(CatalogueLogic.IsWordKnown(known, "^WAR_A", 1));
+        Assert.True(CatalogueLogic.IsWordKnown(known, "^TRA_B", 2));
+    }
+
     /// <summary>
     /// Builds a minimal save containing the global stats group with the word-stat
     /// entries the game seeds, each with an empty Value object (as found in real saves).

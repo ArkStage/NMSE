@@ -194,6 +194,83 @@ internal static class CatalogueLogic
     }
 
     /// <summary>
+    /// Collects the IDs of every word known for at least one race, in database order.
+    /// Used by the Known Words export so only learned words are written.
+    /// </summary>
+    /// <param name="knownWordGroups">The JSON array of known word group entries.</param>
+    /// <param name="words">The full word list from the word database.</param>
+    /// <returns>The known word IDs.</returns>
+    internal static List<string> CollectKnownWordIds(JsonArray knownWordGroups, IReadOnlyList<WordEntry> words)
+    {
+        var result = new List<string>();
+        if (knownWordGroups == null || words == null) return result;
+
+        for (int w = 0; w < words.Count; w++)
+        {
+            var word = words[w];
+            foreach (var (groupName, raceOrdinal) in word.Groups)
+            {
+                if (IsWordKnown(knownWordGroups, groupName, raceOrdinal))
+                {
+                    result.Add(word.Id);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Applies the known state for imported word entries, matched by ID first and then by the
+    /// displayed text. Every race the word supports is marked as known.
+    /// </summary>
+    /// <param name="knownWordGroups">The JSON array of known word group entries.</param>
+    /// <param name="words">The full word list from the word database.</param>
+    /// <param name="entries">The imported entries (word IDs or displayed words).</param>
+    /// <returns>The number of words applied and the number skipped (not in the database).</returns>
+    internal static (int Applied, int Skipped) ApplyKnownWords(
+        JsonArray knownWordGroups, IReadOnlyList<WordEntry> words, IReadOnlyList<string> entries)
+    {
+        if (knownWordGroups == null || words == null)
+            return (0, entries?.Count ?? 0);
+
+        var byId = new Dictionary<string, WordEntry>(StringComparer.OrdinalIgnoreCase);
+        var byText = new Dictionary<string, WordEntry>(StringComparer.OrdinalIgnoreCase);
+        for (int w = 0; w < words.Count; w++)
+        {
+            var word = words[w];
+            string id = TrimId(word.Id);
+            if (id.Length > 0) byId.TryAdd(id, word);
+            string text = (word.Text ?? "").Trim();
+            if (text.Length > 0) byText.TryAdd(text, word);
+        }
+
+        int applied = 0, skipped = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            string entry = (entries[i] ?? "").Trim();
+            if (entry.Length == 0) continue;
+
+            WordEntry? word = null;
+            string id = TrimId(entry);
+            if (id.Length > 0) byId.TryGetValue(id, out word);
+            if (word == null) byText.TryGetValue(entry, out word);
+            if (word == null)
+            {
+                skipped++;
+                continue;
+            }
+
+            foreach (var (groupName, raceOrdinal) in word.Groups)
+                SetWordKnown(knownWordGroups, groupName, raceOrdinal, true);
+            applied++;
+        }
+        return (applied, skipped);
+    }
+
+    private static string TrimId(string? id) => (id ?? "").Trim().TrimStart('^');
+
+    /// <summary>
     /// Updates the word-related stat counters in the save data to match the current KnownWordGroups.
     /// The game uses these counters for milestone tracking and validation.
     /// </summary>

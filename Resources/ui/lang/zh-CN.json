@@ -705,6 +705,7 @@
   "discovery.import_no_words": "导入文件中找不到物品。",
   "discovery.import_success_items": "已导入 {0} 个新物品。",
   "discovery.import_title": "导入",
+  "discovery.import_words_skipped": "已跳过 {0} 个在单词数据库中找不到的条目。",
   "discovery.import_words_success": "已导入 {0} 个新单词。",
   "discovery.imported_items": "已导入{0}个新物品。",
   "discovery.imported_locations": "已导入{0}个位置。",

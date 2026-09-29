@@ -705,6 +705,7 @@
   "discovery.import_no_words": "インポートファイルにアイテムが見つかりません。",
   "discovery.import_success_items": "{0} 個の新しいアイテムをインポートしました。",
   "discovery.import_title": "インポート",
+  "discovery.import_words_skipped": "単語データベースに見つからないエントリを {0} 件スキップしました。",
   "discovery.import_words_success": "{0} 個の新しい単語をインポートしました。",
   "discovery.imported_items": "{0}個の新しいアイテムをインポートしました。",
   "discovery.imported_locations": "{0}件の場所をインポートしました。",

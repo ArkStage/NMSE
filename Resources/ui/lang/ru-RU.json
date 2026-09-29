@@ -705,6 +705,7 @@
   "discovery.import_no_words": "В импортируемом файле не найдено предметов.",
   "discovery.import_success_items": "Импортировано {0} новых предметов.",
   "discovery.import_title": "Импорт",
+  "discovery.import_words_skipped": "Пропущено {0} записей, не найденных в базе слов.",
   "discovery.import_words_success": "Импортировано {0} новых слов.",
   "discovery.imported_items": "Импортировано {0} новых предметов.",
   "discovery.imported_locations": "Импортировано {0} местоположений.",

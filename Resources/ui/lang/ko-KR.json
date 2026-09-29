@@ -705,6 +705,7 @@
   "discovery.import_no_words": "가져온 파일에 단어가 없습니다.",
   "discovery.import_success_items": "{0}개의 새 아이템을 가져왔습니다.",
   "discovery.import_title": "가져오기",
+  "discovery.import_words_skipped": "단어 데이터베이스에서 찾을 수 없는 항목 {0}개를 건너뛰었습니다.",
   "discovery.import_words_success": "{0}개의 새 단어를 가져왔습니다.",
   "discovery.imported_items": "{0}개의 새 아이템을 가져왔습니다.",
   "discovery.imported_locations": "{0}개의 위치를 가져왔습니다.",

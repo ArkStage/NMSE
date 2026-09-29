@@ -705,6 +705,7 @@
   "discovery.import_no_words": "No se encontraron elementos en el archivo importado.",
   "discovery.import_success_items": "{0} nuevos elementos importados.",
   "discovery.import_title": "Importar",
+  "discovery.import_words_skipped": "Se omitieron {0} entradas que no se encontraron en la base de datos de palabras.",
   "discovery.import_words_success": "{0} nuevas palabras importadas.",
   "discovery.imported_items": "{0} nuevos objetos importados.",
   "discovery.imported_locations": "{0} ubicaciones importadas.",

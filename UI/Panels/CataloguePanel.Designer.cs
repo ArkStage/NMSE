@@ -337,7 +337,7 @@ partial class CataloguePanel
         _learnSelectedWordsButton.Click += LearnSelectedWords_Click;
         _unlearnSelectedWordsButton.Click += UnlearnSelectedWords_Click;
         _exportWordsBtn = new Button { Text = "Export", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-        _exportWordsBtn.Click += (s, e) => ExportDiscoveryList("Known Words", _wordGrid, "Word");
+        _exportWordsBtn.Click += (s, e) => ExportKnownWordsList();
         _importWordsBtn = new Button { Text = "Import", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         _importWordsBtn.Click += (s, e) => ImportWordsList();
         wordButtonPanel.Controls.Add(_learnAllWordsButton);

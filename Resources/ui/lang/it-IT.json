@@ -705,6 +705,7 @@
   "discovery.import_no_words": "Nessun elemento trovato nel file importato.",
   "discovery.import_success_items": "Importati {0} nuovi oggetti.",
   "discovery.import_title": "Importa",
+  "discovery.import_words_skipped": "Ignorate {0} voci non trovate nel database delle parole.",
   "discovery.import_words_success": "Importate {0} nuove parole.",
   "discovery.imported_items": "{0} nuovi oggetti importati.",
   "discovery.imported_locations": "{0} posizioni importate.",
