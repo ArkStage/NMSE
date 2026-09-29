@@ -12,13 +12,23 @@ name: AI Co-author Guard
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to check
+        required: true
+        type: string
 
 permissions:
   contents: read
   pull-requests: write
 
+env:
+  REPO: ${{ github.repository }}
+  PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+
 concurrency:
-  group: ai-coauthor-guard-${{ github.event.pull_request.number }}
+  group: ai-coauthor-guard-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +40,7 @@ jobs:
       - name: Checkout base revision (trusted script only, never PR code)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           persist-credentials: false
 
       - name: Self-test the guard script
@@ -39,8 +49,6 @@ jobs:
       - name: Fetch PR metadata and commits
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           mkdir -p ai-guard
@@ -50,8 +58,6 @@ jobs:
 
       - name: Run the AI co-author check
         id: check
-        env:
-          REPO: ${{ github.repository }}
         run: |
           set +e
           python3 .github/scripts/ai_coauthor_guard.py \
@@ -73,8 +79,6 @@ jobs:
         if: steps.check.outputs.code == '0' || steps.check.outputs.code == '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           comment_ids=$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments?per_page=100" \
