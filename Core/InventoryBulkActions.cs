@@ -1059,39 +1059,44 @@ internal static class InventoryBulkActions
             return new ChestSortResult { Success = true, StacksPlaced = 0, SlotsAvailable = 0, SlotsFreed = 0 };
 
         var sortedGroups = groupOrder.Select(id => groups[id]).ToList();
+        Comparison<ChestSortGroup> comparison;
         switch (mode)
         {
             case ChestSortMode.Name:
-                sortedGroups.Sort((a, b) =>
+                comparison = (a, b) =>
                 {
                     int byName = string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
                     return byName != 0 ? byName : string.Compare(a.SortType, b.SortType, StringComparison.OrdinalIgnoreCase);
-                });
+                };
                 break;
             case ChestSortMode.Rarity:
-                sortedGroups.Sort((a, b) =>
+                comparison = (a, b) =>
                 {
                     int byRarity = a.SortRarityRank.CompareTo(b.SortRarityRank);
                     return byRarity != 0 ? byRarity : string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
-                });
+                };
                 break;
             case ChestSortMode.TypeThenRarity:
-                sortedGroups.Sort((a, b) =>
+                comparison = (a, b) =>
                 {
                     int byType = string.Compare(a.SortType, b.SortType, StringComparison.OrdinalIgnoreCase);
                     if (byType != 0) return byType;
                     int byRarity = a.SortRarityRank.CompareTo(b.SortRarityRank);
                     return byRarity != 0 ? byRarity : string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
-                });
+                };
                 break;
             default: // Type
-                sortedGroups.Sort((a, b) =>
+                comparison = (a, b) =>
                 {
                     int byType = string.Compare(a.SortType, b.SortType, StringComparison.OrdinalIgnoreCase);
                     return byType != 0 ? byType : string.Compare(a.SortName, b.SortName, StringComparison.OrdinalIgnoreCase);
-                });
+                };
                 break;
         }
+
+        // OrderBy is stable (List.Sort is not), so tied items keep their current relative order
+        // and repeated sorts give identical results.
+        sortedGroups = sortedGroups.OrderBy(g => g, Comparer<ChestSortGroup>.Create(comparison)).ToList();
 
         // Expand each (now-merged) group into the minimum number of stacks, respecting
         // that item's max stack size - never combine more than MaxAmount into one slot.
