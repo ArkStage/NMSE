@@ -1,6 +1,47 @@
-## NMSE - No Man's Save Editor v1.3.16
+## NMSE - No Man's Save Editor v1.4.22
 
 ### Changelog
+
+#### Features:
+
+- **DB and mappings updated for Game Update 7.04 (Cosmos) + Experimental 23/9.**
+- Added full Procedural Tech support:
+    - Procedural names.
+    - Procedural stats on item picker pane tooltip.
+    - Suggested 'best roll' seeds based on +/- weight.
+    - Stats/seed search.
+    - Tech can be packed & tech packages can be installed from the context menu.
+- Added Pet Battle true class and stat support:
+    - True x/x/x classes displayed.
+    - Procedural stats displayed.
+    - Added a seed search implementation that can search for a seed pair from a class and stat request.
+    - Searched seeds are stamped with `0xC0D3` and have subtle limitations on search depth (because we don't have 585k years to wait for the full space).
+- Small improvement to loading times and DB size. (per Discord)
+- Improved JSON parser for Emojis and Rare Glyphs used by some user names to improve cross-platform interop.
+- Added initial Xbox XGS save format support (works alongside current Xbox support). (per FR #125)
+- Added Xbox save slot copy support. (per FR #124)
+- Added JSON Editor settings persistence to config. (per Discord)
+- Added control tokens per platform to descriptions, so that they show `[E]` etc.
+- Added Developer Commentary support to the catalogue panel. (per Discord)
+    - Can be set like other collected knowledge items, or double clicked to view and set individual commentary unlocks.
+- Added external save change detection. (per Discord)
+
+#### Bug Fixes:
+
+- Fix for Starship Legacy Colours bug in export/import. (per Issue #126)
+- Fix for entitlement platform rewards types to allow them to be redeemed correctly. (per Issue #129)
+- Fix for Autophage Word sync and add Shards milestone tracking. (per Issue 131)
+- Fix for live change switching in Starship and Exocraft panel so that changes to crafts don't require a save before changing to a new one. (per Discord)
+- Fix for Fishing in catalogue not recording to all lists. (per Issue #134)
+- Fix for Known Words export/import. (per Discord)
+- Fix for hotloading issues in panels. (per Issue #123)
+
+<br />
+
+<details>
+<summary>Previous Changelogs</summary>
+
+### Changelog v1.3.16
 
 _**It's another pretty big one with a lot going on under the hood.**_
 
@@ -39,9 +80,6 @@ Happy NMS 10th Anniversary everyone! 🥳
 - Fix for themes not saving to config for reload. (per Issue #117)
 
 <br />
-
-<details>
-<summary>Previous Changelogs</summary>
 
 ### Changelog 1.2.23
 
@@ -667,7 +705,7 @@ User guides are available from the [repo](https://github.com/vectorcmdr/NMSE/blo
 
 Download via **Assets** below (Windows (ZIP), Linux (AppImage) and macOS (DMG - requires Wine)).
 
-> Linux and macOS users can also run NMSE manually via Wine - see the [guides](https://github.com/vectorcmdr/NMSE#-cross-platform-via-wine).
+> Linux and macOS users can also run NMSE manually via Wine - see the [guides](https://github.com/vectorcmdr/NMSE#linux--macos).
 
 > 🛡️ VirusTotal scans for peace of mind are pending [here](#): pending...
 
