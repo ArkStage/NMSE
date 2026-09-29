@@ -1,0 +1,103 @@
+# --------------------------------------------------------------
+# AI Co-author PR Guard
+# Checks every PR for attribution to an AI coding agent via
+# co-author trailers, agent identities and generation footers
+# in the PR commits and the PR title/body.
+# When found, an automatic comment explains the rejection, how
+# to fix it and the check fails.
+# --------------------------------------------------------------
+
+name: AI Co-author Guard
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ai-coauthor-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout base revision (trusted script only, never PR code)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Self-test the guard script
+        run: python3 .github/scripts/ai_coauthor_guard.py --self-test
+
+      - name: Fetch PR metadata and commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p ai-guard
+          gh api "repos/$REPO/pulls/$PR_NUMBER" > ai-guard/pr.json
+          gh api --paginate --jq '.[]' "repos/$REPO/pulls/$PR_NUMBER/commits?per_page=100" > ai-guard/commits.jsonl
+          echo "Commits fetched: $(wc -l < ai-guard/commits.jsonl)"
+
+      - name: Run the AI co-author check
+        id: check
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          python3 .github/scripts/ai_coauthor_guard.py \
+            --repo "$REPO" \
+            --pr ai-guard/pr.json \
+            --commits ai-guard/commits.jsonl \
+            --failure-payload ai-guard/failure.json \
+            --resolved-payload ai-guard/resolved.json \
+            --summary ai-guard/summary.md
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ -f ai-guard/summary.md ]; then
+            cat ai-guard/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0
+
+      - name: Update the guard comment
+        if: steps.check.outputs.code == '0' || steps.check.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          comment_ids=$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments?per_page=100" \
+            --jq '.[] | select(.body | contains("<!-- ai-coauthor-guard -->")) | .id')
+          comment_id=$(printf '%s\n' "$comment_ids" | awk 'NF { print; exit }')
+          if [ "${{ steps.check.outputs.code }}" = "1" ]; then
+            if [ -n "$comment_id" ]; then
+              gh api --method PATCH "repos/$REPO/issues/comments/$comment_id" --input ai-guard/failure.json > /dev/null
+              echo "Updated the existing guard comment."
+            else
+              gh api --method POST "repos/$REPO/issues/$PR_NUMBER/comments" --input ai-guard/failure.json > /dev/null
+              echo "Posted the guard comment."
+            fi
+          elif [ -n "$comment_id" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$comment_id" --input ai-guard/resolved.json > /dev/null
+            echo "Marked the guard comment as resolved."
+          else
+            echo "No AI agent attribution found."
+          fi
+
+      - name: Fail the check when AI co-authorship was found
+        if: steps.check.outputs.code == '1' || steps.check.outputs.code == '2'
+        run: |
+          echo "AI co-author guard failed (exit code ${{ steps.check.outputs.code }})."
+          echo "See the job summary and the pull request comment for details."
+          exit 1
