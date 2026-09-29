@@ -43,6 +43,7 @@ public static class RewardDatabase
     private static IReadOnlyList<RewardEntry>? _loadedSeasonRewards;
     private static IReadOnlyList<RewardEntry>? _loadedTwitchRewards;
     private static IReadOnlyList<RewardEntry>? _loadedPlatformRewards;
+    private static IReadOnlyList<RewardEntry>? _loadedEntitlementRewards;
 
     /// <summary>All known reward entries across all categories.</summary>
     public static IReadOnlyList<RewardEntry> Rewards => _loadedRewards ?? _empty;
@@ -53,6 +54,10 @@ public static class RewardDatabase
     public static IEnumerable<RewardEntry> TwitchRewards => _loadedTwitchRewards ?? _empty;
     /// <summary>Rewards in the "platform" category (platform-specific unlocks).</summary>
     public static IEnumerable<RewardEntry> PlatformRewards => _loadedPlatformRewards ?? _empty;
+    /// <summary>Rewards in the "entitlement" category (promotional/edition entitlements).
+    /// These are NOT valid entries for UnlockedPlatformRewards; the game resolves them
+    /// through their ProductId in the account-level UnlockedSpecials / Seen* arrays.</summary>
+    public static IEnumerable<RewardEntry> EntitlementRewards => _loadedEntitlementRewards ?? _empty;
     /// <summary>Total number of reward entries in the database.</summary>
     public static int Count => Rewards.Count;
 
@@ -74,6 +79,7 @@ public static class RewardDatabase
             _loadedSeasonRewards = entries.Where(r => r.Category == "season").ToList();
             _loadedTwitchRewards = entries.Where(r => r.Category == "twitch").ToList();
             _loadedPlatformRewards = entries.Where(r => r.Category is "platform" or "entitlement").ToList();
+            _loadedEntitlementRewards = entries.Where(r => r.Category == "entitlement").ToList();
             return true;
         }
         catch
@@ -135,6 +141,7 @@ public static class RewardDatabase
         _loadedSeasonRewards = null;
         _loadedTwitchRewards = null;
         _loadedPlatformRewards = null;
+        _loadedEntitlementRewards = null;
         _englishNameBackup.Clear();
     }
 

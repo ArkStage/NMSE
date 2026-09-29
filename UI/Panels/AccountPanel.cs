@@ -29,12 +29,31 @@ public partial class AccountPanel : UserControl
     /// </summary>
     private HashSet<string> _originalSeasonRedeemed = new(StringComparer.OrdinalIgnoreCase);
     private HashSet<string> _originalTwitchRedeemed = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Snapshot of the platform/entitlement rewards whose product ID was present in the
+    /// save's Known* arrays at load time. Platform rewards have no dedicated Redeemed*
+    /// array, so Known* presence is used as the redeemed state. Used to compute the
+    /// delta of items the user actually toggled.
+    /// </summary>
+    private HashSet<string> _originalPlatformRedeemed = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Reward IDs in the "entitlement" category. These must not be written to
+    /// UnlockedPlatformRewards (the game validates that list against the platform reward
+    /// table and strips everything else); they are handled through their product IDs in
+    /// the account-level UnlockedSpecials / SeenTechnologies lists.
+    /// </summary>
+    private readonly HashSet<string> _entitlementRewardIds = new(StringComparer.OrdinalIgnoreCase);
+
     private bool _loading;
 
     /// <summary>The loaded account data object, or null if not loaded.</summary>
     public JsonObject? AccountData => _accountData;
     /// <summary>The file path of the loaded account data.</summary>
     public string? AccountFilePath => _accountFilePath;
+    /// <summary>True when the loaded account data came from the macOS GcUserSettingsData.mxml file.</summary>
+    public bool IsMxmlSource { get; private set; }
     /// <summary>The file path of the MXML settings file for platform rewards, or null if not set.</summary>
     public string? MxmlFilePath => _mxmlFilePath;
 
@@ -122,6 +141,18 @@ public partial class AccountPanel : UserControl
                 { Id = reward.Id, Name = ResolveDisplayName(reward) });
             StoreProductId(reward);
         }
+
+        RebuildEntitlementRewardIds();
+    }
+
+    /// <summary>
+    /// Rebuilds the set of entitlement reward IDs from the rewards database.
+    /// </summary>
+    private void RebuildEntitlementRewardIds()
+    {
+        _entitlementRewardIds.Clear();
+        foreach (var reward in RewardDatabase.EntitlementRewards)
+            _entitlementRewardIds.Add(reward.Id);
     }
 
     /// <summary>
@@ -134,6 +165,7 @@ public partial class AccountPanel : UserControl
         RefreshList(_seasonRewardsDb, RewardDatabase.SeasonRewards);
         RefreshList(_twitchRewardsDb, RewardDatabase.TwitchRewards);
         RefreshList(_platformRewardsDb, RewardDatabase.PlatformRewards);
+        RebuildEntitlementRewardIds();
 
         void RefreshList(List<AccountLogic.RewardDbEntry> cache, IEnumerable<RewardEntry> source)
         {
@@ -228,6 +260,7 @@ public partial class AccountPanel : UserControl
             _platformGrid.Rows.Clear();
             _accountData = null;
             _accountFilePath = null;
+            IsMxmlSource = false;
 
             var data = AccountLogic.LoadAccountData(saveDirectory);
             if (data.ErrorMessage != null)
@@ -238,31 +271,43 @@ public partial class AccountPanel : UserControl
 
             _accountData = data.AccountObject;
             _accountFilePath = data.AccountFilePath;
+            IsMxmlSource = data.IsMxmlSource;
+
+            // macOS loads account data directly from GcUserSettingsData.mxml; use that path.
+            if (data.IsMxmlSource && !string.IsNullOrEmpty(data.AccountFilePath))
+                SetMxmlPath(data.AccountFilePath);
 
             // Auto-detect MXML path if not already set (PC platforms only).
             // Console platforms (Xbox, PS4, Switch) do not use MXML files.
             if (UsesMxml && string.IsNullOrEmpty(_mxmlFilePath))
             {
-                var detected = MxmlRewardEditor.AutoDetectMxmlPath();
+                var detected = MxmlRewardEditor.FindMxmlPath(saveDirectory);
                 if (detected != null)
                     SetMxmlPath(detected);
             }
 
             // Platform rewards require BOTH accountdata AND MXML to be present (PC only).
-            // Only show as unlocked if the reward exists in both sources.
+            // Only show as unlocked if the reward exists in both sources. When the account
+            // data itself came from the MXML (macOS) there is only one source to use.
             var platformUnlocked = data.PlatformUnlocked;
-            if (UsesMxml && !string.IsNullOrEmpty(_mxmlFilePath))
+            var entitlementProducts = NormaliseProductSet(data.SpecialsUnlocked);
+            if (UsesMxml && !data.IsMxmlSource && !string.IsNullOrEmpty(_mxmlFilePath))
             {
                 var mxmlRewards = MxmlRewardEditor.ReadUnlockedRewards(_mxmlFilePath);
                 // Intersect: only keep rewards that are in both accountdata and MXML
                 platformUnlocked = new HashSet<string>(
                     platformUnlocked.Where(id => mxmlRewards.Contains(id)),
                     StringComparer.OrdinalIgnoreCase);
+
+                // Entitlement rewards are stored by product ID; intersect the accountdata
+                // and MXML product sets for the same both-sources policy.
+                entitlementProducts.IntersectWith(
+                    NormaliseProductSet(MxmlRewardEditor.ReadUnlockedSpecials(_mxmlFilePath)));
             }
 
             PopulateRewardGrid(_seasonGrid, _seasonRewardsDb, data.SeasonUnlocked);
             PopulateRewardGrid(_twitchGrid, _twitchRewardsDb, data.TwitchUnlocked);
-            PopulateRewardGrid(_platformGrid, _platformRewardsDb, platformUnlocked);
+            PopulatePlatformGrid(platformUnlocked, MapEntitlementProductsToRewardIds(entitlementProducts));
 
             _statusLabel.Text = data.StatusMessage ?? "";
         }
@@ -288,6 +333,7 @@ public partial class AccountPanel : UserControl
             _platformGrid.Rows.Clear();
             _accountData = null;
             _accountFilePath = null;
+            IsMxmlSource = false;
 
             var data = AccountLogic.LoadXboxAccountData(accountSlot);
             if (data.ErrorMessage != null)
@@ -304,7 +350,8 @@ public partial class AccountPanel : UserControl
 
             PopulateRewardGrid(_seasonGrid, _seasonRewardsDb, data.SeasonUnlocked);
             PopulateRewardGrid(_twitchGrid, _twitchRewardsDb, data.TwitchUnlocked);
-            PopulateRewardGrid(_platformGrid, _platformRewardsDb, data.PlatformUnlocked);
+            PopulatePlatformGrid(data.PlatformUnlocked,
+                MapEntitlementProductsToRewardIds(NormaliseProductSet(data.SpecialsUnlocked)));
 
             _statusLabel.Text = data.StatusMessage ?? "";
         }
@@ -337,6 +384,54 @@ public partial class AccountPanel : UserControl
                     row.Unlocked, row.Redeemed);
             }
         }
+    }
+
+    /// <summary>
+    /// Populates the platform rewards grid from the platform unlock set and the
+    /// entitlement reward set (both are displayed in the same grid).
+    /// </summary>
+    private void PopulatePlatformGrid(HashSet<string> platformUnlocked, HashSet<string> entitlementUnlocked)
+    {
+        var combined = new HashSet<string>(platformUnlocked, StringComparer.OrdinalIgnoreCase);
+        combined.UnionWith(entitlementUnlocked);
+        PopulateRewardGrid(_platformGrid, _platformRewardsDb, combined);
+    }
+
+    /// <summary>
+    /// Strips caret prefixes from a set of account-level IDs so they can be compared
+    /// against raw product IDs (the game stores UnlockedSpecials values without caret).
+    /// </summary>
+    private static HashSet<string> NormaliseProductSet(IEnumerable<string> ids)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            string stripped = CatalogueLogic.StripCaretPrefix(id);
+            if (!string.IsNullOrEmpty(stripped))
+                set.Add(stripped);
+        }
+        return set;
+    }
+
+    /// <summary>
+    /// Maps a set of special product IDs to the entitlement reward IDs that produce them,
+    /// so the platform grid can display entitlement unlock state from the account-level
+    /// UnlockedSpecials list (which is keyed by product ID).
+    /// </summary>
+    private HashSet<string> MapEntitlementProductsToRewardIds(HashSet<string> products)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (products.Count == 0) return result;
+
+        foreach (var id in _entitlementRewardIds)
+        {
+            string productId = _productIdMap.TryGetValue(id, out var mapped) && !string.IsNullOrEmpty(mapped)
+                ? mapped
+                : CatalogueLogic.StripCaretPrefix(id);
+            if (products.Contains(CatalogueLogic.StripCaretPrefix(productId)))
+                result.Add(id);
+        }
+        return result;
     }
 
     private Image? GetRewardIcon(string rewardId, string rewardName)
@@ -388,19 +483,65 @@ public partial class AccountPanel : UserControl
         _originalSeasonRedeemed = new HashSet<string>(seasonRedeemed, StringComparer.OrdinalIgnoreCase);
         _originalTwitchRedeemed = new HashSet<string>(twitchRedeemed, StringComparer.OrdinalIgnoreCase);
 
+        // Platform/entitlement rewards have no dedicated Redeemed* array. Their redeemed
+        // state is represented by the Known* arrays, resolved through each reward's
+        // product ID. Capture that state so SaveData can compute a clean delta.
+        _originalPlatformRedeemed = BuildPlatformRedeemedSet(saveData);
+
         // Update the redeemed column in each grid
         _loading = true;
         try
         {
             UpdateRedeemedColumn(_seasonGrid, seasonRedeemed);
             UpdateRedeemedColumn(_twitchGrid, twitchRedeemed);
-            // Platform rewards do not have per-save redemption arrays
-            UpdateRedeemedColumn(_platformGrid, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            UpdateRedeemedColumn(_platformGrid, _originalPlatformRedeemed);
         }
         finally
         {
             _loading = false;
         }
+    }
+
+    /// <summary>
+    /// Builds the set of platform/entitlement reward IDs to display as "Redeemed in Save".
+    /// Platform rewards (TGA/SW) use the save's <c>RedeemedPlatformRewards</c> array, which
+    /// the game writes when a platform reward is collected (<c>RedeemPlatformReward</c>).
+    /// Entitlement rewards have no redeem array; their owned state is derived from the save's
+    /// Known* arrays via each reward's product ID (KnownTech for technology products,
+    /// KnownSpecials for specials), mirroring the game's AwardTechnology/RedeemSpecial.
+    /// </summary>
+    private HashSet<string> BuildPlatformRedeemedSet(JsonObject saveData)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var playerState = saveData.GetObject("PlayerStateData");
+        if (playerState == null) return result;
+
+        var redeemedPlatform = AccountLogic.GetUnlockedSet(playerState.GetArray("RedeemedPlatformRewards"));
+        var knownTech = AccountLogic.GetUnlockedSet(playerState.GetArray("KnownTech"));
+        var knownSpecials = AccountLogic.GetUnlockedSet(playerState.GetArray("KnownSpecials"));
+
+        foreach (DataGridViewRow row in _platformGrid.Rows)
+        {
+            var rewardId = row.Cells["RewardId"].Value?.ToString() ?? "";
+            if (string.IsNullOrEmpty(rewardId)) continue;
+
+            // Platform rewards are collected through the game's RedeemedPlatformRewards array.
+            if (redeemedPlatform.Contains(rewardId))
+            {
+                result.Add(rewardId);
+                continue;
+            }
+
+            // Entitlement rewards: owned when the resolved product is already known in the save.
+            string productId = _productIdMap.TryGetValue(rewardId, out var mapped) && !string.IsNullOrEmpty(mapped)
+                ? mapped
+                : CatalogueLogic.StripCaretPrefix(rewardId);
+            string saveId = CatalogueLogic.EnsureCaretPrefix(productId);
+
+            if (knownTech.Contains(saveId) || knownSpecials.Contains(saveId))
+                result.Add(rewardId);
+        }
+        return result;
     }
 
     /// <summary>
@@ -423,7 +564,13 @@ public partial class AccountPanel : UserControl
     /// whose redeemed state was explicitly changed by the user (delta-only),
     /// so pre-existing entries the player may have out of sync for their own
     /// in-game reasons are not touched.
-    /// Additionally writes platform rewards to the MXML file if configured.
+    /// Platform rewards are written to UnlockedPlatformRewards; entitlement rewards are
+    /// instead written by product ID to the account-level UnlockedSpecials and
+    /// SeenTechnologies lists (the game strips entitlement IDs from UnlockedPlatformRewards).
+    /// The "Redeemed in Save" column writes the save's RedeemedPlatformRewards array for
+    /// platform rewards and the save's Known* arrays (via resolved product IDs) for
+    /// entitlement rewards.
+    /// Additionally writes both to the MXML file if configured.
     /// Does NOT write to disk for account data; that happens in MainForm.OnSave().
     /// </summary>
     public void SaveData(JsonObject saveData)
@@ -437,6 +584,19 @@ public partial class AccountPanel : UserControl
         var twitchRows = CollectRewardRows(_twitchGrid);
         var platformRows = CollectRewardRows(_platformGrid);
 
+        // Split the platform grid into genuine platform rewards and entitlement rewards.
+        // Entitlement IDs are NOT valid in UnlockedPlatformRewards; the game validates
+        // that list against the platform reward table and strips everything else.
+        var platformOnlyRows = new List<(string Id, bool Unlocked, bool Redeemed)>();
+        var entitlementRows = new List<(string Id, bool Unlocked, bool Redeemed)>();
+        foreach (var row in platformRows)
+        {
+            if (_entitlementRewardIds.Contains(row.Id))
+                entitlementRows.Add(row);
+            else
+                platformOnlyRows.Add(row);
+        }
+
         // Save account-level unlocks (to accountdata.hg in memory)
         AccountLogic.SaveRewardList(
             seasonRows.Select(r => (r.Id, r.Unlocked)).ToList(),
@@ -445,8 +605,18 @@ public partial class AccountPanel : UserControl
             twitchRows.Select(r => (r.Id, r.Unlocked)).ToList(),
             userSettings, "UnlockedTwitchRewards");
         AccountLogic.SaveRewardList(
-            platformRows.Select(r => (r.Id, r.Unlocked)).ToList(),
+            platformOnlyRows.Select(r => (r.Id, r.Unlocked)).ToList(),
             userSettings, "UnlockedPlatformRewards");
+
+        // Entitlement rewards are account-level lists keyed by PRODUCT ID:
+        //  - UnlockedSpecials receives every entitlement product (also used to read back
+        //    the unlock state for display).
+        //  - SeenTechnologies additionally receives technology-table products, matching
+        //    the in-game special reward collection path for technology entitlements.
+        var (entitlementSpecials, entitlementSeenTechs) = BuildEntitlementAccountRows(entitlementRows);
+        AccountLogic.SaveManagedRewardList(userSettings, "UnlockedSpecials", entitlementSpecials);
+        if (entitlementSeenTechs.Count > 0)
+            AccountLogic.SaveManagedRewardList(userSettings, "SeenTechnologies", entitlementSeenTechs);
 
         // Save per-save redeemed state (writes RedeemedSeasonRewards / RedeemedTwitchRewards).
         // Known* sync is done ONLY for items the user actually changed (see below).
@@ -467,20 +637,83 @@ public partial class AccountPanel : UserControl
         AccountLogic.SyncKnownArraysForChangedRewards(saveData, seasonChanged, _database, _productIdMap);
         AccountLogic.SyncKnownArraysForChangedRewards(saveData, twitchChanged, _database, _productIdMap);
 
+        // Platform rewards are collected through the save's RedeemedPlatformRewards array
+        // (the game writes RewardIds there via cGcPlayerState::RedeemPlatformReward).
+        var platformChanged = GetChangedRewards(platformOnlyRows, _originalPlatformRedeemed);
+        if (platformChanged.Count > 0)
+        {
+            var playerState = saveData.GetObject("PlayerStateData");
+            if (playerState != null)
+                AccountLogic.SaveManagedRewardList(playerState, "RedeemedPlatformRewards",
+                    platformChanged.Select(r => (r.Id, r.Redeemed)).ToList());
+        }
+
+        // Entitlement rewards have no redeem array; their owned state is represented by the
+        // save's Known* arrays, so a changed tick adds or removes the resolved product entry.
+        // Mirrors the game: AwardTechnology writes KnownTech (+ SeenTechnologies) for
+        // technology rewards, RedeemSpecial writes KnownSpecials (+ UnlockedSpecials) for specials.
+        var entitlementChanged = GetChangedRewards(entitlementRows, _originalPlatformRedeemed);
+        AccountLogic.SyncKnownArraysForChangedRewards(saveData, entitlementChanged, _database, _productIdMap);
+
         // Delta-only stale cleanup: only clean Known* entries for items the user
         // explicitly un-redeemed (was redeemed at load, now not redeemed).
         var seasonStaleChanged = GetChangedStaleRows(seasonRows, _originalSeasonRedeemed);
         var twitchStaleChanged = GetChangedStaleRows(twitchRows, _originalTwitchRedeemed);
         AccountLogic.CleanStaleKnownEntries(saveData, seasonStaleChanged, twitchStaleChanged, _database, _productIdMap);
 
-        // Additionally write platform rewards to MXML file (PC platforms only).
+        // Additionally write to the MXML file (PC platforms only).
         // Console platforms (Xbox, PS4, Switch) do not use MXML files.
         if (UsesMxml)
-            MxmlRewardEditor.SyncPlatformRewards(_mxmlFilePath,
-                platformRows.Select(r => (r.Id, r.Unlocked)).ToList());
+        {
+            // Older NMSE versions wrote entitlement reward IDs into UnlockedPlatformRewards,
+            // which the game strips on load. Pass them as managed-but-absent so any leftover
+            // entries are cleaned up, while unmanaged platform entries are preserved.
+            var platformMxmlRows = platformOnlyRows.Select(r => (r.Id, r.Unlocked)).ToList();
+            foreach (var id in _entitlementRewardIds)
+                platformMxmlRows.Add((id, false));
+
+            MxmlRewardEditor.SyncPlatformRewards(_mxmlFilePath, platformMxmlRows);
+            MxmlRewardEditor.SyncManagedRewards(_mxmlFilePath, "UnlockedSeasonRewards",
+                seasonRows.Select(r => (r.Id, r.Unlocked)).ToList());
+            MxmlRewardEditor.SyncManagedRewards(_mxmlFilePath, "UnlockedTwitchRewards",
+                twitchRows.Select(r => (r.Id, r.Unlocked)).ToList());
+            MxmlRewardEditor.SyncManagedRewards(_mxmlFilePath, "UnlockedSpecials", entitlementSpecials);
+            if (entitlementSeenTechs.Count > 0)
+                MxmlRewardEditor.SyncManagedRewards(_mxmlFilePath, "SeenTechnologies", entitlementSeenTechs);
+        }
 
         // Raise the DataModified event so other panels can react to reward changes.
         DataModified?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Builds the account-level product ID lists for entitlement reward rows:
+    /// every entitlement product goes into UnlockedSpecials; technology-table products
+    /// additionally go into SeenTechnologies.
+    /// </summary>
+    private (List<(string Id, bool Present)> Specials, List<(string Id, bool Present)> SeenTechnologies)
+        BuildEntitlementAccountRows(List<(string Id, bool Unlocked, bool Redeemed)> rows)
+    {
+        var specials = new List<(string Id, bool Present)>();
+        var seenTechs = new List<(string Id, bool Present)>();
+
+        foreach (var (id, unlocked, _) in rows)
+        {
+            if (string.IsNullOrEmpty(id)) continue;
+
+            string productId = _productIdMap.TryGetValue(id, out var mapped) && !string.IsNullOrEmpty(mapped)
+                ? mapped
+                : CatalogueLogic.StripCaretPrefix(id);
+
+            specials.Add((productId, unlocked));
+
+            var item = _database?.GetItem(productId);
+            string? seenArrayName = AccountLogic.GetEntitlementSeenArrayName(item);
+            if (!string.IsNullOrEmpty(seenArrayName))
+                seenTechs.Add((productId, unlocked));
+        }
+
+        return (specials, seenTechs);
     }
 
     private static List<(string Id, bool Unlocked, bool Redeemed)> CollectRewardRows(DataGridView grid)
@@ -575,7 +808,7 @@ public partial class AccountPanel : UserControl
                 dlg.InitialDirectory = dir;
         }
 
-        if (dlg.ShowDialog() == DialogResult.OK)
+        if (dlg.ShowDialog(FindForm()) == DialogResult.OK)
         {
             SetMxmlPath(dlg.FileName);
 
@@ -584,10 +817,17 @@ public partial class AccountPanel : UserControl
             {
                 var userSettings = _accountData.GetObject("UserSettingsData") ?? _accountData;
                 var platformUnlocked = AccountLogic.GetUnlockedSet(userSettings.GetArray("UnlockedPlatformRewards"));
+                var entitlementProducts = NormaliseProductSet(
+                    AccountLogic.GetUnlockedSet(userSettings.GetArray("UnlockedSpecials")));
+
                 var mxmlRewards = MxmlRewardEditor.ReadUnlockedRewards(_mxmlFilePath!);
                 foreach (var id in mxmlRewards)
                     platformUnlocked.Add(id);
-                PopulateRewardGrid(_platformGrid, _platformRewardsDb, platformUnlocked);
+                entitlementProducts.UnionWith(
+                    NormaliseProductSet(MxmlRewardEditor.ReadUnlockedSpecials(_mxmlFilePath!)));
+
+                PopulatePlatformGrid(platformUnlocked, MapEntitlementProductsToRewardIds(entitlementProducts));
+                UpdateRedeemedColumn(_platformGrid, _originalPlatformRedeemed);
             }
         }
     }

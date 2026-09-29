@@ -71,6 +71,7 @@ internal static class AccountLogic
             var seasonUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedSeasonRewards"));
             var twitchUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedTwitchRewards"));
             var platformUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedPlatformRewards"));
+            var specialsUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedSpecials"));
 
             int total = seasonUnlocked.Count + twitchUnlocked.Count + platformUnlocked.Count;
 
@@ -81,6 +82,7 @@ internal static class AccountLogic
                 SeasonUnlocked = seasonUnlocked,
                 TwitchUnlocked = twitchUnlocked,
                 PlatformUnlocked = platformUnlocked,
+                SpecialsUnlocked = specialsUnlocked,
                 StatusMessage = UiStrings.Format("account.status_loaded", total),
             };
         }
@@ -103,9 +105,18 @@ internal static class AccountLogic
             // PS4 HTOS format: account data lives in savedata00.hg instead of accountdata.hg
             string ps4AccountPath = Path.Combine(saveDirectory, "savedata00.hg");
             if (File.Exists(ps4AccountPath))
+            {
                 accountPath = ps4AccountPath;
+            }
             else
+            {
+                // Get GcUserSettingsData.mxml for account use on macOS for account rewards
+                // and not just platform rewards.
+                string? mxmlPath = MxmlRewardEditor.FindMxmlPath(saveDirectory);
+                if (mxmlPath != null)
+                    return LoadMxmlAccountData(mxmlPath);
                 return new AccountData { ErrorMessage = UiStrings.Get("account.not_found") };
+            }
         }
 
         try
@@ -116,6 +127,7 @@ internal static class AccountLogic
             var seasonUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedSeasonRewards"));
             var twitchUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedTwitchRewards"));
             var platformUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedPlatformRewards"));
+            var specialsUnlocked = GetUnlockedSet(userSettings.GetArray("UnlockedSpecials"));
 
             int total = seasonUnlocked.Count + twitchUnlocked.Count + platformUnlocked.Count;
 
@@ -126,6 +138,7 @@ internal static class AccountLogic
                 SeasonUnlocked = seasonUnlocked,
                 TwitchUnlocked = twitchUnlocked,
                 PlatformUnlocked = platformUnlocked,
+                SpecialsUnlocked = specialsUnlocked,
                 StatusMessage = UiStrings.Format("account.status_loaded", total),
             };
         }
@@ -133,6 +146,61 @@ internal static class AccountLogic
         {
             return new AccountData { ErrorMessage = UiStrings.Format("account.load_error", accountPath, ex.Message) };
         }
+    }
+
+    /// <summary>
+    /// Loads account data from the macOS GcUserSettingsData.mxml file. There is no
+    /// accountdata.hg on macOS, so this file supplies the season, Twitch, platform and
+    /// special reward lists. A JSON view is built in memory so the existing account
+    /// editing flow works; saves are routed back to the MXML file.
+    /// </summary>
+    /// <param name="mxmlPath">Full path to GcUserSettingsData.mxml.</param>
+    /// <returns>An <see cref="AccountData"/> with loaded reward sets, or an error message if loading failed.</returns>
+    internal static AccountData LoadMxmlAccountData(string mxmlPath)
+    {
+        try
+        {
+            var seasonUnlocked = MxmlRewardEditor.ReadUnlockedSeasonRewards(mxmlPath);
+            var twitchUnlocked = MxmlRewardEditor.ReadUnlockedTwitchRewards(mxmlPath);
+            var platformUnlocked = MxmlRewardEditor.ReadUnlockedRewards(mxmlPath);
+            var specialsUnlocked = MxmlRewardEditor.ReadUnlockedSpecials(mxmlPath);
+
+            var userSettings = new JsonObject();
+            AddRewardArray(userSettings, "UnlockedSeasonRewards", seasonUnlocked);
+            AddRewardArray(userSettings, "UnlockedTwitchRewards", twitchUnlocked);
+            AddRewardArray(userSettings, "UnlockedPlatformRewards", platformUnlocked);
+            AddRewardArray(userSettings, "UnlockedSpecials", specialsUnlocked);
+
+            var accountObj = new JsonObject();
+            accountObj.Set("UserSettingsData", userSettings);
+
+            int total = seasonUnlocked.Count + twitchUnlocked.Count + platformUnlocked.Count;
+
+            return new AccountData
+            {
+                AccountObject = accountObj,
+                AccountFilePath = mxmlPath,
+                IsMxmlSource = true,
+                SeasonUnlocked = seasonUnlocked,
+                TwitchUnlocked = twitchUnlocked,
+                PlatformUnlocked = platformUnlocked,
+                SpecialsUnlocked = specialsUnlocked,
+                StatusMessage = UiStrings.Format("account.status_loaded_mac", Path.GetFileName(mxmlPath), total),
+            };
+        }
+        catch (Exception ex)
+        {
+            return new AccountData { ErrorMessage = UiStrings.Format("account.load_error", mxmlPath, ex.Message) };
+        }
+    }
+
+    /// <summary>Adds a reward ID set as a JSON string array under the given key.</summary>
+    private static void AddRewardArray(JsonObject parent, string key, HashSet<string> values)
+    {
+        var array = new JsonArray();
+        foreach (string value in values)
+            array.Add(value);
+        parent.Set(key, array);
     }
 
     /// <summary>
@@ -424,7 +492,8 @@ internal static class AccountLogic
     /// Determines whether an item should NOT be added to <c>KnownTech</c> when redeemed.
     /// Returns <c>true</c> (non-tech) for:
     /// <list type="bullet">
-    ///   <item>Cosmetic-only items (empty <c>GiveRewardOnSpecialPurchase</c>).</item>
+    ///   <item>Cosmetic-only items (empty <c>GiveRewardOnSpecialPurchase</c>), unless the
+    ///         item comes from the game's Technology table (see below).</item>
     ///   <item>Corvette parts (wings, turrets, shields, decorations, etc.) - detected via
     ///         <c>ItemType == "Corvette"</c> because their reward IDs use many varied suffixes.</item>
     ///   <item>Items whose reward table ID contains a non-tech keyword
@@ -434,7 +503,10 @@ internal static class AccountLogic
     /// match any known non-tech keyword or item type.
     /// <para>
     /// An empty <c>GiveRewardOnSpecialPurchase</c> means the item is cosmetic-only
-    /// (the Extractor leaves it empty for all purely decorative rewards).
+    /// (the Extractor leaves it empty for all purely decorative rewards). Items whose
+    /// <c>SourceTable</c> is "Technology" are genuine tech rewards even without a
+    /// special-purchase reward ID (e.g. entitlement rewards ENT_BOLTCASTER -> BOLT_SM),
+    /// so those are still tracked in <c>KnownTech</c>.
     /// </para>
     /// <para>
     /// When <c>GiveRewardOnSpecialPurchase</c> is non-empty, we keyword-match against
@@ -453,7 +525,11 @@ internal static class AccountLogic
 
         string reward = item.GiveRewardOnSpecialPurchase;
         if (string.IsNullOrEmpty(reward))
-            return true; // No reward specified -> cosmetic item; do NOT add to KnownTech
+        {
+            // No reward specified -> cosmetic item; do NOT add to KnownTech, unless the
+            // item is a technology-table item (entitlement techs have no special-purchase ID).
+            return !string.Equals(item.SourceTable, "Technology", StringComparison.OrdinalIgnoreCase);
+        }
 
         foreach (string keyword in NonTechRewardKeywords)
         {
@@ -462,6 +538,19 @@ internal static class AccountLogic
         }
         return false;
     }
+
+    /// <summary>
+    /// Returns the account-level Seen* array that a technology entitlement product
+    /// should additionally be tracked in, or <c>null</c> when no Seen* entry is needed.
+    /// The in-game special reward collection path for technology entitlements
+    /// (e.g. ENT_BOLTCASTER -> BOLT_SM) resolves the product through
+    /// <c>SeenTechnologies</c>; other entitlement products are only tracked in
+    /// <c>UnlockedSpecials</c>.
+    /// </summary>
+    internal static string? GetEntitlementSeenArrayName(GameItem? item) =>
+        item != null && string.Equals(item.SourceTable, "Technology", StringComparison.OrdinalIgnoreCase)
+            ? "SeenTechnologies"
+            : null;
 
     /// <summary>
     /// Returns <c>true</c> when a redeemed <paramref name="item"/> should be tracked in
@@ -519,37 +608,56 @@ internal static class AccountLogic
     private static void WriteRedeemedArray(JsonObject playerState, string key,
         List<(string Id, bool Redeemed)> rewards)
     {
-        var array = playerState.GetArray(key);
+        var rows = new List<(string Id, bool Present)>(rewards.Count);
+        foreach (var (id, redeemed) in rewards)
+            rows.Add((id, redeemed));
+        SaveManagedRewardList(playerState, key, rows);
+    }
+
+    /// <summary>
+    /// Synchronises a string array against a managed list of IDs, preserving entries
+    /// that are not managed by the caller. Unlike <see cref="SaveRewardList"/>, which
+    /// replaces the whole array, this only removes managed IDs that should no longer
+    /// be present and appends newly-present managed IDs. This is required for arrays
+    /// that also contain game-managed entries (e.g. account-level <c>UnlockedSpecials</c>
+    /// and <c>SeenTechnologies</c>, which hold hundreds of vendor/collectable IDs).
+    /// </summary>
+    /// <param name="container">The JSON object containing the array.</param>
+    /// <param name="key">The JSON key for the array.</param>
+    /// <param name="rows">The managed IDs with their desired presence state.</param>
+    internal static void SaveManagedRewardList(JsonObject container, string key,
+        List<(string Id, bool Present)> rows)
+    {
+        var array = container.GetArray(key);
         if (array == null)
         {
             array = new JsonArray();
-            playerState.Set(key, array);
+            container.Set(key, array);
         }
 
-        // Build the desired set of redeemed IDs from the grid state.
+        // Build the desired set of present IDs from the managed rows.
         var desiredSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, redeemed) in rewards)
+        foreach (var (id, present) in rows)
         {
-            if (redeemed && !string.IsNullOrEmpty(id))
+            if (present && !string.IsNullOrEmpty(id))
                 desiredSet.Add(id);
         }
 
-        // Build a set of all IDs managed by the grid (whether redeemed or not).
+        // Build a set of all IDs managed by the caller (whether present or not).
         var managedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, _) in rewards)
+        foreach (var (id, _) in rows)
         {
             if (!string.IsNullOrEmpty(id))
                 managedIds.Add(id);
         }
 
-        // Remove existing entries that should no longer be present, preserving order
-        // for all other entries (including unknown/unmanaged entries).
+        // Remove existing managed entries that should no longer be present, preserving
+        // the order and content of all unmanaged entries.
         for (int i = array.Length - 1; i >= 0; i--)
         {
             var existing = array.GetString(i);
             if (string.IsNullOrEmpty(existing)) continue;
 
-            // If managed by grid and NOT in the desired set, remove it.
             if (managedIds.Contains(existing) && !desiredSet.Contains(existing))
                 array.RemoveAt(i);
         }
@@ -563,7 +671,7 @@ internal static class AccountLogic
                 currentSet.Add(existing);
         }
 
-        // Append any newly-redeemed entries that aren't already in the array.
+        // Append any newly-present managed entries that aren't already in the array.
         foreach (var id in desiredSet)
         {
             if (!currentSet.Contains(id))
@@ -941,6 +1049,15 @@ internal static class AccountLogic
         public HashSet<string> TwitchUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>Set of unlocked platform reward IDs.</summary>
         public HashSet<string> PlatformUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Set of unlocked special product IDs from <c>UnlockedSpecials</c>.
+        /// Used to display and round-trip entitlement reward unlock state, which the game
+        /// stores by product ID rather than by reward table ID.</summary>
+        public HashSet<string> SpecialsUnlocked { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>
+        /// True when the account data was loaded from the macOS GcUserSettingsData.mxml
+        /// file instead of accountdata.hg. Writes are routed back to the MXML file.
+        /// </summary>
+        public bool IsMxmlSource { get; set; }
         /// <summary>A human-readable status message on successful load.</summary>
         public string? StatusMessage { get; set; }
         /// <summary>An error message if account data could not be loaded.</summary>
