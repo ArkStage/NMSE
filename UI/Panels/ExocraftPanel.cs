@@ -30,6 +30,12 @@ public partial class ExocraftPanel : UserControl
     private int _currentRealityIndex;
     private GameItemDatabase? _database;
 
+    /// <summary>True while the panel is performing an initial data load; suppresses selection commits.</summary>
+    private bool _loading;
+
+    /// <summary>The array index of the vehicle currently displayed, or -1.</summary>
+    private int _currentVehicleArrayIndex = -1;
+
     // Track which list is currently selected
     private enum StationListType { None, Individual, Base }
     private StationListType _activeStationList = StationListType.None;
@@ -94,9 +100,10 @@ public partial class ExocraftPanel : UserControl
         _vehicleSelector.BeginUpdate();
         try
         {
-        _vehicleSelector.Items.Clear();
-        _addedVehicleIndices.Clear();
-        _inventoryGrid.LoadInventory(null);
+            _vehicleSelector.Items.Clear();
+            _addedVehicleIndices.Clear();
+            _currentVehicleArrayIndex = -1;
+            _inventoryGrid.LoadInventory(null);
         _techGrid.LoadInventory(null);
         _saveData = saveData;
         try
@@ -118,8 +125,13 @@ public partial class ExocraftPanel : UserControl
                 }
             }
 
-            if (_vehicleSelector.Items.Count > 0)
-                _vehicleSelector.SelectedIndex = 0;
+            _loading = true;
+            try
+            {
+                if (_vehicleSelector.Items.Count > 0)
+                    _vehicleSelector.SelectedIndex = 0;
+            }
+            finally { _loading = false; }
 
             // Third person camera (stored in CommonStateData)
             try { _thirdPersonCam.Checked = saveData.GetObject("CommonStateData")?.GetBool("UsesThirdPersonVehicleCam") ?? false; } catch { _thirdPersonCam.Checked = false; }
@@ -188,6 +200,11 @@ public partial class ExocraftPanel : UserControl
 
     private void OnVehicleSelected(object? sender, EventArgs e)
     {
+        // Commit the previously displayed vehicle's edits before switching away, so unsaved
+        // changes are not overwritten by the new vehicle's data.
+        if (!_loading)
+            CommitCurrentVehicle();
+
         RedrawHelper.Suspend(this);
         SuspendLayout();
         try
@@ -196,6 +213,7 @@ public partial class ExocraftPanel : UserControl
             int selIdx = _vehicleSelector.SelectedIndex;
             if (selIdx >= _addedVehicleIndices.Count) return;
             int arrIdx = _addedVehicleIndices[selIdx];
+            _currentVehicleArrayIndex = arrIdx;
 
             var vehicle = _vehicleOwnership.GetObject(arrIdx);
 
@@ -264,6 +282,26 @@ public partial class ExocraftPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// Commits the currently displayed vehicle's edits (name and global vehicle flags) into
+    /// the in-memory save before the selection changes. In-memory only, no disk I/O.
+    /// </summary>
+    private void CommitCurrentVehicle()
+    {
+        if (_saveData == null || _vehicleOwnership == null) return;
+        if (_currentVehicleArrayIndex < 0 || _currentVehicleArrayIndex >= _vehicleOwnership.Length) return;
+        try
+        {
+            var vehicle = _vehicleOwnership.GetObject(_currentVehicleArrayIndex);
+            if (vehicle == null) return;
+
+            vehicle.Set("Name", _nameField.Text);
+            _saveData.GetObject("CommonStateData")?.Set("UsesThirdPersonVehicleCam", _thirdPersonCam.Checked);
+            _savedPlayerState?.Set("VehicleAIControlEnabled", _minotaurAI.Checked);
+        }
+        catch { }
+    }
+
     private void OnExportVehicle(object? sender, EventArgs e)
     {
         try
@@ -293,7 +331,7 @@ public partial class ExocraftPanel : UserControl
                 FileName = ExportConfig.BuildFileName(config.ExocraftTemplate, config.ExocraftExt, vars)
             };
 
-            if (dialog.ShowDialog() == DialogResult.OK)
+            if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
                 vehicle.ExportToFile(dialog.FileName);
         }
         catch (Exception ex)
@@ -320,7 +358,7 @@ public partial class ExocraftPanel : UserControl
                 Filter = ExportConfig.BuildImportFilter(ExportConfig.Instance.ExocraftExt, "Exocraft files", ".exo")
             };
 
-            if (dialog.ShowDialog() != DialogResult.OK) return;
+            if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
             var imported = JsonObject.ImportFromFile(dialog.FileName);
 
