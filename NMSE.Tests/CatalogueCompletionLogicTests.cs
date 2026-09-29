@@ -252,7 +252,7 @@ public class CatalogueCompletionLogicTests
         Assert.Equal(429, pack.KnownTech.Count);
         Assert.Equal(276, pack.KnownSpecials.Count);
         Assert.Equal(1684, pack.KnownRefinerRecipes.Count);
-        Assert.Equal(3829, pack.KnownWordGroups.Count);
+        Assert.Equal(3831, pack.KnownWordGroups.Count);
         Assert.Equal(220, pack.Fishing.Count);
         Assert.Equal(65535, pack.KnownPortalRunes);
     }

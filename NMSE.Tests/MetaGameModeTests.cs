@@ -124,4 +124,208 @@ public class MetaGameModeTests
         string json = """{"PlayerStateData":{"PresetGameMode":"Survival"}}""";
         Assert.Equal(2, SaveFileManager.DetectGameModeFromJson(json));
     }
+
+    // --- Meta difficulty tag preservation ---
+
+    private const int MetaDifficultyOffset = 344;
+    private const int MetaDifficultyTagOffset = 364;
+    private const int MetaSlot = 10;
+    private const int MetaBaseVersion = 5000; // META_FORMAT_4 (Worlds Part II) so the tag is written
+
+    private static (int Preset, string Tag) WriteAndReadMeta(string savePath,
+        int preset, string tag)
+    {
+        MetaFileWriter.WriteSteamMeta(savePath, [0xAA, 0xBB], 2,
+            new SaveMetaInfo { BaseVersion = MetaBaseVersion, DifficultyPreset = preset, DifficultyPresetTag = tag },
+            MetaSlot);
+
+        var meta = MetaFileWriter.ReadSteamMeta(savePath, MetaSlot);
+        Assert.NotNull(meta);
+        byte[] bytes = MetaFileWriter.UIntsToBytes(meta!);
+        int readPreset = BitConverter.ToInt32(bytes, MetaDifficultyOffset);
+        string readTag = System.Text.Encoding.ASCII
+            .GetString(bytes, MetaDifficultyTagOffset, 64).TrimEnd('\0');
+        return (readPreset, readTag);
+    }
+
+    [Fact]
+    public void WriteSteamMeta_PreservesNonStandardDifficultyTag()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "save9.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            // Original alternate mode (Abandoned Universe = preset 6 / Permadeath).
+            WriteAndReadMeta(savePath, 6, "Abandoned Universe");
+
+            // The save data only reports "Custom" (as alternate modes do); the meta tag must survive.
+            var (preset, tag) = WriteAndReadMeta(savePath, 1, "Custom");
+
+            Assert.Equal(6, preset);
+            Assert.Equal("Abandoned Universe", tag);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WriteSteamMeta_AllowsStandardDifficultyChange()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "save2.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            WriteAndReadMeta(savePath, 2, "Normal");
+
+            // Changing a standard preset to Custom must still update the meta.
+            var (preset, tag) = WriteAndReadMeta(savePath, 1, "Custom");
+
+            Assert.Equal(1, preset);
+            Assert.Equal("Custom", tag);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WriteSteamMeta_AllowsChangeFromNonStandardToStandard()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "save9.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            WriteAndReadMeta(savePath, 6, "Abandoned Universe");
+
+            // A deliberate change to a standard preset wins over preservation.
+            var (preset, tag) = WriteAndReadMeta(savePath, 2, "Normal");
+
+            Assert.Equal(2, preset);
+            Assert.Equal("Normal", tag);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    // --- Switch / PS4 manifest difficulty preservation ---
+
+    private static void WriteSwitchManifest(string savePath, int preset)
+    {
+        MetaFileWriter.WriteSwitchMeta(savePath, 1000,
+            new SaveMetaInfo { BaseVersion = MetaBaseVersion, DifficultyPreset = preset },
+            9);
+    }
+
+    private static int ReadSwitchManifestPreset(string savePath)
+    {
+        string dir = Path.GetDirectoryName(savePath)!;
+        byte[] bytes = File.ReadAllBytes(Path.Combine(dir, "manifest09.hg"));
+        Assert.True(bytes.Length >= 300);
+        return BitConverter.ToInt32(bytes, 296);
+    }
+
+    private static void WritePs4Manifest(string savePath, int preset, string tag)
+    {
+        MetaFileWriter.WritePlaystationStreamingMeta(savePath, 1000,
+            new SaveMetaInfo { BaseVersion = MetaBaseVersion, DifficultyPreset = preset, DifficultyPresetTag = tag },
+            9);
+    }
+
+    private static (int Preset, string Tag) ReadPs4Manifest(string savePath)
+    {
+        string dir = Path.GetDirectoryName(savePath)!;
+        byte[] bytes = File.ReadAllBytes(Path.Combine(dir, "manifest09.hg"));
+        Assert.True(bytes.Length >= 380);
+        int preset = BitConverter.ToInt32(bytes, 296);
+        string tag = System.Text.Encoding.ASCII.GetString(bytes, 316, 64).TrimEnd('\0');
+        return (preset, tag);
+    }
+
+    [Fact]
+    public void WriteSwitchMeta_PreservesAlternateDifficultyPreset()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "savedata09.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            // Alternate modes record a standard-looking preset (Abandoned Universe = 6).
+            WriteSwitchManifest(savePath, 6);
+
+            // The save data only reports "Custom" (1); the manifest preset must survive.
+            WriteSwitchManifest(savePath, 1);
+
+            Assert.Equal(6, ReadSwitchManifestPreset(savePath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WritePlaystationStreamingMeta_PreservesNonStandardDifficultyTag()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "savedata09.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            WritePs4Manifest(savePath, 6, "Abandoned Universe");
+
+            // The save data only reports "Custom"; the manifest tag must survive.
+            WritePs4Manifest(savePath, 1, "Custom");
+
+            var (preset, tag) = ReadPs4Manifest(savePath);
+            Assert.Equal(6, preset);
+            Assert.Equal("Abandoned Universe", tag);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WritePlaystationStreamingMeta_AllowsStandardDifficultyChange()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_meta_{Guid.NewGuid()}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            string savePath = Path.Combine(root, "savedata09.hg");
+            File.WriteAllBytes(savePath, [0x01, 0x02, 0x03]);
+
+            WritePs4Manifest(savePath, 2, "Normal");
+
+            // Changing a standard preset to Custom must still update the manifest.
+            WritePs4Manifest(savePath, 1, "Custom");
+
+            var (preset, tag) = ReadPs4Manifest(savePath);
+            Assert.Equal(1, preset);
+            Assert.Equal("Custom", tag);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

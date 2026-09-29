@@ -850,4 +850,296 @@ public class StarshipLogicTests
         Assert.Equal("MODELS/COMMON/SPACECRAFT/SCIENTIFIC/CANOPY/CANOPYA/CANOPYA.SCENE.MBIN", item.CustomFilename);
         Assert.Equal("Explorer", item.InternalName);
     }
+
+    // --- GetShipUsesLegacyColours ---
+
+    [Fact]
+    public void GetShipUsesLegacyColours_ReadsIndexedElement()
+    {
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [false, true, false] }""");
+
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, 0));
+        Assert.True(StarshipLogic.GetShipUsesLegacyColours(playerState, 1));
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, 2));
+    }
+
+    [Fact]
+    public void GetShipUsesLegacyColours_NullPlayerState_ReturnsFalse()
+    {
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(null, 0));
+    }
+
+    [Fact]
+    public void GetShipUsesLegacyColours_MissingArray_ReturnsFalse()
+    {
+        var playerState = JsonObject.Parse("""{ "PrimaryShip": 0 }""");
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, 0));
+    }
+
+    [Fact]
+    public void GetShipUsesLegacyColours_IndexOutOfRange_ReturnsFalse()
+    {
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [true, true] }""");
+
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, 5));
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, -1));
+    }
+
+    [Fact]
+    public void GetShipUsesLegacyColours_NonBoolElement_ReturnsFalse()
+    {
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": ["yes"] }""");
+        Assert.False(StarshipLogic.GetShipUsesLegacyColours(playerState, 0));
+    }
+
+    // --- SetShipUsesLegacyColours ---
+
+    [Fact]
+    public void SetShipUsesLegacyColours_WritesOnlyTargetElement()
+    {
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [true, false, true] }""");
+
+        StarshipLogic.SetShipUsesLegacyColours(playerState, 1, true);
+
+        var arr = playerState.GetArray("ShipUsesLegacyColours")!;
+        Assert.Equal(3, arr.Length);
+        Assert.True(arr.GetBool(0));
+        Assert.True(arr.GetBool(1));
+        Assert.True(arr.GetBool(2));
+
+        StarshipLogic.SetShipUsesLegacyColours(playerState, 0, false);
+        Assert.False(arr.GetBool(0));
+        Assert.True(arr.GetBool(1));
+        Assert.True(arr.GetBool(2));
+    }
+
+    [Fact]
+    public void SetShipUsesLegacyColours_ShortArray_GrowsWithFalsePadding()
+    {
+        // A truncated parallel array used to make the write silently vanish
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [true, true] }""");
+
+        StarshipLogic.SetShipUsesLegacyColours(playerState, 4, true);
+
+        var arr = playerState.GetArray("ShipUsesLegacyColours")!;
+        Assert.Equal(5, arr.Length);
+        Assert.True(arr.GetBool(0));
+        Assert.True(arr.GetBool(1));
+        // Padding matches what GetShipUsesLegacyColours reported for these indices
+        Assert.False(arr.GetBool(2));
+        Assert.False(arr.GetBool(3));
+        Assert.True(arr.GetBool(4));
+    }
+
+    [Fact]
+    public void SetShipUsesLegacyColours_MissingArray_DoesNotCreateKey()
+    {
+        // A save without the key predates the flag; do not invent a PlayerStateData member
+        var playerState = JsonObject.Parse("""{ "PrimaryShip": 0 }""");
+
+        StarshipLogic.SetShipUsesLegacyColours(playerState, 0, true);
+
+        Assert.Null(playerState.GetArray("ShipUsesLegacyColours"));
+    }
+
+    [Fact]
+    public void SetShipUsesLegacyColours_InvalidIndex_NoOp()
+    {
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [false] }""");
+
+        StarshipLogic.SetShipUsesLegacyColours(playerState, -1, true);
+        StarshipLogic.SetShipUsesLegacyColours(playerState, 9999, true);
+
+        var arr = playerState.GetArray("ShipUsesLegacyColours")!;
+        Assert.Equal(1, arr.Length);
+        Assert.False(arr.GetBool(0));
+    }
+
+    [Fact]
+    public void SetShipUsesLegacyColours_NullPlayerState_DoesNotThrow()
+    {
+        StarshipLogic.SetShipUsesLegacyColours(null, 0, true);
+    }
+
+    // --- TryGetExportedLegacyColours ---
+
+    [Fact]
+    public void TryGetExportedLegacyColours_PresentTrue_ReturnsTrue()
+    {
+        var wrapper = JsonObject.Parse("""{ "Ship": {}, "UsesLegacyColours": true }""");
+        var result = StarshipLogic.TryGetExportedLegacyColours(wrapper);
+        Assert.True(result.HasValue);
+        Assert.True(result!.Value);
+    }
+
+    [Fact]
+    public void TryGetExportedLegacyColours_PresentFalse_ReturnsFalse()
+    {
+        // An explicit false is real information, not an absent flag
+        var wrapper = JsonObject.Parse("""{ "Ship": {}, "UsesLegacyColours": false }""");
+        var result = StarshipLogic.TryGetExportedLegacyColours(wrapper);
+        Assert.True(result.HasValue);
+        Assert.False(result!.Value);
+    }
+
+    [Fact]
+    public void TryGetExportedLegacyColours_Absent_ReturnsNull()
+    {
+        // Files exported before the flag was added must leave the slot untouched
+        var wrapper = JsonObject.Parse("""{ "Ship": {}, "CharacterCustomisationData": {} }""");
+        Assert.Null(StarshipLogic.TryGetExportedLegacyColours(wrapper));
+    }
+
+    [Fact]
+    public void TryGetExportedLegacyColours_NonBool_ReturnsNull()
+    {
+        var wrapper = JsonObject.Parse("""{ "Ship": {}, "UsesLegacyColours": "true" }""");
+        Assert.Null(StarshipLogic.TryGetExportedLegacyColours(wrapper));
+    }
+
+    [Fact]
+    public void TryGetExportedLegacyColours_NullWrapper_ReturnsNull()
+    {
+        Assert.Null(StarshipLogic.TryGetExportedLegacyColours(null));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ExportWrapper_LegacyColoursSurvivesFileRoundTrip(bool flag)
+    {
+        // Proves the flag survives as a JSON bool through the real
+        // ExportToFile / ImportFromFile path the panel uses.
+        var export = new JsonObject();
+        export.Set("Ship", JsonObject.Parse("""{ "Name": "RoundTrip" }"""));
+        export.Set("UsesLegacyColours", flag);
+
+        string path = Path.Combine(Path.GetTempPath(), $"nmse_legacycolours_{Guid.NewGuid():N}.nmsship");
+        try
+        {
+            export.ExportToFile(path);
+
+            string raw = File.ReadAllText(path);
+            Assert.Contains("\"UsesLegacyColours\"", raw);
+            Assert.Contains(flag ? "true" : "false", raw);
+
+            var reimported = JsonObject.ImportFromFile(path);
+            var result = StarshipLogic.TryGetExportedLegacyColours(reimported);
+            Assert.True(result.HasValue);
+            Assert.Equal(flag, result!.Value);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    // --- Archive round-trip of the legacy colour flag ---
+
+    private static JsonObject MakeArchiveFixture(bool? archivedFlag)
+    {
+        var slot = JsonObject.Parse("""
+        {
+            "Ownership": {
+                "Name": "Archived Ship",
+                "Resource": { "Filename": "SHIP.MBIN", "Seed": [true, "0xABC"] },
+                "Inventory": { "Class": { "InventoryClass": "S" } }
+            },
+            "Customisation": { "SelectedPreset": "PRESET", "CustomData": {} },
+            "ArchivedName": "Archived Ship",
+            "ArchivedClass": { "ShipClass": "Fighter" },
+            "ArchivedInventoryClass": { "InventoryClass": "S" }
+        }
+        """);
+        if (archivedFlag.HasValue)
+            slot.Set("UsesLegacyColours", archivedFlag.Value);
+        return slot;
+    }
+
+    private static JsonObject MakeEmptyTargetShip() =>
+        JsonObject.Parse("""
+        {
+            "Name": "",
+            "Resource": { "Filename": "", "Seed": [false, "0x0"] },
+            "Inventory": { "Class": { "InventoryClass": "C" } }
+        }
+        """);
+
+    [Fact]
+    public void ImportShipFromArchive_RestoresLegacyColoursToTargetIndex()
+    {
+        var archivedSlot = MakeArchiveFixture(true);
+        var targetShip = MakeEmptyTargetShip();
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [false, false, false] }""");
+
+        StarshipLogic.ImportShipFromArchive(archivedSlot, targetShip, 2, null, playerState);
+
+        var arr = playerState.GetArray("ShipUsesLegacyColours")!;
+        Assert.True(arr.GetBool(2));
+        // Neighbours untouched
+        Assert.False(arr.GetBool(0));
+        Assert.False(arr.GetBool(1));
+        // The archive copy is still reset, proving the read happened before the reset
+        Assert.False(archivedSlot.GetBool("UsesLegacyColours"));
+    }
+
+    [Fact]
+    public void ImportShipFromArchive_ArchiveWithoutFlag_LeavesSlotUntouched()
+    {
+        var archivedSlot = MakeArchiveFixture(null);
+        var targetShip = MakeEmptyTargetShip();
+        var playerState = JsonObject.Parse("""{ "ShipUsesLegacyColours": [false, true] }""");
+
+        StarshipLogic.ImportShipFromArchive(archivedSlot, targetShip, 1, null, playerState);
+
+        Assert.True(playerState.GetArray("ShipUsesLegacyColours")!.GetBool(1));
+    }
+
+    [Fact]
+    public void ImportShipFromArchive_NullPlayerState_DoesNotThrow()
+    {
+        var archivedSlot = MakeArchiveFixture(true);
+        var targetShip = MakeEmptyTargetShip();
+
+        StarshipLogic.ImportShipFromArchive(archivedSlot, targetShip, 0, null);
+
+        Assert.Equal("Archived Ship", targetShip.GetString("Name"));
+    }
+
+    [Fact]
+    public void MoveShipToArchive_ThenImport_RoundTripsLegacyColours()
+    {
+        var playerState = JsonObject.Parse("""
+        {
+            "ShipOwnership": [
+                {
+                    "Name": "Legacy Fighter",
+                    "Resource": { "Filename": "SHIP.MBIN", "Seed": [true, "0xABC"] },
+                    "Inventory": { "Class": { "InventoryClass": "A" } }
+                },
+                {
+                    "Name": "",
+                    "Resource": { "Filename": "", "Seed": [false, "0x0"] },
+                    "Inventory": { "Class": { "InventoryClass": "C" } }
+                }
+            ],
+            "ShipUsesLegacyColours": [true, false]
+        }
+        """);
+
+        var ships = playerState.GetArray("ShipOwnership")!;
+        var archivedSlot = MakeArchiveFixture(false);
+
+        // Archive ship 0, which uses legacy colours
+        bool flag = StarshipLogic.GetShipUsesLegacyColours(playerState, 0);
+        Assert.True(flag);
+        StarshipLogic.MoveShipToArchive(ships.GetObject(0), 0, archivedSlot, null, flag);
+        Assert.True(archivedSlot.GetBool("UsesLegacyColours"));
+
+        // Restore it into slot 1, whose flag is currently false
+        StarshipLogic.ImportShipFromArchive(archivedSlot, ships.GetObject(1), 1, null, playerState);
+
+        Assert.True(StarshipLogic.GetShipUsesLegacyColours(playerState, 1));
+        Assert.Equal("Legacy Fighter", ships.GetObject(1).GetString("Name"));
+    }
 }

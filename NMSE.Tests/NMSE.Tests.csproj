@@ -73,6 +73,8 @@
     <Compile Include="..\IO\MetaFileWriter.cs" Link="IO\MetaFileWriter.cs" />
     <Compile Include="..\IO\MemoryDatManager.cs" Link="IO\MemoryDatManager.cs" />
     <Compile Include="..\IO\ContainersIndexManager.cs" Link="IO\ContainersIndexManager.cs" />
+    <Compile Include="..\IO\XboxBlobCodec.cs" Link="IO\XboxBlobCodec.cs" />
+    <Compile Include="..\IO\XgsSaveManager.cs" Link="IO\XgsSaveManager.cs" />
     <Compile Include="..\IO\SaveSlotManager.cs" Link="IO\SaveSlotManager.cs" />
   </ItemGroup>
 
@@ -89,6 +91,7 @@
     <Compile Include="..\Core\Utilities\MathHelper.cs" Link="Core\Utilities\MathHelper.cs" />
     <Compile Include="..\Core\FrigateLogic.cs" Link="Core\FrigateLogic.cs" />
     <Compile Include="..\Core\CompanionLogic.cs" Link="Core\CompanionLogic.cs" />
+    <Compile Include="..\Core\PetBattleLogic.cs" Link="Core\PetBattleLogic.cs" />
     <Compile Include="..\Core\MilestoneLogic.cs" Link="Core\MilestoneLogic.cs" />
     <Compile Include="..\Core\CatalogueLogic.cs" Link="Core\CatalogueLogic.cs" />
     <Compile Include="..\Core\BaseLogic.cs" Link="Core\BaseLogic.cs" />
@@ -125,6 +128,15 @@
     <Compile Include="..\Core\CatalogueCompletionLogic.Stats.cs" Link="Core\CatalogueCompletionLogic.Stats.cs" />
     <Compile Include="..\Core\CatalogueCompletionLogic.Knowledge.cs" Link="Core\CatalogueCompletionLogic.Knowledge.cs" />
     <Compile Include="..\Core\KnowledgeCatalogue.cs" Link="Core\KnowledgeCatalogue.cs" />
+    <Compile Include="..\Core\TechPackLogic.cs" Link="Core\TechPackLogic.cs" />
+    <Compile Include="..\Core\ExternalChangeDecision.cs" Link="Core\ExternalChangeDecision.cs" />
+    <Compile Include="..\Core\DevNotesLogic.cs" Link="Core\DevNotesLogic.cs" />
+    <Compile Include="..\Core\ProcTechLogic.cs" Link="Core\ProcTechLogic.cs" />
+    <Compile Include="..\Core\Utilities\Xxh3.cs" Link="Core\Utilities\Xxh3.cs" />
+    <Compile Include="..\Core\Utilities\SplitMix64.cs" Link="Core\Utilities\SplitMix64.cs" />
+    <Compile Include="..\Core\Utilities\PRNG.cs" Link="Core\Utilities\PRNG.cs" />
+    <Compile Include="..\Core\ControlTokens.cs" Link="Core\ControlTokens.cs" />
+    <Compile Include="..\Data\ProcTechData.cs" Link="Data\ProcTechData.cs" />
   </ItemGroup>
 
   <!-- Config (application settings - no WinForms dependency) -->

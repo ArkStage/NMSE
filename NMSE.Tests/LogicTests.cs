@@ -2879,6 +2879,117 @@ public class LogicTests
         Assert.False(CatalogueLogic.IsWordKnown(groups, "NoSuchGroup", 0));
     }
 
+    /// <summary>
+    /// Builds a minimal save containing the global stats group with the word-stat
+    /// entries the game seeds, each with an empty Value object (as found in real saves).
+    /// </summary>
+    private static JsonObject BuildWordStatsSave()
+    {
+        return JsonObject.Parse(@"{
+            ""PlayerStateData"": {
+                ""Stats"": [
+                    {
+                        ""GroupId"": ""^GLOBAL_STATS"",
+                        ""Stats"": [
+                            { ""Id"": ""^WORDS_LEARNT"", ""Value"": {} },
+                            { ""Id"": ""^TWORDS_LEARNT"", ""Value"": {} },
+                            { ""Id"": ""^WWORDS_LEARNT"", ""Value"": {} },
+                            { ""Id"": ""^EWORDS_LEARNT"", ""Value"": {} },
+                            { ""Id"": ""^BWORDS_LEARNT"", ""Value"": {} }
+                        ]
+                    }
+                ]
+            }
+        }");
+    }
+
+    /// <summary>
+    /// Builds a KnownWordGroups entry with the given race ordinals marked as known.
+    /// </summary>
+    private static JsonObject BuildWordGroup(string groupName, params int[] knownRaces)
+    {
+        var entry = new JsonObject();
+        entry.Set("Group", groupName);
+        var races = new JsonArray();
+        for (int i = 0; i < CatalogueLogic.TotalRaceCount; i++)
+            races.Add(Array.IndexOf(knownRaces, i) >= 0);
+        entry.Set("Races", races);
+        return entry;
+    }
+
+    /// <summary>
+    /// Reads the IntValue of a global stat entry, or -1 when the stat is missing.
+    /// </summary>
+    private static int ReadGlobalStatValue(JsonObject save, string statId)
+    {
+        var stats = MilestoneLogic.FindGlobalStats(save);
+        Assert.NotNull(stats);
+        for (int i = 0; i < stats!.Length; i++)
+        {
+            var entry = stats.GetObject(i);
+            if (entry != null && string.Equals(entry.GetString("Id"), statId, StringComparison.Ordinal))
+                return MilestoneLogic.ReadStatEntryValue(entry);
+        }
+        return -1;
+    }
+
+    [Fact]
+    public void CatalogueLogic_SyncWordStats_SetsAllRaceWordCounts()
+    {
+        var save = BuildWordStatsSave();
+        var groups = new JsonArray();
+        groups.Add(BuildWordGroup("^TRA_A", 0, 8)); // Gek + Autophage
+        groups.Add(BuildWordGroup("^WAR_A", 1));
+        groups.Add(BuildWordGroup("^EXP_A", 2));
+        groups.Add(BuildWordGroup("^BUI_A", 8));    // Autophage only
+
+        CatalogueLogic.SyncWordStats(save, groups);
+
+        Assert.Equal(4, ReadGlobalStatValue(save, "^WORDS_LEARNT"));
+        Assert.Equal(1, ReadGlobalStatValue(save, "^TWORDS_LEARNT"));
+        Assert.Equal(1, ReadGlobalStatValue(save, "^WWORDS_LEARNT"));
+        Assert.Equal(1, ReadGlobalStatValue(save, "^EWORDS_LEARNT"));
+        Assert.Equal(2, ReadGlobalStatValue(save, "^BWORDS_LEARNT"));
+    }
+
+    [Fact]
+    public void CatalogueLogic_SyncWordStats_ClearsAutophageCountWhenUnlearned()
+    {
+        var save = BuildWordStatsSave();
+        var groups = new JsonArray();
+        groups.Add(BuildWordGroup("^BUI_A", 8));
+
+        CatalogueLogic.SyncWordStats(save, groups);
+        Assert.Equal(1, ReadGlobalStatValue(save, "^BWORDS_LEARNT"));
+
+        groups.Clear();
+        CatalogueLogic.SyncWordStats(save, groups);
+        Assert.Equal(0, ReadGlobalStatValue(save, "^WORDS_LEARNT"));
+        Assert.Equal(0, ReadGlobalStatValue(save, "^BWORDS_LEARNT"));
+    }
+
+    [Fact]
+    public void CatalogueLogic_SyncWordStats_ShortRaceArray_DoesNotThrow()
+    {
+        var save = BuildWordStatsSave();
+        var groups = new JsonArray();
+
+        // Older saves may have Races arrays shorter than TotalRaceCount.
+        var entry = new JsonObject();
+        entry.Set("Group", "^TRA_A");
+        var races = new JsonArray();
+        races.Add(true);
+        races.Add(false);
+        entry.Set("Races", races);
+        groups.Add(entry);
+
+        CatalogueLogic.SyncWordStats(save, groups);
+
+        Assert.Equal(1, ReadGlobalStatValue(save, "^WORDS_LEARNT"));
+        Assert.Equal(1, ReadGlobalStatValue(save, "^TWORDS_LEARNT"));
+        Assert.Equal(0, ReadGlobalStatValue(save, "^BWORDS_LEARNT"));
+    }
+
     [Fact]
     public void CatalogueLogic_SetWordKnown_AddsNewEntry()
     {
@@ -5613,6 +5724,93 @@ public class LogicTests
     }
 
     [Fact]
+    public void SaveShipData_ShortLegacyColoursArray_GrowsAndPersists()
+    {
+        // A truncated parallel array used to make the write silently vanish,
+        // so the checkbox appeared to save but the value never persisted.
+        var ship = MakeMinimalShipForSave();
+
+        var playerState = new JsonObject();
+        var legacyArr = new JsonArray();
+        legacyArr.Add(true);
+        playerState.Add("ShipUsesLegacyColours", legacyArr);
+        playerState.Add("PrimaryShip", 0);
+
+        var values = new StarshipLogic.ShipSaveValues
+        {
+            Name = "TestShip",
+            UseOldColours = true,
+            ShipIndex = 3,
+            PrimaryShipIndex = 0,
+        };
+        StarshipLogic.SaveShipData(ship, playerState, values);
+
+        var arr = playerState.GetArray("ShipUsesLegacyColours");
+        Assert.NotNull(arr);
+        Assert.Equal(4, arr.Length);
+        Assert.Equal(true, arr.Get(0));
+        Assert.Equal(false, arr.Get(1));
+        Assert.Equal(false, arr.Get(2));
+        Assert.Equal(true, arr.Get(3));
+    }
+
+    [Fact]
+    public void SaveShipData_MissingLegacyColoursArray_StillSavesTheRest()
+    {
+        // A save without the key predates the flag - don't invent it, but
+        // everything else in the save must still be applied.
+        var ship = MakeMinimalShipForSave();
+
+        var playerState = new JsonObject();
+        playerState.Add("PrimaryShip", 0);
+
+        var values = new StarshipLogic.ShipSaveValues
+        {
+            Name = "RenamedShip",
+            UseOldColours = true,
+            ShipIndex = 0,
+            PrimaryShipIndex = 0,
+        };
+        StarshipLogic.SaveShipData(ship, playerState, values);
+
+        Assert.Null(playerState.GetArray("ShipUsesLegacyColours"));
+        Assert.Equal("RenamedShip", ship.GetString("Name"));
+    }
+
+    /// <summary>
+    /// Builds the smallest ship object SaveShipData will accept: name, resource
+    /// with seed, and an Inventory carrying the four ship base stats.
+    /// </summary>
+    private static JsonObject MakeMinimalShipForSave()
+    {
+        var ship = new JsonObject();
+        ship.Add("Name", "TestShip");
+        var resource = new JsonObject();
+        resource.Add("Filename", "MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTER_PROC.SCENE.MBIN");
+        var seedArr = new JsonArray();
+        seedArr.Add(true);
+        seedArr.Add("0x1234");
+        resource.Add("Seed", seedArr);
+        ship.Add("Resource", resource);
+        var inv = new JsonObject();
+        var cls = new JsonObject();
+        cls.Add("InventoryClass", "C");
+        inv.Add("Class", cls);
+        var baseStats = new JsonArray();
+        foreach (var statId in new[] { "^SHIP_DAMAGE", "^SHIP_SHIELD", "^SHIP_HYPERDRIVE", "^SHIP_AGILE" })
+        {
+            var stat = new JsonObject();
+            stat.Add("BaseStatID", statId);
+            stat.Add("Value", 0.0);
+            baseStats.Add(stat);
+        }
+        inv.Add("BaseStatValues", baseStats);
+        inv.Add("Slots", new JsonArray());
+        ship.Add("Inventory", inv);
+        return ship;
+    }
+
+    [Fact]
     public void SaveShipData_SetsClassOnAllInventories()
     {
         // Class should be set on Inventory, Inventory_TechOnly, and Inventory_Cargo
@@ -6199,7 +6397,9 @@ public class LogicTests
                 { ""Id"": ""^TEST_REWARD"", ""Name"": ""Test"", ""Category"": ""season"",
                   ""ProductId"": ""TEST"", ""MustBeUnlocked"": true, ""SeasonId"": 5, ""StageId"": 2 },
                 { ""Id"": ""^TWITCH_1"", ""Name"": ""Twitch Test"", ""Category"": ""twitch"",
-                  ""ProductId"": ""TW1"" }
+                  ""ProductId"": ""TW1"" },
+                { ""Id"": ""^ENT_TEST"", ""Name"": ""Entitlement Test"", ""Category"": ""entitlement"",
+                  ""ProductId"": ""SPEC_TEST"" }
             ]";
             File.WriteAllText(Path.Combine(tmpDir, "Rewards.json"), json);
 
@@ -6218,6 +6418,13 @@ public class LogicTests
             Assert.False(twitch.Unlock);
             Assert.Equal(-1, twitch.SeasonId);
             Assert.Equal(-1, twitch.StageId);
+
+            // Entitlement rewards are exposed separately (for product ID routing) and
+            // remain included in PlatformRewards for backwards compatibility with the grid.
+            var entitlement = Assert.Single(RewardDatabase.EntitlementRewards);
+            Assert.Equal("^ENT_TEST", entitlement.Id);
+            Assert.Equal("SPEC_TEST", entitlement.ProductId);
+            Assert.Contains(RewardDatabase.PlatformRewards, r => r.Id == "^ENT_TEST");
         }
         finally
         {
@@ -6512,6 +6719,116 @@ public class LogicTests
     }
 
     // --- AppConfig.RecentDirectories -----------------------------------
+
+    [Fact]
+    public void MxmlRewardEditor_ReadUnlockedSpecials_ReadsExistingEntries()
+    {
+        string mxml = Path.Combine(Path.GetTempPath(), $"test_specials_{Guid.NewGuid()}.MXML");
+        try
+        {
+            File.WriteAllText(mxml, @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Data template=""GcUserSettingsData"">
+  <Property name=""UnlockedSpecials"">
+    <Property name=""UnlockedSpecials"" value=""BANNER_AF"" _index=""0"" />
+    <Property name=""UnlockedSpecials"" value=""SPEC_XOHELMET"" _index=""1"" />
+  </Property>
+</Data>");
+
+            var result = MxmlRewardEditor.ReadUnlockedSpecials(mxml);
+
+            Assert.Equal(2, result.Count);
+            Assert.Contains("^BANNER_AF", result);
+            Assert.Contains("^SPEC_XOHELMET", result);
+        }
+        finally
+        {
+            try { File.Delete(mxml); } catch { }
+        }
+    }
+
+    [Fact]
+    public void MxmlRewardEditor_SyncManagedRewards_PreservesUnmanagedEntries()
+    {
+        string mxml = Path.Combine(Path.GetTempPath(), $"test_specials_write_{Guid.NewGuid()}.MXML");
+        try
+        {
+            File.WriteAllText(mxml, @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Data template=""GcUserSettingsData"">
+  <Property name=""UnlockedSpecials"">
+    <Property name=""UnlockedSpecials"" value=""BANNER_AF"" _index=""0"" />
+    <Property name=""UnlockedSpecials"" value=""SPEC_XOHELMET"" _index=""1"" />
+    <Property name=""UnlockedSpecials"" value=""BANNER_AGT"" _index=""2"" />
+  </Property>
+</Data>");
+
+            bool result = MxmlRewardEditor.SyncManagedRewards(mxml, "UnlockedSpecials",
+                new List<(string Id, bool Present)>
+                {
+                    ("SPEC_XOHELMET", false),
+                    ("BOLT_SM", true),
+                });
+            Assert.True(result);
+
+            var specials = MxmlRewardEditor.ReadUnlockedSpecials(mxml);
+            Assert.DoesNotContain("^SPEC_XOHELMET", specials);
+            Assert.Contains("^BANNER_AF", specials);
+            Assert.Contains("^BANNER_AGT", specials);
+            Assert.Contains("^BOLT_SM", specials);
+
+            // Verify the container children keep their order and are re-indexed sequentially.
+            var doc = System.Xml.Linq.XDocument.Load(mxml);
+            var container = doc.Root!.Elements("Property")
+                .First(e => e.Attribute("name")?.Value == "UnlockedSpecials"
+                         && e.Attribute("value") == null);
+            var values = container.Elements("Property")
+                .Select(e => e.Attribute("value")?.Value ?? "")
+                .ToList();
+            Assert.Equal(new[] { "BANNER_AF", "BANNER_AGT", "BOLT_SM" }, values);
+            var indices = container.Elements("Property")
+                .Select(e => e.Attribute("_index")?.Value ?? "")
+                .ToList();
+            Assert.Equal(new[] { "0", "1", "2" }, indices);
+        }
+        finally
+        {
+            try { File.Delete(mxml); } catch { }
+        }
+    }
+
+    [Fact]
+    public void MxmlRewardEditor_WriteSeenTechnologies_CreatesContainer()
+    {
+        string mxml = Path.Combine(Path.GetTempPath(), $"test_seentech_{Guid.NewGuid()}.MXML");
+        try
+        {
+            File.WriteAllText(mxml, @"<?xml version=""1.0"" encoding=""utf-8""?>
+<Data template=""GcUserSettingsData"">
+  <Property name=""SomeOtherSetting"" value=""true"" />
+</Data>");
+
+            bool result = MxmlRewardEditor.SyncManagedRewards(mxml, "SeenTechnologies",
+                new List<(string Id, bool Present)>
+                {
+                    ("^BOLT_SM", true),
+                    ("^PHOTONIX_CORE", true),
+                });
+            Assert.True(result);
+
+            var seenTech = MxmlRewardEditor.ReadSeenTechnologies(mxml);
+            Assert.Contains("^BOLT_SM", seenTech);
+            Assert.Contains("^PHOTONIX_CORE", seenTech);
+
+            // Ensure the unrelated setting is untouched.
+            var doc = System.Xml.Linq.XDocument.Load(mxml);
+            var other = doc.Root!.Elements("Property")
+                .FirstOrDefault(e => e.Attribute("name")?.Value == "SomeOtherSetting");
+            Assert.NotNull(other);
+        }
+        finally
+        {
+            try { File.Delete(mxml); } catch { }
+        }
+    }
 
     [Fact]
     public void AppConfig_Theme_EmptyByDefault()
@@ -9559,6 +9876,74 @@ public class LogicTests
     }
 
     [Fact]
+    public void JsonParser_NonBmpCharacter_SerialisesAsFourByteUtf8()
+    {
+        // Characters outside the BMP (most emoji, rare glyphs) must be emitted as a
+        // single 4-byte UTF-8 sequence. Encoding the two UTF-16 surrogate halves
+        // separately produces CESU-8 (ED A0/ED B0 bytes), which is not valid UTF-8.
+        var obj = new JsonObject();
+        obj.Set("Name", char.ConvertFromUtf32(0x1F680)); // U+1F680 ROCKET
+
+        string json = obj.ToString();
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(json);
+        string hex = Convert.ToHexString(bytes);
+
+        Assert.Contains("F09F9A80", hex);     // U+1F680 as one 4-byte UTF-8 sequence
+        Assert.DoesNotContain("EDA0BD", hex); // high surrogate (CESU-8)
+        Assert.DoesNotContain("EDBA80", hex); // low surrogate (CESU-8)
+
+        // The serialized output must be valid UTF-8
+        var strictUtf8 = new System.Text.UTF8Encoding(false, true);
+        _ = strictUtf8.GetString(bytes);
+    }
+
+    [Fact]
+    public void JsonParser_RawUtf8_NonBmpName_RoundTripsByteIdentical()
+    {
+        // Mirrors the save-file path: the file is read through a Latin-1 window, so
+        // raw UTF-8 bytes appear as Latin-1 characters; the parser decodes them, and
+        // serialising must reproduce the original byte sequence exactly.
+        string name = "Laughing Cow with " + char.ConvertFromUtf32(0x1D400) + char.ConvertFromUtf32(0x1D40A);
+        byte[] originalBytes = System.Text.Encoding.UTF8.GetBytes("{\"Name\":\"" + name + "\"}");
+        string latin1Json = System.Text.Encoding.Latin1.GetString(originalBytes);
+
+        var obj = JsonObject.Parse(latin1Json);
+        Assert.Equal(name, obj.GetString("Name"));
+
+        byte[] savedBytes = System.Text.Encoding.Latin1.GetBytes(obj.ToString());
+        Assert.Equal(originalBytes, savedBytes);
+    }
+
+    [Fact]
+    public void JsonParser_SurrogateEscapePair_DecodesAndSerialisesAsFourByteUtf8()
+    {
+        // JSON may encode a non-BMP character as a \uD83D\uDE00 surrogate pair escape.
+        var obj = JsonObject.Parse("{\"Name\":\"\\uD83D\\uDE00\"}");
+
+        Assert.Equal(char.ConvertFromUtf32(0x1F600), obj.GetString("Name"));
+
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(obj.ToString());
+        string hex = Convert.ToHexString(bytes);
+        Assert.Contains("F09F9880", hex);
+    }
+
+    [Fact]
+    public void JsonParser_LoneSurrogate_SerialisesAsUnicodeEscape()
+    {
+        // An unpaired surrogate cannot be encoded as UTF-8; it must be escaped so the
+        // output remains valid JSON and valid UTF-8.
+        var obj = new JsonObject();
+        obj.Set("Name", "\uD800");
+
+        string json = obj.ToString();
+        Assert.Contains("\\uD800", json);
+
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(json);
+        var strictUtf8 = new System.Text.UTF8Encoding(false, true);
+        _ = strictUtf8.GetString(bytes);
+    }
+
+    [Fact]
     public void JsonParser_FrenchCharacters_BytesNotCorrupted()
     {
         // Verify byte-level round-trip: serialize + Latin1.GetBytes must produce
@@ -12570,6 +12955,13 @@ public class LogicTests
         // (Our Extractor leaves this field empty for all purely decorative rewards.)
         Assert.True(AccountLogic.IsNonTechReward(new GameItem { GiveRewardOnSpecialPurchase = "" }));
 
+        // Technology-table items are genuine tech rewards even with an empty reward ID
+        // (e.g. entitlement rewards ENT_BOLTCASTER -> BOLT_SM, ENT_PHOCORE -> PHOTONIX_CORE).
+        Assert.False(AccountLogic.IsNonTechReward(new GameItem { SourceTable = "Technology", GiveRewardOnSpecialPurchase = "" }));
+
+        // Non-tech keywords still classify technology-table items with a reward ID as non-tech.
+        Assert.True(AccountLogic.IsNonTechReward(new GameItem { SourceTable = "Technology", GiveRewardOnSpecialPurchase = "RS_S13_SHIP" }));
+
         // Starship trail cosmetics (RS_SX_TRAIL) - game does not add to KnownTech.
         Assert.True(AccountLogic.IsNonTechReward(new GameItem { GiveRewardOnSpecialPurchase = "RS_S6_TRAIL" }));
         Assert.True(AccountLogic.IsNonTechReward(new GameItem { GiveRewardOnSpecialPurchase = "RS_S7_TRAIL" }));
@@ -12657,6 +13049,111 @@ public class LogicTests
         Assert.Contains("^SHIP_PIRATE", knownSpecials);
     }
 
+    /// <summary>
+    /// Verifies that entitlement rewards (ENT_*) are resolved through their product IDs
+    /// when syncing Known* arrays: technology products go to KnownTech, special shop
+    /// products go to KnownSpecials, and the entitlement reward IDs themselves are never
+    /// written to the save. Also verifies that un-redeeming removes only the affected entry.
+    /// </summary>
+    [Fact]
+    public void SyncKnownArraysForChangedRewards_EntitlementRewards_UseProductIds()
+    {
+        var save = new JsonObject();
+        var ps = new JsonObject();
+        save.Set("PlayerStateData", ps);
+        ps.Set("KnownTech", new JsonArray());
+        ps.Set("KnownSpecials", new JsonArray());
+
+        var db = new GameItemDatabase();
+        db.InjectTestItem(new GameItem { Id = "BOLT_SM", SourceTable = "Technology", ItemType = "Weapon" });
+        db.InjectTestItem(new GameItem { Id = "PHOTONIX_CORE", SourceTable = "Technology", ItemType = "Starship" });
+        db.InjectTestItem(new GameItem { Id = "SPEC_XOHELMET", SourceTable = "Product", TradeCategory = "SpecialShop" });
+
+        var productIdMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["^ENT_BOLTCASTER"] = "BOLT_SM",
+            ["^ENT_PHOCORE"] = "PHOTONIX_CORE",
+            ["^ENT_XO_HELMET"] = "SPEC_XOHELMET",
+        };
+
+        var changed = new List<(string Id, bool Redeemed)>
+        {
+            ("^ENT_BOLTCASTER", true),
+            ("^ENT_PHOCORE", true),
+            ("^ENT_XO_HELMET", true),
+        };
+
+        AccountLogic.SyncKnownArraysForChangedRewards(save, changed, db, productIdMap);
+
+        var knownTech = CaptureStringArray(ps, "KnownTech");
+        var knownSpecials = CaptureStringArray(ps, "KnownSpecials");
+
+        // Technology products resolved to KnownTech; the special goes to KnownSpecials.
+        Assert.Contains("^BOLT_SM", knownTech);
+        Assert.Contains("^PHOTONIX_CORE", knownTech);
+        Assert.DoesNotContain("^SPEC_XOHELMET", knownTech);
+        Assert.Contains("^SPEC_XOHELMET", knownSpecials);
+
+        // Entitlement reward IDs must never appear in the save arrays.
+        Assert.DoesNotContain("^ENT_BOLTCASTER", knownTech);
+        Assert.DoesNotContain("^ENT_PHOCORE", knownTech);
+        Assert.DoesNotContain("^ENT_XO_HELMET", knownSpecials);
+
+        // Un-redeeming removes only the affected product entry.
+        AccountLogic.SyncKnownArraysForChangedRewards(save,
+            new List<(string Id, bool Redeemed)> { ("^ENT_BOLTCASTER", false) }, db, productIdMap);
+
+        knownTech = CaptureStringArray(ps, "KnownTech");
+        Assert.DoesNotContain("^BOLT_SM", knownTech);
+        Assert.Contains("^PHOTONIX_CORE", knownTech);
+    }
+
+    /// <summary>
+    /// Verifies that SaveManagedRewardList only removes managed entries and preserves
+    /// game-managed entries (e.g. the hundreds of BANNER_* values in UnlockedSpecials),
+    /// keeping the original order of the surviving entries.
+    /// </summary>
+    [Fact]
+    public void SaveManagedRewardList_PreservesUnmanagedEntries()
+    {
+        var userSettings = new JsonObject();
+        var specials = new JsonArray();
+        specials.Add("BANNER_AF");
+        specials.Add("SPEC_XOHELMET");
+        specials.Add("BANNER_AGT");
+        userSettings.Set("UnlockedSpecials", specials);
+
+        AccountLogic.SaveManagedRewardList(userSettings, "UnlockedSpecials",
+            new List<(string Id, bool Present)>
+            {
+                ("SPEC_XOHELMET", false),
+                ("BOLT_SM", true),
+            });
+
+        var after = CaptureStringArray(userSettings, "UnlockedSpecials");
+        Assert.DoesNotContain("SPEC_XOHELMET", after);
+        Assert.Contains("BANNER_AF", after);
+        Assert.Contains("BANNER_AGT", after);
+        Assert.Contains("BOLT_SM", after);
+
+        // Unmanaged entries keep their original relative order; new entries are appended.
+        Assert.Equal(new[] { "BANNER_AF", "BANNER_AGT", "BOLT_SM" }, after);
+    }
+
+    /// <summary>
+    /// Verifies that GetEntitlementSeenArrayName only returns SeenTechnologies for
+    /// technology-table products and null for everything else.
+    /// </summary>
+    [Fact]
+    public void GetEntitlementSeenArrayName_OnlyTechTableItems()
+    {
+        Assert.Equal("SeenTechnologies",
+            AccountLogic.GetEntitlementSeenArrayName(new GameItem { SourceTable = "Technology" }));
+        Assert.Null(AccountLogic.GetEntitlementSeenArrayName(new GameItem { SourceTable = "Product" }));
+        Assert.Null(AccountLogic.GetEntitlementSeenArrayName(new GameItem { SourceTable = "Substance" }));
+        Assert.Null(AccountLogic.GetEntitlementSeenArrayName(null));
+    }
+
     // --- InventoryBulkActions ----------------------------------------
 
     /// <summary>
@@ -12724,13 +13221,49 @@ public class LogicTests
         return ps;
     }
 
+    /// <summary>
+    /// Builds a <see cref="GameItemDatabase"/> populated from the real game item JSON files
+    /// in <c>Resources/json</c>. The repository root is located by walking up from the test
+    /// binary's output directory so this does not depend on the exact build output layout.
+    /// </summary>
     private static GameItemDatabase BuildTestDatabase()
     {
         var db = new GameItemDatabase();
-        var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "Data", "json");
-        if (Directory.Exists(dbPath))
+        var dbPath = FindResourceJsonDirectory();
+        if (dbPath != null)
             db.LoadItemsFromJsonDirectory(dbPath);
         return db;
+    }
+
+    /// <summary>
+    /// Locates the repository's <c>Resources/json</c> directory by walking up from the test
+    /// binary's base directory, or returns <c>null</c> when it cannot be found.
+    /// </summary>
+    private static string? FindResourceJsonDirectory()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir != null)
+        {
+            string candidate = Path.Combine(dir.FullName, "Resources", "json");
+            if (Directory.Exists(candidate))
+                return candidate;
+            dir = dir.Parent;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// <see cref="BuildTestDatabase"/> must resolve the real item JSON data. Every other test
+    /// that uses it guards with <c>if (db.Items.Count == 0) return;</c>, so a broken path
+    /// would silently skip their assertions instead of failing. This test has no such guard,
+    /// so a broken lookup fails loudly here instead.
+    /// </summary>
+    [Fact]
+    public void BuildTestDatabase_ResolvesToRealItemData()
+    {
+        var db = BuildTestDatabase();
+        Assert.True(db.Items.Count > 0,
+            "BuildTestDatabase() loaded 0 items - the lookup for Resources/json is broken and DB-dependent tests are silently skipping.");
     }
 
     [Fact]

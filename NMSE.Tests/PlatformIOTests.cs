@@ -503,6 +503,319 @@ public class PlatformIOTests
         }
     }
 
+    // --- SaveSlotManager: typed errors and slot enumeration ---
+
+    [Fact]
+    public void SaveSlotManager_CopySlot_EmptySource_ThrowsSlotEmptyWithOneBasedNumber()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            // Only slot 1 (index 0) has data
+            File.WriteAllText(Path.Combine(tmpDir, "save.hg"), "slot1");
+
+            var ex = Assert.Throws<SlotEmptyException>(
+                () => SaveSlotManager.CopySlot(tmpDir, 1, 2, SaveFileManager.Platform.Steam));
+
+            // The exception reports the UI slot number (index 1 = "Slot 2")
+            Assert.Equal(2, ex.SlotNumber);
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_DeleteSlot_EmptySlot_ThrowsSlotEmpty()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            Assert.Throws<SlotEmptyException>(
+                () => SaveSlotManager.DeleteSlot(tmpDir, 0, SaveFileManager.Platform.Steam));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_CopySlot_UnsupportedPlatform_Throws()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            Assert.Throws<SlotOperationUnsupportedException>(
+                () => SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.Unknown));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_CopySlot_MemoryDat_ThrowsUnsupported()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(tmpDir, "memory.dat"), new byte[] { 1 });
+
+            var ex = Assert.Throws<SlotOperationUnsupportedException>(
+                () => SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.PS4));
+
+            Assert.True(ex.IsMemoryDat);
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_CopySlot_Ps4Streaming_CopiesFiles()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tmpDir, "savedata02.hg"), "ps4_auto");
+            File.WriteAllText(Path.Combine(tmpDir, "savedata03.hg"), "ps4_manual");
+
+            SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.PS4);
+
+            Assert.Equal("ps4_auto", File.ReadAllText(Path.Combine(tmpDir, "savedata04.hg")));
+            Assert.Equal("ps4_manual", File.ReadAllText(Path.Combine(tmpDir, "savedata05.hg")));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    // --- SaveSlotManager: Xbox Game Pass slot operations ---
+
+    /// <summary>
+    /// Builds a synthetic Xbox save directory: one GUID blob directory per entry
+    /// (container.1 with data/meta blobs) plus a containers.index referencing them.
+    /// </summary>
+    private static string CreateXboxSaveDirectory(params (string Identifier, string Data, string Meta)[] entries)
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_xbox_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        WriteWgsContainer(tmpDir, entries);
+        return tmpDir;
+    }
+
+    /// <summary>
+    /// Writes a synthetic legacy wgs container (containers.index plus one GUID blob
+    /// directory per entry) into an existing directory. Used by the xgs mirror tests.
+    /// </summary>
+    private static void WriteWgsContainer(string tmpDir, params (string Identifier, string Data, string Meta)[] entries)
+    {
+        using var indexMs = new MemoryStream();
+        using var indexW = new BinaryWriter(indexMs);
+        indexW.Write(14);         // header
+        indexW.Write((long)entries.Length);
+        indexW.Write(0);          // processIdentifier (empty)
+        indexW.Write(0L);         // lastModifiedTime
+        indexW.Write(0);          // syncState
+        indexW.Write(0);          // accountGuid (empty)
+        indexW.Write(268435456L); // footer
+
+        foreach (var entry in entries)
+        {
+            Guid dirGuid = Guid.NewGuid();
+            string blobDir = Path.Combine(tmpDir, dirGuid.ToString("N").ToUpperInvariant());
+            Directory.CreateDirectory(blobDir);
+
+            Guid dataGuid = Guid.NewGuid();
+            Guid metaGuid = Guid.NewGuid();
+            File.WriteAllText(Path.Combine(blobDir, dataGuid.ToString("N").ToUpperInvariant()), entry.Data);
+            File.WriteAllText(Path.Combine(blobDir, metaGuid.ToString("N").ToUpperInvariant()), entry.Meta);
+
+            // 328-byte container file with 128-byte UTF-16 identifiers
+            byte[] container = new byte[328];
+            using (var cms = new MemoryStream(container))
+            using (var cw = new BinaryWriter(cms))
+            {
+                cw.Write(4);  // header
+                cw.Write(2);  // count
+                cw.Write(Encoding.Unicode.GetBytes("data"));
+                cms.Position = 8 + 128;
+                cw.Write(new byte[16]); // cloud GUID
+                cw.Write(dataGuid.ToByteArray());
+                cw.Write(Encoding.Unicode.GetBytes("meta"));
+                cms.Position = 8 + 160 + 128;
+                cw.Write(new byte[16]); // cloud GUID
+                cw.Write(metaGuid.ToByteArray());
+            }
+            File.WriteAllBytes(Path.Combine(blobDir, "container.1"), container);
+
+            indexW.Write(entry.Identifier.Length);
+            indexW.Write(Encoding.Unicode.GetBytes(entry.Identifier));
+            indexW.Write(0);       // second identifier
+            indexW.Write(0);       // syncTime
+            indexW.Write((byte)1); // blob container extension
+            indexW.Write(0);       // sync state
+            indexW.Write(dirGuid.ToByteArray());
+            indexW.Write(0L);      // last modified
+            indexW.Write(0L);      // empty
+            indexW.Write(0L);      // total size
+        }
+
+        while (indexMs.Position < 200) indexW.Write((byte)0);
+
+        File.WriteAllBytes(Path.Combine(tmpDir, "containers.index"), indexMs.ToArray());
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxCopySlot_CreatesDestinationEntries()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "s1_auto", "s1_auto_meta"),
+            ("Slot1Manual", "s1_manual", "s1_manual_meta"));
+        try
+        {
+            SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            Assert.True(slots.ContainsKey("Slot2Auto"), "Slot2Auto should be created");
+            Assert.True(slots.ContainsKey("Slot2Manual"), "Slot2Manual should be created");
+            Assert.Equal("s1_auto", File.ReadAllText(slots["Slot2Auto"].DataFilePath!));
+            Assert.Equal("s1_manual", File.ReadAllText(slots["Slot2Manual"].DataFilePath!));
+            Assert.Equal("s1_auto_meta", File.ReadAllText(slots["Slot2Auto"].MetaFilePath!));
+
+            // Source stays untouched
+            Assert.Equal("s1_auto", File.ReadAllText(slots["Slot1Auto"].DataFilePath!));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxCopySlot_OverwritesExistingDestination()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot1Manual", "A2", "A2m"),
+            ("Slot2Auto", "B", "Bm"),
+            ("Slot2Manual", "B2", "B2m"));
+        try
+        {
+            SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            Assert.Equal("A", File.ReadAllText(slots["Slot2Auto"].DataFilePath!));
+            Assert.Equal("A2", File.ReadAllText(slots["Slot2Manual"].DataFilePath!));
+            Assert.Equal("A", File.ReadAllText(slots["Slot1Auto"].DataFilePath!));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxMoveSlot_RemovesSourceEntries()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot2Auto", "B", "Bm"));
+        try
+        {
+            var before = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            string removedBlobDir = before["Slot1Auto"].BlobDirectoryPath;
+
+            SaveSlotManager.MoveSlot(tmpDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            Assert.False(slots.ContainsKey("Slot1Auto"), "Slot1Auto should be gone after a move");
+            Assert.Equal("A", File.ReadAllText(slots["Slot2Auto"].DataFilePath!));
+            Assert.False(Directory.Exists(removedBlobDir), "source blob directory should be deleted");
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxSwapSlots_SwapsEntries()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot2Manual", "B", "Bm"));
+        try
+        {
+            SaveSlotManager.SwapSlots(tmpDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            Assert.False(slots.ContainsKey("Slot1Auto"), "Slot1Auto should have moved to slot 2");
+            Assert.False(slots.ContainsKey("Slot2Manual"), "Slot2Manual should have moved to slot 1");
+            Assert.Equal("A", File.ReadAllText(slots["Slot2Auto"].DataFilePath!));
+            Assert.Equal("B", File.ReadAllText(slots["Slot1Manual"].DataFilePath!));
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxDeleteSlot_RemovesEntriesAndBlobs()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot1Manual", "A2", "A2m"),
+            ("Slot2Auto", "B", "Bm"));
+        try
+        {
+            var before = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            string autoBlobDir = before["Slot1Auto"].BlobDirectoryPath;
+            string manualBlobDir = before["Slot1Manual"].BlobDirectoryPath;
+
+            SaveSlotManager.DeleteSlot(tmpDir, 0, SaveFileManager.Platform.XboxGamePass);
+
+            var slots = ContainersIndexManager.ParseContainersIndex(Path.Combine(tmpDir, "containers.index"));
+            Assert.False(slots.ContainsKey("Slot1Auto"));
+            Assert.False(slots.ContainsKey("Slot1Manual"));
+            Assert.True(slots.ContainsKey("Slot2Auto"), "other slots must not be affected");
+            Assert.False(Directory.Exists(autoBlobDir), "auto blob directory should be deleted");
+            Assert.False(Directory.Exists(manualBlobDir), "manual blob directory should be deleted");
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxGetExistingSlotIndices_ReturnsUsedSlots()
+    {
+        string tmpDir = CreateXboxSaveDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot3Manual", "C", "Cm"));
+        try
+        {
+            var indices = SaveSlotManager.GetExistingSlotIndices(tmpDir, SaveFileManager.Platform.XboxGamePass);
+
+            Assert.Equal(new List<int> { 0, 2 }, indices);
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_GetExistingSlotIndices_Steam_ReturnsUsedSlots()
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        try
+        {
+            // Slot 0 auto (save.hg) and slot 2 auto (save5.hg) exist; slots 1, 3, 4 are empty
+            File.WriteAllText(Path.Combine(tmpDir, "save.hg"), "slot0");
+            File.WriteAllText(Path.Combine(tmpDir, "save5.hg"), "slot2");
+
+            var indices = SaveSlotManager.GetExistingSlotIndices(tmpDir, SaveFileManager.Platform.Steam);
+
+            Assert.Equal(new List<int> { 0, 2 }, indices);
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XboxCopySlot_EmptySource_ThrowsSlotEmpty()
+    {
+        string tmpDir = CreateXboxSaveDirectory(("Slot2Auto", "B", "Bm"));
+        try
+        {
+            var ex = Assert.Throws<SlotEmptyException>(
+                () => SaveSlotManager.CopySlot(tmpDir, 0, 1, SaveFileManager.Platform.XboxGamePass));
+
+            Assert.Equal(1, ex.SlotNumber);
+        }
+        finally { Directory.Delete(tmpDir, true); }
+    }
+
     // --- TransferOptions: ownership rewrite ---
 
     [Fact]
@@ -1078,11 +1391,11 @@ public class PlatformIOTests
     }
 
     [Fact]
-    public void SaveXboxSave_ReturnsUpdatedSlotInfo_WithNewBlobPaths()
+    public void SaveXboxSave_ReturnsUpdatedSlotInfo_PreservingBlobPaths()
     {
-        // Verify that SaveXboxSave returns slot info pointing at the newly written
-        // GUID-named blobs.  The UI caches the blob path for the file combo timestamp,
-        // so a stale path would read a deleted file and show the 1601 epoch.
+        // Verify that SaveXboxSave replaces blob contents in place: the blob GUIDs,
+        // paths, container.N file and containers.index entry identity must be preserved
+        // so Xbox cloud sync does not see a new container.
         string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_xbox_save_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tmpDir);
         try
@@ -1155,16 +1468,21 @@ public class PlatformIOTests
             var data = JsonObject.Parse("{\"CommonStateData\":{\"SaveName\":\"Test\"}}");
             var updated = SaveFileManager.SaveXboxSave(indexPath, "Slot1Auto", data);
 
-            // New blob file must exist, differ from the old path, and the old file must be gone
+            // In-place write: the data blob path must be unchanged and still exist
             Assert.NotNull(updated.DataFilePath);
             Assert.True(File.Exists(updated.DataFilePath), "Updated data blob should exist");
-            Assert.NotEqual(oldDataPath, updated.DataFilePath);
-            Assert.False(File.Exists(oldDataPath), "Old data blob should have been removed");
+            Assert.Equal(oldDataPath, updated.DataFilePath);
+            Assert.Equal(oldMetaPath, updated.MetaFilePath);
+
+            // The container file and its GUID pointers must be preserved
+            Assert.True(File.Exists(Path.Combine(blobDir, "container.1")), "container.1 should be preserved");
+            Assert.False(File.Exists(Path.Combine(blobDir, "container.2")), "no new container should be created");
 
             // A re-parse (what re-selecting the directory does) must resolve the same path
             var after = ContainersIndexManager.ParseContainersIndex(indexPath);
             Assert.Equal(updated.DataFilePath, after["Slot1Auto"].DataFilePath);
             Assert.Equal(updated.MetaFilePath, after["Slot1Auto"].MetaFilePath);
+            Assert.Equal(1, after["Slot1Auto"].BlobContainerExtension);
         }
         finally { Directory.Delete(tmpDir, true); }
     }
@@ -2134,7 +2452,7 @@ public class PlatformIOTests
     }
 
     [Fact]
-    public void TransferCrossPlatform_XboxDestination_MissingContainersIndex_Throws()
+    public void TransferCrossPlatform_XboxDestination_NotASaveContainer_Throws()
     {
         string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_xfer_xbox_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tmpDir);
@@ -2147,7 +2465,7 @@ public class PlatformIOTests
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 SaveSlotManager.TransferCrossPlatform(srcSave, emptyDest, destSlotIndex: 0,
                     SaveFileManager.Platform.XboxGamePass));
-            Assert.Contains("containers.index", ex.Message);
+            Assert.Contains("valid save container", ex.Message);
         }
         finally
         {
@@ -2228,6 +2546,311 @@ public class PlatformIOTests
         {
             Directory.Delete(tmpDir, true);
         }
+    }
+
+    // --- Xbox Game Pass (xgs / XGameSaveFiles) support ---
+
+    /// <summary>
+    /// Builds a synthetic xgs container: one folder per identifier holding data/meta files.
+    /// </summary>
+    private static string CreateXgsContainerDirectory(params (string Identifier, string Data, string Meta)[] entries)
+    {
+        string tmpDir = Path.Combine(Path.GetTempPath(), $"nmse_test_xgs_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tmpDir);
+        foreach (var entry in entries)
+        {
+            string slotDir = Path.Combine(tmpDir, entry.Identifier);
+            Directory.CreateDirectory(slotDir);
+            File.WriteAllText(Path.Combine(slotDir, XgsSaveManager.DataFileName), entry.Data);
+            File.WriteAllText(Path.Combine(slotDir, XgsSaveManager.MetaFileName), entry.Meta);
+        }
+        return tmpDir;
+    }
+
+    /// <summary>Compresses a JSON string with the NMS streaming LZ4 format used by save blobs.</summary>
+    private static byte[] CompressSaveJson(string json)
+    {
+        byte[] dataBytes = Encoding.Latin1.GetBytes(json + "\0");
+        using var ms = new MemoryStream();
+        using (var compressor = new Lz4CompressorStream(ms))
+        {
+            compressor.Write(dataBytes, 0, dataBytes.Length);
+            compressor.Flush();
+        }
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public void XgsSaveManager_IsXgsContainerDirectory_DetectsContainer()
+    {
+        string xgsDir = CreateXgsContainerDirectory(("Slot1Auto", "a", "m"));
+        string wgsDir = CreateXboxSaveDirectory(("Slot1Auto", "a", "m"));
+        string emptyDir = Path.Combine(Path.GetTempPath(), $"nmse_test_xgs_empty_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(emptyDir);
+        try
+        {
+            Assert.True(XgsSaveManager.IsXgsContainerDirectory(xgsDir));
+            Assert.False(XgsSaveManager.IsXgsContainerDirectory(wgsDir));
+            Assert.False(XgsSaveManager.IsXgsContainerDirectory(emptyDir));
+        }
+        finally
+        {
+            Directory.Delete(xgsDir, true);
+            Directory.Delete(wgsDir, true);
+            Directory.Delete(emptyDir, true);
+        }
+    }
+
+    [Fact]
+    public void SaveFileManager_DetectXboxSaveFormat_IdentifiesBothFormats()
+    {
+        string xgsDir = CreateXgsContainerDirectory(("Slot1Auto", "a", "m"));
+        string wgsDir = CreateXboxSaveDirectory(("Slot1Auto", "a", "m"));
+        try
+        {
+            Assert.Equal(SaveFileManager.XboxSaveFormat.Xgs, SaveFileManager.DetectXboxSaveFormat(xgsDir));
+            Assert.Equal(SaveFileManager.XboxSaveFormat.Wgs, SaveFileManager.DetectXboxSaveFormat(wgsDir));
+            Assert.Equal(SaveFileManager.Platform.XboxGamePass, SaveFileManager.DetectPlatform(xgsDir));
+            Assert.Equal(SaveFileManager.Platform.XboxGamePass, SaveFileManager.DetectPlatform(wgsDir));
+        }
+        finally
+        {
+            Directory.Delete(xgsDir, true);
+            Directory.Delete(wgsDir, true);
+        }
+    }
+
+    [Fact]
+    public void XgsSaveManager_EnumerateSlots_ReturnsIdentifierFolders()
+    {
+        string xgsDir = CreateXgsContainerDirectory(
+            ("AccountData", "acc", "accmeta"),
+            ("Slot1Auto", "a", "m"),
+            ("Slot1Manual", "b", "n"));
+        Directory.CreateDirectory(Path.Combine(xgsDir, "NotASlot"));
+        try
+        {
+            var slots = XgsSaveManager.EnumerateSlots(xgsDir);
+            Assert.Equal(3, slots.Count);
+            Assert.Equal(Path.Combine(xgsDir, "Slot1Auto", "data"), slots["Slot1Auto"].DataFilePath);
+            Assert.Equal(Path.Combine(xgsDir, "Slot1Auto", "meta"), slots["Slot1Auto"].MetaFilePath);
+            Assert.False(slots.ContainsKey("NotASlot"));
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveFileManager_SaveXboxSave_Xgs_WritesInPlaceAndReloads()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_test_xgs_save_{Guid.NewGuid():N}");
+        string xgsDir = Path.Combine(root, "SystemAppData", "xgs", "container");
+        Directory.CreateDirectory(Path.Combine(xgsDir, "Slot1Auto"));
+        try
+        {
+            string dataPath = Path.Combine(xgsDir, "Slot1Auto", "data");
+            string metaPath = Path.Combine(xgsDir, "Slot1Auto", "meta");
+            File.WriteAllBytes(dataPath, CompressSaveJson("{\"CommonStateData\":{\"SaveName\":\"Before\"}}"));
+            byte[] meta = new byte[360];
+            meta[0] = 7;
+            meta[5] = 9;
+            File.WriteAllBytes(metaPath, meta);
+
+            var edited = JsonObject.Parse("{\"CommonStateData\":{\"SaveName\":\"After\"}}");
+            var result = SaveFileManager.SaveXboxSave(xgsDir, "Slot1Auto", edited);
+
+            Assert.Equal(dataPath, result.DataFilePath);
+            Assert.Equal(metaPath, result.MetaFilePath);
+            Assert.True(File.Exists(dataPath));
+            Assert.False(File.Exists(dataPath + ".nmse.tmp"));
+            Assert.Equal(meta, File.ReadAllBytes(metaPath));
+
+            var reloaded = SaveFileManager.LoadXboxSave(xgsDir, "Slot1Auto");
+            Assert.NotNull(reloaded);
+            Assert.Equal("After", reloaded!.GetObject("CommonStateData")!.GetString("SaveName"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void SaveFileManager_SaveXboxAccountData_Xgs_UpdatesMetaSizeAndReloads()
+    {
+        string xgsDir = CreateXgsContainerDirectory(("AccountData", "old", "meta"));
+        try
+        {
+            string dataPath = Path.Combine(xgsDir, "AccountData", "data");
+            string metaPath = Path.Combine(xgsDir, "AccountData", "meta");
+            byte[] meta = new byte[20];
+            meta[0] = 1;
+            File.WriteAllBytes(metaPath, meta);
+
+            var account = JsonObject.Parse("{\"UserSettingsData\":{\"Test\":1}}");
+            SaveFileManager.SaveXboxAccountData(xgsDir, account);
+
+            byte[] newMeta = File.ReadAllBytes(metaPath);
+            Assert.Equal(1, newMeta[0]); // preserved
+            int expectedSize = Encoding.Latin1.GetByteCount(account.ToString() + "\0");
+            Assert.Equal(expectedSize, BitConverter.ToInt32(newMeta, 16));
+
+            string json = XboxBlobCodec.Decompress(File.ReadAllBytes(dataPath));
+            Assert.Contains("\"Test\":1", json, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveFileManager_SaveXboxSave_Xgs_MirrorsToSiblingWgsInPlace()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_test_xgs_mirror_{Guid.NewGuid():N}");
+        string xgsDir = Path.Combine(root, "SystemAppData", "xgs", "container");
+        string wgsDir = Path.Combine(root, "SystemAppData", "wgs", "container");
+        Directory.CreateDirectory(Path.Combine(xgsDir, "Slot1Auto"));
+        Directory.CreateDirectory(wgsDir);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(xgsDir, "Slot1Auto", "data"),
+                CompressSaveJson("{\"CommonStateData\":{\"SaveName\":\"Before\"}}"));
+            File.WriteAllBytes(Path.Combine(xgsDir, "Slot1Auto", "meta"), new byte[360]);
+            WriteWgsContainer(wgsDir, ("Slot1Auto", "old", "oldmeta"));
+
+            var before = ContainersIndexManager.ParseContainersIndex(Path.Combine(wgsDir, "containers.index"));
+            string wgsDataPath = before["Slot1Auto"].DataFilePath!;
+            string wgsContainerPath = Directory.GetFiles(before["Slot1Auto"].BlobDirectoryPath!, "container.*").Single();
+
+            var edited = JsonObject.Parse("{\"CommonStateData\":{\"SaveName\":\"Mirrored\"}}");
+            SaveFileManager.SaveXboxSave(xgsDir, "Slot1Auto", edited);
+
+            var after = ContainersIndexManager.ParseContainersIndex(Path.Combine(wgsDir, "containers.index"));
+            Assert.Equal(wgsDataPath, after["Slot1Auto"].DataFilePath);
+            Assert.Equal(1, after["Slot1Auto"].BlobContainerExtension);
+            Assert.True(File.Exists(wgsContainerPath));
+            Assert.False(File.Exists(Path.Combine(before["Slot1Auto"].BlobDirectoryPath!, "container.2")));
+
+            string wgsJson = XboxBlobCodec.Decompress(File.ReadAllBytes(wgsDataPath));
+            Assert.Contains("Mirrored", wgsJson, StringComparison.Ordinal);
+            Assert.Equal(File.ReadAllBytes(wgsDataPath),
+                File.ReadAllBytes(Path.Combine(xgsDir, "Slot1Auto", "data")));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XgsCopySlot_CreatesDestinationFolders()
+    {
+        string xgsDir = CreateXgsContainerDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot1Manual", "A2", "A2m"),
+            ("AccountData", "acc", "accm"));
+        try
+        {
+            SaveSlotManager.CopySlot(xgsDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            Assert.Equal("A", File.ReadAllText(Path.Combine(xgsDir, "Slot2Auto", "data")));
+            Assert.Equal("A2", File.ReadAllText(Path.Combine(xgsDir, "Slot2Manual", "data")));
+            Assert.Equal("Am", File.ReadAllText(Path.Combine(xgsDir, "Slot2Auto", "meta")));
+            Assert.Equal("A", File.ReadAllText(Path.Combine(xgsDir, "Slot1Auto", "data")));
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XgsSwapSlots_KeepsSuffixSemantics()
+    {
+        string xgsDir = CreateXgsContainerDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot2Manual", "B", "Bm"));
+        try
+        {
+            SaveSlotManager.SwapSlots(xgsDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            Assert.Equal("A", File.ReadAllText(Path.Combine(xgsDir, "Slot2Auto", "data")));
+            Assert.Equal("B", File.ReadAllText(Path.Combine(xgsDir, "Slot1Manual", "data")));
+            Assert.False(Directory.Exists(Path.Combine(xgsDir, "Slot1Auto")));
+            Assert.False(Directory.Exists(Path.Combine(xgsDir, "Slot2Manual")));
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XgsDeleteSlot_RemovesFoldersOnly()
+    {
+        string xgsDir = CreateXgsContainerDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot1Manual", "A2", "A2m"),
+            ("Slot2Auto", "B", "Bm"),
+            ("AccountData", "acc", "accm"));
+        try
+        {
+            SaveSlotManager.DeleteSlot(xgsDir, 0, SaveFileManager.Platform.XboxGamePass);
+
+            Assert.False(Directory.Exists(Path.Combine(xgsDir, "Slot1Auto")));
+            Assert.False(Directory.Exists(Path.Combine(xgsDir, "Slot1Manual")));
+            Assert.True(Directory.Exists(Path.Combine(xgsDir, "Slot2Auto")));
+            Assert.True(Directory.Exists(Path.Combine(xgsDir, "AccountData")));
+            Assert.Throws<SlotEmptyException>(() =>
+                SaveSlotManager.DeleteSlot(xgsDir, 0, SaveFileManager.Platform.XboxGamePass));
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XgsGetExistingSlotIndices_ReturnsUsedSlots()
+    {
+        string xgsDir = CreateXgsContainerDirectory(
+            ("Slot1Auto", "A", "Am"),
+            ("Slot3Manual", "C", "Cm"),
+            ("AccountData", "acc", "accm"));
+        try
+        {
+            var indices = SaveSlotManager.GetExistingSlotIndices(xgsDir, SaveFileManager.Platform.XboxGamePass);
+            Assert.Equal(new List<int> { 0, 2 }, indices);
+        }
+        finally { Directory.Delete(xgsDir, true); }
+    }
+
+    [Fact]
+    public void SaveSlotManager_XgsCopySlot_MirrorsToSiblingWgs()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"nmse_test_xgs_slotmirror_{Guid.NewGuid():N}");
+        string xgsDir = Path.Combine(root, "SystemAppData", "xgs", "container");
+        string wgsDir = Path.Combine(root, "SystemAppData", "wgs", "container");
+        Directory.CreateDirectory(Path.Combine(xgsDir, "Slot1Auto"));
+        Directory.CreateDirectory(wgsDir);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(xgsDir, "Slot1Auto", "data"),
+                CompressSaveJson("{\"CommonStateData\":{\"SaveName\":\"A\"}}"));
+            File.WriteAllBytes(Path.Combine(xgsDir, "Slot1Auto", "meta"), new byte[360]);
+            WriteWgsContainer(wgsDir, ("Slot1Auto", "A", "Am"));
+
+            SaveSlotManager.CopySlot(xgsDir, 0, 1, SaveFileManager.Platform.XboxGamePass);
+
+            var wgsSlots = ContainersIndexManager.ParseContainersIndex(Path.Combine(wgsDir, "containers.index"));
+            Assert.True(wgsSlots.ContainsKey("Slot2Auto"), "wgs mirror should gain Slot2Auto");
+            string mirroredJson = XboxBlobCodec.Decompress(File.ReadAllBytes(wgsSlots["Slot2Auto"].DataFilePath!));
+            Assert.Contains("\"SaveName\":\"A\"", mirroredJson, StringComparison.Ordinal);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void XgsSaveManager_RealSample_LoadsAndMatchesWgs()
+    {
+        string? refRoot = FindReferenceRoot();
+        if (refRoot == null) return;
+        string sampleRoot = Path.Combine(refRoot, "_ref", "xgs", "XBX_SAVE");
+        string containerName = "000900000150C65A_29070100B936489ABCE8B9AF3980429C";
+        string xgsDir = Path.Combine(sampleRoot, "xgs", containerName);
+        string wgsDir = Path.Combine(sampleRoot, "wgs", containerName);
+        if (!File.Exists(Path.Combine(xgsDir, "Slot1Manual", "data")) ||
+            !File.Exists(Path.Combine(wgsDir, "containers.index")))
+            return; // real sample not present in this checkout
+
+        var xgsSave = SaveFileManager.LoadXboxSave(xgsDir, "Slot1Manual");
+        var wgsSave = SaveFileManager.LoadXboxSave(wgsDir, "Slot1Manual");
+
+        Assert.NotNull(xgsSave);
+        Assert.NotNull(wgsSave);
+        Assert.Equal(wgsSave!.ToString(), xgsSave!.ToString());
     }
 
     /// <summary>Walks up from the test binary to the repository root (the folder containing _ref).</summary>

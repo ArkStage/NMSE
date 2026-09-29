@@ -398,6 +398,79 @@ public class UiStringsTests : IDisposable
     }
 
     [Fact]
+    public void UiStrings_TechPackKeys_ExistInAllLanguages()
+    {
+        var langDir = FindRealLangDir();
+        if (langDir == null) return;
+
+        string[] requiredKeys =
+        [
+            "techpack.ctx_pack",
+            "techpack.ctx_unpack",
+            "techpack.pack_title",
+            "techpack.unpack_title",
+            "techpack.choose_inventory",
+            "techpack.choose_slot",
+            "techpack.slot_label",
+            "techpack.no_destinations",
+            "techpack.not_packable",
+            "techpack.pack_failed",
+            "techpack.unpack_failed",
+            "techpack.unknown_tech",
+            "techpack.dest_cargo_exosuit",
+            "techpack.dest_cargo_ship",
+            "techpack.dest_cargo_freighter",
+            "techpack.dest_cargo_exocraft",
+            "techpack.dest_cargo_container",
+            "techpack.dest_cargo_storage",
+            "techpack.dest_tech_exosuit",
+            "techpack.dest_tech_multitool",
+            "techpack.dest_tech_ship",
+            "techpack.dest_tech_freighter",
+            "techpack.dest_tech_exocraft"
+        ];
+
+        foreach (var lang in AllLanguages)
+        {
+            UiStrings.SetDirectory(langDir);
+            UiStrings.Load(lang);
+
+            foreach (var key in requiredKeys)
+            {
+                string value = UiStrings.Get(key);
+                Assert.NotEqual(key, value); // Should resolve to a real string, not fall back to raw key
+            }
+        }
+    }
+
+    [Fact]
+    public void UiStrings_TechPackKeys_AreTranslatedInNonEnglishLocales()
+    {
+        var langDir = FindRealLangDir();
+        if (langDir == null) return;
+
+        var english = LoadLangFile(langDir, "en-GB");
+        var techPackKeys = english.Keys
+            .Where(key => key.StartsWith("techpack.", StringComparison.Ordinal)
+                       && key != "techpack.dest_cargo_storage") // Storage names reuse the game's own display name
+            .ToList();
+        Assert.Equal(22, techPackKeys.Count);
+
+        foreach (var lang in AllLanguages)
+        {
+            if (lang is "en-GB" or "en-US") continue;
+
+            var translated = LoadLangFile(langDir, lang);
+            foreach (var key in techPackKeys)
+            {
+                Assert.True(translated.TryGetValue(key, out var value), $"{lang} is missing {key}");
+                Assert.False(string.IsNullOrWhiteSpace(value), $"{lang} has an empty value for {key}");
+                Assert.NotEqual(english[key], value);
+            }
+        }
+    }
+
+    [Fact]
     public void UiStrings_BattleMoveAndValueKeys_DoNotUseEnglishPlaceholdersInNonEnglishLocales()
     {
         var langDir = FindRealLangDir();

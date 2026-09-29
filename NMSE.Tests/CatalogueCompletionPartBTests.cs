@@ -326,7 +326,7 @@ public class CatalogueCompletionPartBTests
 
         var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
         Assert.Equal(9, CatalogueCompletionLogic.GetGlobalInt(globals["ATLAS_PATH"]));
-        Assert.Equal(39, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
+        Assert.Equal(38, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // highest index, count 39
         Assert.Equal(1, CatalogueCompletionLogic.GetLastSeen(playerState, 0, 3)); // language page marked present
 
         var (races, _) = CatalogueCompletionLogic.GetSiiStatus(playerState, 55);
@@ -337,7 +337,7 @@ public class CatalogueCompletionPartBTests
         Assert.False(playerState.GetBool("BuildersKnown"));
         Assert.False(playerState.GetBool("HasDiscoveredPurpleSystems"));
         Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 1));
-        Assert.Equal(0, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
+        Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // -1 is the empty marker
         Assert.Equal(-1, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
     }
 
@@ -478,6 +478,30 @@ public class CatalogueCompletionPartBTests
 
         Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 0));
         Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, page.Slot, page.PageIndex));
+    }
+
+    [Fact]
+    public void ApplyKnowledgePageProgress_DeveloperCommentaryWritesIndexAndCount()
+    {
+        var playerState = new JsonObject();
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_devnotes");
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 5));
+        Assert.Equal(5, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        Assert.Equal(4, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // highest index, count 5
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, KnowledgeCatalogue.DevNotesTarget));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(38, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
+
+        var status = CatalogueCompletionLogic.GetKnowledgeStatus(playerState, page,
+            CatalogueCompletionLogic.GetGlobalStatsMap(playerState));
+        Assert.Equal("OK", status.Status);
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 0));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
     }
 
     [Fact]
