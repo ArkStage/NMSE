@@ -27,7 +27,8 @@ internal sealed class NoSaveOverlay : Panel
         _titleLabel = new Label
         {
             Dock = DockStyle.Fill,
-            AutoSize = false,
+            AutoSize = true,
+            Margin = Padding.Empty,
             TextAlign = ContentAlignment.MiddleCenter,
             Text = UiStrings.Get("lock.title"),
             Padding = new Padding(0, 0, 0, 4)
@@ -37,12 +38,18 @@ internal sealed class NoSaveOverlay : Panel
         _hintLabel = new Label
         {
             Dock = DockStyle.Fill,
-            AutoSize = false,
+            AutoSize = true,
+            Margin = Padding.Empty,
             TextAlign = ContentAlignment.MiddleCenter,
             Text = UiStrings.Get("lock.hint"),
             Padding = new Padding(32, 4, 32, 0)
         };
         FontManager.ApplyFont(_hintLabel, 10F);
+
+        // Keep the hint wrapped to the overlay width so long sentences and translations do
+        // not clip horizontally at high display scaling.
+        Resize += (_, _) => UpdateHintWrap();
+        UpdateHintWrap();
 
         // Centres the title/hint pair vertically between two flexible rows.
         var layout = new TableLayoutPanel
@@ -65,6 +72,17 @@ internal sealed class NoSaveOverlay : Panel
 
         ApplyPalette();
         ThemeManager.ThemeChanged += ApplyPalette;
+    }
+
+    /// <summary>
+    /// Constrains the hint label to the overlay width so its text wraps instead of
+    /// overflowing when the display is scaled up.
+    /// </summary>
+    private void UpdateHintWrap()
+    {
+        int width = Width - _hintLabel.Padding.Horizontal;
+        if (width <= 0) return;
+        _hintLabel.MaximumSize = new Size(width, 0);
     }
 
     /// <summary>

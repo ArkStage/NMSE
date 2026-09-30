@@ -503,6 +503,38 @@ public partial class MainFormResources : Form
         _backupPathCombo.Leave += OnBackupPathChanged;
         _directoryCombo.SelectedIndexChanged += OnDirectoryComboChanged;
         _saveSlotCombo.SelectedIndexChanged += (_, _) => PopulateSaveFileCombo();
+
+        // Widen the drop-down lists to fit their longest entry when they open. The selector
+        // itself keeps its configured width.
+        _directoryCombo.ComboBox.DropDown += (_, _) => FitToolbarDropDownWidth(_directoryCombo);
+        _backupPathCombo.ComboBox.DropDown += (_, _) => FitToolbarDropDownWidth(_backupPathCombo);
+        _saveSlotCombo.ComboBox.DropDown += (_, _) => FitToolbarDropDownWidth(_saveSlotCombo);
+        _saveFileCombo.ComboBox.DropDown += (_, _) => FitToolbarDropDownWidth(_saveFileCombo);
+    }
+
+    /// <summary>
+    /// Sizes a toolbar combo's drop-down list to fit its longest entry, capped to the working
+    /// area of the screen the window is on. The selector width is not changed.
+    /// </summary>
+    /// <param name="combo">The toolbar combo about to open its drop-down list.</param>
+    private void FitToolbarDropDownWidth(ToolStripComboBox combo)
+    {
+        if (combo.Items.Count == 0) return;
+
+        var inner = combo.ComboBox;
+        int width = combo.Width;
+        foreach (var item in combo.Items)
+        {
+            string text = item?.ToString() ?? "";
+            if (text.Length == 0) continue;
+
+            int measured = TextRenderer.MeasureText(text, inner.Font).Width;
+            if (measured > width) width = measured;
+        }
+
+        width += SystemInformation.VerticalScrollBarWidth + 8;
+        int cap = Math.Max(combo.Width, Screen.FromControl(this).WorkingArea.Width - 40);
+        combo.DropDownWidth = Math.Min(width, cap);
     }
 
     private readonly ToolStripProgressBar _progressBar = new ToolStripProgressBar() { Visible = false, Minimum = 0, Maximum = 100 };
