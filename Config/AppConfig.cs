@@ -186,6 +186,13 @@ public class AppConfig
         set => SetProperty("RawJson.IsolateNode", value ? "true" : "false");
     }
 
+    /// <summary>Save-file watching mode: "prompt", "auto" or "ignore".</summary>
+    public string ExternalChangeMode
+    {
+        get => GetProperty("ExternalChangeMode") ?? "prompt";
+        set => SetProperty("ExternalChangeMode", value);
+    }
+
     public static string BuildSaveScopeKey(string? saveFilePath)
     {
         if (string.IsNullOrWhiteSpace(saveFilePath))

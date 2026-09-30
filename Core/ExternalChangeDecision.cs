@@ -6,33 +6,42 @@ namespace NMSE.Core;
 /// </summary>
 internal static class ExternalChangeDecision
 {
+    /// <summary>How the editor treats external changes to watched files.</summary>
+    internal enum Mode
+    {
+        /// <summary>Always ask before reloading.</summary>
+        Prompt,
+        /// <summary>Reload silently; unsaved edits are discarded without asking.</summary>
+        AutoReload,
+        /// <summary>Do not react to external changes; the user reloads manually.</summary>
+        Ignore
+    }
+
     /// <summary>The action to take for a detected external change.</summary>
     internal enum Action
     {
-        /// <summary>Nothing relevant changed.</summary>
+        /// <summary>Nothing relevant changed, or watching is disabled.</summary>
         None,
-        /// <summary>The change can be applied without losing unsaved edits.</summary>
+        /// <summary>Apply the change without asking.</summary>
         Reload,
-        /// <summary>Applying the change would discard unsaved edits; confirm first.</summary>
+        /// <summary>Ask the user before applying the change.</summary>
         Prompt
     }
 
     /// <summary>
-    /// Evaluates an external change. <see cref="Action.Reload"/> means the change is safe to
-    /// apply without data loss; <see cref="Action.Prompt"/> means unsaved edits would be lost.
-    /// Deletions always prompt because the in-memory copy cannot be reloaded. The editor
-    /// confirms both cases with the user.
+    /// Evaluates an external change for the given watching mode. Ignore never reacts,
+    /// deletions always prompt (the in-memory copy cannot be reloaded) and AutoReload applies
+    /// changes without asking.
     /// </summary>
     /// <param name="fileChanged">True when a watched file's timestamp changed on disk.</param>
     /// <param name="fileDeleted">True when a watched file no longer exists.</param>
-    /// <param name="hasUnsavedChanges">True when the in-memory data differs from the saved baseline.</param>
+    /// <param name="mode">The configured save-file watching mode.</param>
     /// <returns>The action to take.</returns>
-    internal static Action Decide(bool fileChanged, bool fileDeleted, bool hasUnsavedChanges)
+    internal static Action Decide(bool fileChanged, bool fileDeleted, Mode mode)
     {
-        if (!fileChanged && !fileDeleted)
-            return Action.None;
-        if (fileDeleted)
-            return Action.Prompt;
-        return hasUnsavedChanges ? Action.Prompt : Action.Reload;
+        if (mode == Mode.Ignore) return Action.None;
+        if (!fileChanged && !fileDeleted) return Action.None;
+        if (fileDeleted) return Action.Prompt;
+        return mode == Mode.AutoReload ? Action.Reload : Action.Prompt;
     }
 }

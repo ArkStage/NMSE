@@ -32,6 +32,10 @@ public partial class MainFormResources : Form
     private readonly TabControl _tabControl;
     private ToolStripMenuItem _languageMenu = null!;
     private ToolStripMenuItem _themeMenu = null!;
+    private ToolStripMenuItem _watchMenu = null!;
+    private ToolStripMenuItem _watchPromptItem = null!;
+    private ToolStripMenuItem _watchAutoItem = null!;
+    private ToolStripMenuItem _watchIgnoreItem = null!;
     private ToolStripMenuItem _themeSystemItem = null!;
     private ToolStripMenuItem _themeLightItem = null!;
     private ToolStripMenuItem _themeDarkItem = null!;
@@ -96,6 +100,8 @@ public partial class MainFormResources : Form
     private readonly HashSet<string> _externalWatchedFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _externalFileTimes = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _externalIgnoreUntilUtc = DateTime.MinValue;
+    /// <summary>True while the external-change prompt is open, preventing stacked prompts.</summary>
+    private bool _externalPromptOpen;
     private bool _externalDiverged;
 
     /// <summary>The detected platform of the currently loaded save directory.</summary>
@@ -408,6 +414,15 @@ public partial class MainFormResources : Form
         editMenu.DropDownItems.Add(new ToolStripMenuItem("&Reload", null, OnReload, Keys.F5) { Enabled = false });
         editMenu.DropDownItems.Add(new ToolStripMenuItem("Restore Backup (&All)", null, OnRestoreBackup) { Enabled = false });
         editMenu.DropDownItems.Add(new ToolStripMenuItem("Restore Backup (&Single)", null, OnRestoreBackupSingle) { Enabled = false });
+        editMenu.DropDownItems.Add(new ToolStripSeparator());
+        _watchMenu = new ToolStripMenuItem("Save File &Watching");
+        _watchPromptItem = new ToolStripMenuItem("&Ask before reloading", null, (_, _) => SetExternalChangeMode("prompt"));
+        _watchAutoItem = new ToolStripMenuItem("&Reload automatically", null, (_, _) => SetExternalChangeMode("auto"));
+        _watchIgnoreItem = new ToolStripMenuItem("&Ignore changes", null, (_, _) => SetExternalChangeMode("ignore"));
+        _watchMenu.DropDownItems.Add(_watchPromptItem);
+        _watchMenu.DropDownItems.Add(_watchAutoItem);
+        _watchMenu.DropDownItems.Add(_watchIgnoreItem);
+        editMenu.DropDownItems.Add(_watchMenu);
         _menuStrip.Items.Add(editMenu);
 
         // Tools menu
@@ -1895,6 +1910,11 @@ public partial class MainFormResources : Form
         if (_currentSaveData == null || _currentFilePath == null) return;
         if (DateTime.UtcNow < _externalIgnoreUntilUtc) return;
 
+        // A prompt may already be open. The message box pumps messages, so the debounce timer
+        // keeps ticking while it is shown; without this guard every save would stack another
+        // box. The open prompt reloads the latest file from disk when the user answers Yes.
+        if (_externalPromptOpen) return;
+
         bool changed = false;
         bool deleted = false;
         foreach (var (file, previousTime) in _externalFileTimes)
@@ -1919,10 +1939,19 @@ public partial class MainFormResources : Form
         // Flush pending panel edits so the unsaved-edit test sees them before deciding.
         SyncAllPanelData();
 
-        bool dirty = HasUnsavedEdits();
-        var decision = ExternalChangeDecision.Decide(changed, deleted, dirty);
+        var mode = GetExternalChangeMode();
+        var decision = ExternalChangeDecision.Decide(changed, deleted, mode);
         if (decision == ExternalChangeDecision.Action.None)
             return;
+
+        bool dirty = HasUnsavedEdits();
+
+        if (decision == ExternalChangeDecision.Action.Reload)
+        {
+            // Auto reload mode: apply the change without asking.
+            ReloadFromExternalChange(dirty);
+            return;
+        }
 
         // The user declined an earlier change and has not saved or reloaded since: keep the
         // diverged status but do not prompt again for every game autosave.
@@ -1938,10 +1967,19 @@ public partial class MainFormResources : Form
             : dirty
                 ? UiStrings.Get("external.changed_message")
                 : UiStrings.Get("external.changed_clean_message");
-        var result = MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        DialogResult result;
+        _externalPromptOpen = true;
+        try
+        {
+            result = MessageBox.Show(this, message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            _externalPromptOpen = false;
+        }
         if (result == DialogResult.Yes && !deleted)
         {
-            ReloadFromExternalChange();
+            ReloadFromExternalChange(dirty);
         }
         else
         {
@@ -1950,6 +1988,15 @@ public partial class MainFormResources : Form
         }
     }
 
+    /// <summary>Parses the configured save-file watching mode.</summary>
+    private static ExternalChangeDecision.Mode GetExternalChangeMode() =>
+        AppConfig.Instance.ExternalChangeMode switch
+        {
+            "auto" => ExternalChangeDecision.Mode.AutoReload,
+            "ignore" => ExternalChangeDecision.Mode.Ignore,
+            _ => ExternalChangeDecision.Mode.Prompt
+        };
+
     /// <summary>True when the in-memory save or account data differs from the saved baseline.</summary>
     private bool HasUnsavedEdits() =>
         _currentSaveData != null
@@ -1957,12 +2004,15 @@ public partial class MainFormResources : Form
             || !_rawJsonPanel.AccountDataMatchesSavedBaseline(_accountPanel.AccountData));
 
     /// <summary>Reloads the current save from disk after an external change.</summary>
-    private void ReloadFromExternalChange()
+    /// <param name="discardedEdits">True when unsaved edits were replaced by the reload.</param>
+    private void ReloadFromExternalChange(bool discardedEdits = false)
     {
         if (_currentFilePath == null) return;
 
         _externalIgnoreUntilUtc = DateTime.UtcNow.AddSeconds(2);
-        _statusLabel.Text = UiStrings.Get("status.external_reloaded");
+        _statusLabel.Text = discardedEdits
+            ? UiStrings.Get("status.external_reloaded_discarded")
+            : UiStrings.Get("status.external_reloaded");
 
         if (_ps4MemoryDatPath != null)
         {
@@ -3216,6 +3266,25 @@ public partial class MainFormResources : Form
         _themeDarkItem.Checked = current == AppTheme.Dark;
     }
 
+    /// <summary>Stores and applies the save-file watching mode.</summary>
+    private void SetExternalChangeMode(string mode)
+    {
+        var config = AppConfig.Instance;
+        config.ExternalChangeMode = mode;
+        config.Save();
+        UpdateWatchMenuChecks();
+    }
+
+    /// <summary>Updates the watching-mode menu check marks from the configuration.</summary>
+    private void UpdateWatchMenuChecks()
+    {
+        string mode = AppConfig.Instance.ExternalChangeMode;
+        _watchPromptItem.Checked = !string.Equals(mode, "auto", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(mode, "ignore", StringComparison.OrdinalIgnoreCase);
+        _watchAutoItem.Checked = string.Equals(mode, "auto", StringComparison.OrdinalIgnoreCase);
+        _watchIgnoreItem.Checked = string.Equals(mode, "ignore", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Re-loads data for every panel that has already been loaded (i.e. whose tab
     /// the user has visited at least once). This is called after a language switch
@@ -3294,6 +3363,12 @@ public partial class MainFormResources : Form
             _themeLightItem.Text = UiStrings.Get("theme_light");
             _themeDarkItem.Text = UiStrings.Get("theme_dark");
             UpdateThemeMenuChecks();
+            // Save-file watching mode (Edit menu)
+            _watchMenu.Text = UiStrings.Get("menu.edit.save_watching");
+            _watchPromptItem.Text = UiStrings.Get("settings.watch.prompt");
+            _watchAutoItem.Text = UiStrings.Get("settings.watch.auto");
+            _watchIgnoreItem.Text = UiStrings.Get("settings.watch.ignore");
+            UpdateWatchMenuChecks();
             // Help (use stored field references to avoid fragile hardcoded indices)
             _helpMenu.Text = UiStrings.Get("menu.help");
             _helpGitHubItem.Text = UiStrings.Get("menu.help.github");
