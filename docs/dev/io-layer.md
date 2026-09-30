@@ -19,10 +19,13 @@ Steam / GOG:
   saveN.hg    -->  [16-byte LZ4 block headers]  -->  JSON (Latin-1)
   mf_saveN.hg -->  TEA/XXTEA-encrypted metadata
 
-Xbox Game Pass:
+Xbox Game Pass (xgs, current format):
+  {Identifier}/data  -->  HGSAVEV2, NMS streaming (0xE5A1EDFE) or raw LZ4  -->  JSON
+  {Identifier}/meta  -->  game metadata blob (360 bytes) or a 20-byte account meta blob
+
+Xbox Game Pass (wgs, legacy mirror):
   containers.index  -->  GUID blob directories  -->  container.N  -->  blobs
-  save blob         -->  HGSAVEV2, NMS streaming (0xE5A1EDFE) or raw LZ4  -->  JSON
-  AccountData blob  -->  raw LZ4 block  -->  JSON, with a 20-byte account meta blob
+  save blob         -->  same payload formats as xgs
 
 PlayStation 4:
   memory.dat        -->  11-container slot table
@@ -56,8 +59,10 @@ are three write paths:
 - **Data file (`SaveToFile`):** serialise the tree to compact JSON, append a NUL
   terminator, then either LZ4-compress with `Lz4CompressorStream` or write plain bytes.
   Optionally writes a platform-appropriate meta/companion file.
-- **Xbox blob (`SaveXboxSave`):** compress with NMS LZ4 streaming and write new GUID-named
-  data and meta blobs through `ContainersIndexManager`.
+- **Xbox (`SaveXboxSave`):** compress with NMS LZ4 streaming and replace the payload in
+  place through `XgsSaveManager` (xgs) or `ContainersIndexManager` (wgs), preserving the
+  blob GUIDs, container extension and cloud container identity. xgs writes are mirrored to
+  a sibling wgs container when one exists.
 - **PS4 NOMANSKY (`SaveNomanSkyFile`):** preserve the existing 0x70-byte header and write
   the JSON back after it.
 
@@ -84,13 +89,15 @@ contains the nested `SaveSlot` class (`Index`, `FilePath`, `MetadataPath`, `IsEm
 
 **Platform detection rules** (`DetectPlatform(directory)`, in order):
 
-1. `containers.index` present -> Xbox Game Pass.
-2. `manifestaccountdata.hg` present, or any `manifest*.dat` file -> Switch. Switch is
+1. `containers.index` present -> Xbox Game Pass (wgs).
+2. `SlotNAuto`/`SlotNManual`/`AccountData` folders containing a `data` file -> Xbox
+   Game Pass (xgs). See `SaveFileManager.DetectXboxSaveFormat`.
+3. `manifestaccountdata.hg` present, or any `manifest*.dat` file -> Switch. Switch is
    checked before PS4 so its `savedata*.hg` files do not match the PS4 rule first.
-3. `memory.dat` present, or any `savedata*.hg` file -> PS4.
-4. Any `save*.hg` file, or `accountdata.hg` -> GOG when the directory name is exactly
+4. `memory.dat` present, or any `savedata*.hg` file -> PS4.
+5. Any `save*.hg` file, or `accountdata.hg` -> GOG when the directory name is exactly
    `DefaultUser` (case-insensitive), otherwise Steam.
-5. Otherwise -> Unknown.
+6. Otherwise -> Unknown.
 
 Edge case: a Switch export that only has `manifestNN.hg` companions (no
 `manifestaccountdata.hg` and no `manifest*.dat`) is not recognised as Switch and falls
@@ -103,7 +110,9 @@ through to PS4 because it also has `savedata*.hg` files.
 | `DetectPlatform(directory)` | Detect save format from directory contents (rules above) |
 | `FindDefaultSaveDirectory()` | OS-specific default NMS save location (first profile found) |
 | `LoadSaveFile(filePath)` | File-based loader: NOMANSKY (UTF-8), LZ4 (Latin-1), or plain (Latin-1) |
-| `LoadXboxSave(containersIndexPath, saveIdentifier)` | Resolve the blob for a slot and parse it |
+| `LoadXboxSave(savePath, saveIdentifier)` | Resolve the slot in an xgs container or wgs index directory and parse it |
+| `EnumerateXboxSlots(savePath)` | Enumerate identifiers for both Xbox formats (`Dictionary<string, XboxSlotInfo>`) |
+| `DetectXboxSaveFormat(directory)` | `Wgs`, `Xgs` or `None` |
 | `LoadPS4MemoryDatSave(memoryDatPath, slotIndex)` | Extract and parse one `memory.dat` slot |
 | `IsNomanSkyFile(filePath)` | True when the file starts with the NOMANSKY magic |
 | `RegisterContextTransforms(result)` | Internal; registers `PlayerStateData` / `SpawnStateData` dynamic resolution |
@@ -114,8 +123,8 @@ through to PS4 because it also has `savedata*.hg` files.
 |--------|-------------|
 | `SaveToFile(filePath, data, compress, writeMeta, platform, slotIndex)` | Serialise, append NUL, compress or write plain, optionally write meta. `platform` defaults to auto-detection from the containing directory; the Steam/GOG meta encryption storage slot is derived from the file name, not from `slotIndex` |
 | `SaveNomanSkyFile(filePath, data)` | Preserve the 0x70-byte NOMANSKY header, update the JSON size at offset 0x5C, write Latin-1 JSON after it |
-| `SaveXboxSave(containersIndexPath, slotIdentifier, data)` | Compress with NMS streaming, write new blob files, update `containers.index`. Returns the updated `XboxSlotInfo` with the new data/meta blob paths |
-| `SaveXboxAccountData(containersIndexPath, accountData)` | Raw LZ4 block compression plus a 20-byte account meta blob |
+| `SaveXboxSave(savePath, slotIdentifier, data)` | Compress with NMS streaming and write the payload in place for both xgs and wgs, preserving cloud container identity; xgs writes are mirrored to a sibling wgs container. Returns the updated `XboxSlotInfo` |
+| `SaveXboxAccountData(savePath, accountData)` | Raw LZ4 block compression plus a 20-byte account meta blob (size field updated); mirrored for xgs |
 
 **Backup and restore methods:**
 
@@ -143,14 +152,23 @@ through to PS4 because it also has `savedata*.hg` files.
 | `DetectActiveContextFromJson(json, out bool isExpedition)` | Same check for an already-extracted JSON string |
 | `TryDetectActiveContext(JsonObject data)` | Set `SaveContext.IsExpeditionSave` from `ActiveContext` on a parsed tree |
 
-`FindDefaultSaveDirectory` checks, in order:
+`FindDefaultSaveDirectories` returns every detected default save directory, in preference
+order, and `FindDefaultSaveDirectory` returns the first (or null):
 
-- Windows Steam: `%APPDATA%\HelloGames\NMS\{profile}`.
-- Windows Xbox Game Pass: `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\wgs\{SaveId}\`
-  containing `containers.index`.
+- Windows Steam/GOG: `%APPDATA%\HelloGames\NMS\{profile}` - all valid profiles (`st_*`,
+  `DefaultUser`, or a folder holding save data), most recently written first.
+- Windows Xbox Game Pass: `%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\xgs\{SaveId}\`
+  containers that hold at least one `SlotN...` folder (preferred, current format), then the
+  legacy `...\SystemAppData\wgs\{SaveId}\` containers containing `containers.index`, and only
+  then slot-less xgs containers.
 - macOS: `~/Library/Application Support/HelloGames/NMS/{profile}`.
 - Linux: Steam/Proton `~/.local/share/Steam/steamapps/compatdata/275850/...` and the
   Flatpak `~/.var/app/com.valvesoftware.Steam/...` equivalent.
+
+`EnumerateSteamProfiles(nmsRoot)` and `EnumerateXboxContainers(root)` expose the per-store
+enumeration for the UI and tests, and `ResolveSaveDirectory(directory)` drills a user-selected
+parent folder (the Packages folder, a package folder, `SystemAppData`, `xgs`/`wgs`, or the NMS
+profile root) down to the first valid profile or container.
 
 **Design choices:**
 
@@ -182,10 +200,12 @@ manual save. Slot indices are 0-based (slot 0 = game "Slot 1").
 |--------|-------------|
 | `GetAllSlotFiles(saveDirectory, slotIndex, platform)` | Returns both file pairs (index 0 auto, index 1 manual) as `SlotFiles[]` |
 | `GetSlotFiles(saveDirectory, slotIndex, platform)` | Returns the manual save pair (index 1), falling back to the auto pair or an empty `SlotFiles` |
-| `CopySlot(saveDirectory, sourceSlotIndex, destSlotIndex, platform)` | Copy both pairs, overwriting the destination (no backup is taken); meta files are re-keyed |
+| `GetExistingSlotIndices(saveDirectory, platform)` | Returns the 0-based indices of slots that contain data (used to list copy sources) |
+| `IsSlotOperationSupported(saveDirectory, platform)` | False for save formats without slot operations (PS4 `memory.dat`, unknown directories) |
+| `CopySlot(saveDirectory, sourceSlotIndex, destSlotIndex, platform)` | Copy both pairs, overwriting the destination (no backup is taken); meta files are re-keyed. Xbox Game Pass copies the matching xgs slot folders or wgs `containers.index` entries, creating them when missing |
 | `MoveSlot(saveDirectory, sourceSlotIndex, destSlotIndex, platform)` | Copy then delete source |
-| `SwapSlots(saveDirectory, slotA, slotB, platform)` | Swap via a temp directory; meta files are re-keyed to their new storage slots |
-| `DeleteSlot(saveDirectory, slotIndex, platform)` | Delete data + meta files for both pairs |
+| `SwapSlots(saveDirectory, slotA, slotB, platform)` | Swap via a temp directory; meta files are re-keyed to their new storage slots. Xbox Game Pass swaps the xgs slot folders or the wgs entries and their blobs |
+| `DeleteSlot(saveDirectory, slotIndex, platform)` | Delete data + meta files for both pairs (Xbox Game Pass: removes the xgs slot folders or the wgs index entries and their blob directories) |
 | `TransferCrossPlatform(sourceFilePath, destDirectory, destSlotIndex, destPlatform, transferOptions)` | Load, rewrite ownership and platform token, write to the destination format |
 | `SlotIndexToStorageSlot(slotIndex)` | Internal; 0 -> 0, otherwise 2 + slotIndex (the gap at 1 is reserved for Settings) |
 | `StorageSlotFromFileName(filePath)` | Internal; derive the TEA storage slot from the file name (see below) |
@@ -210,7 +230,7 @@ ByteBeat data (all four default to `true`), plus `SourceUID`, `DestUID`, `DestLI
 `DestUSN` and `DestPTK`. `TransferCrossPlatform` sets the `Platform` token (`PC`, `XBX`,
 `PS4`, `NX`), rewrites ownership references, then writes via `SaveToFile` plus
 `WriteMetaForPlatform` for file-based platforms. Xbox Game Pass destinations are routed to
-`SaveToXboxGamePass`, which resolves the manual slot entry in `containers.index` by slot
+`SaveToXboxGamePass`, which resolves the manual slot identifier in either Xbox format by slot
 number and calls `SaveXboxSave`.
 
 **Storage slot mapping** (`StorageSlotFromFileName`): `accountdata.hg` -> 0, `save.hg` -> 2,
@@ -221,6 +241,19 @@ encryption key depends on this value, so using the wrong slot produces a garbled
 and re-encrypted with the destination storage slot (falling back to a verbatim copy if
 decryption fails). For Switch, `CopyMetaFile` patches the manifest index field at byte
 offset 12. Other platforms copy the meta verbatim.
+
+**Slot operation errors:** `SlotEmptyException` carries the 0-based `SlotIndex` plus a
+1-based `SlotNumber` for display; `SlotOperationUnsupportedException` marks formats
+without slot operations (`Platform`, `IsMemoryDat`). The UI translates both into localised
+messages instead of showing the raw exception text.
+
+**Xbox slot operations:** `CopyXboxSlot`, `SwapXboxSlots` and `DeleteXboxSlot` operate
+through `ContainersIndexManager` (wgs) and `CopyXgsSlot`, `SwapXgsSlots` and `DeleteXgsSlot`
+through `XgsSaveManager` (xgs). Data and meta blobs are copied byte-for-byte (the save
+payload is never re-encoded), missing wgs destination entries are created with new GUID blob
+directories, and a new slot never reuses another slot's cloud sync GUIDs. xgs operations are
+mirrored to a sibling wgs container when one exists. Blob directories and xgs slot folders
+are deleted together with their entries.
 
 ---
 
@@ -270,20 +303,72 @@ header fields needed to rewrite the file (`ProcessIdentifier`, `AccountGuid`,
 | `ParseContainersIndexFull(path)` | Parse the index plus the global header (`ContainersIndexData`) |
 | `LoadXboxSave(slotInfo)` | Load and decompress a data blob to a JSON string |
 | `LoadXboxMeta(slotInfo)` | Return the raw metadata blob bytes |
-| `WriteXboxSave(slotInfo, compressedData, metaData)` | Write new GUID-named data/meta blobs and a new blob container. Inputs are already-compressed bytes; the method deletes the old blobs, updates `DataFilePath` / `MetaFilePath` and increments `BlobContainerExtension` |
+| `WriteXboxSave(slotInfo, compressedData, metaData)` | Replace the blob contents in place, preserving the blob GUIDs, container file and cloud identity. Inputs are already-compressed bytes; the meta file is only rewritten when it actually changed. Slots with no existing blob (new copies) create fresh GUID blobs and a container |
 | `WriteContainersIndex(path, slots, processIdentifier, accountGuid, lastWriteTime)` | Rewrite the index, writing sync state 2 (modified) and the footer |
 | `IsSaveSlot(identifier)` | True unless the identifier is `AccountData` or `Settings` |
 | `ExtractSlotNumber(identifier)` | `"Slot1Auto"` -> 1, `"Slot2Manual"` -> 2; 0 if the pattern does not match |
 | `IsAutoSave(identifier)` | True when the identifier contains `Auto` |
 
-**Write contract:** because `WriteXboxSave` replaces the blob files under new GUID names and
-preserves the pre-existing cloud/sync GUIDs, callers that cache `DataFilePath` /
-`MetaFilePath` must refresh them from the updated `XboxSlotInfo`. `SaveFileManager.SaveXboxSave`
-returns that updated instance and `MainForm.OnSave` patches its cached slot file list with
-the new data path before repopulating the file combo.
+**Write contract:** `WriteXboxSave` overwrites the existing data blob bytes at their current
+GUID path and leaves `container.N` and the containers.index entry identity untouched, so
+cached `DataFilePath` / `MetaFilePath` values remain valid. Only slots with no existing blob
+(new copies) create fresh GUID files, incrementing `BlobContainerExtension`.
+`SaveFileManager.SaveXboxSave` returns the updated `XboxSlotInfo` for callers that cache
+paths.
 
 `AccountDataIdentifier` (`"AccountData"`) and `SettingsIdentifier` (`"Settings"`) are the
 special non-save entries.
+
+---
+
+### XgsSaveManager
+
+| | |
+|---|---|
+| File | `IO/XgsSaveManager.cs` |
+| Purpose | Read and write Xbox Game Pass `xgs` (XGameSaveFiles) save containers |
+
+Modern Xbox (PC) / Game Pass titles use the GDK XGameSaveFiles API, which stores plain files
+instead of the legacy wgs container/blob indirection:
+
+```
+xgs\{HexXuid}_{SCID}\AccountData\{data,meta}
+xgs\{HexXuid}_{SCID}\Slot1Auto\{data,meta}
+xgs\{HexXuid}_{SCID}\Slot1Manual\{data,meta}
+```
+
+The slot identity is the folder name and the `data` / `meta` payloads are byte-identical to
+the wgs blob files, so both formats share the `XboxBlobCodec` decompression path. No
+`containers.index` exists for xgs containers.
+
+Session behaviour observed from real saves: the game writes `xgs` live during play and
+rebuilds the `wgs` mirror at exit. Blob GUIDs stay stable across writes (the cloud container
+identity) and the wgs `container.N` extension is a monotonically increasing write counter.
+
+| Method | Description |
+|--------|-------------|
+| `IsXgsContainerDirectory(directory)` | True when identifier folders with a `data` file exist and no `containers.index` is present |
+| `EnumerateSlots(containerDirectory)` | Slot descriptors keyed by folder name (`Slot1Auto`, `AccountData`, ...) |
+| `GetSlotDirectory(containerDirectory, identifier)` | Folder path for an identifier |
+| `LoadSave(slotInfo)` | Decompress `data` through `XboxBlobCodec` |
+| `LoadMeta(slotInfo)` | Raw `meta` bytes |
+| `WriteSave(slotInfo, compressedData, metaData)` | Replace `data` (and `meta` when changed) in place via a temp file and atomic replace, preserving the folder name and cloud identity |
+
+---
+
+### XboxBlobCodec
+
+| | |
+|---|---|
+| File | `IO/XboxBlobCodec.cs` |
+| Purpose | Shared Xbox blob decompression (wgs blob files and xgs `data` files) |
+
+`DetectFormat(bytes)` returns `Hgsv2`, `NmsLz4` or `Raw`; `Decompress(bytes)` supports:
+
+- **HGSAVEV2:** `"HGSAVEV2\0"` header followed by `decompressedSize(4) + compressedSize(4) +
+  LZ4 data` frames.
+- **NMS LZ4 streaming:** `0xE5A1EDFE` magic plus 16-byte block headers, multi-block.
+- **Plain/single-block:** uncompressed JSON, or a raw LZ4 block as used by AccountData blobs.
 
 ---
 

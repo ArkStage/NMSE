@@ -45,6 +45,26 @@ public static class XgsSaveManager
 	}
 
 	/// <summary>
+	/// Returns <c>true</c> when the xgs container holds at least one save slot folder
+	/// (a <c>SlotN...</c> folder containing a <c>data</c> file).
+	/// </summary>
+	/// <param name="containerDirectory">The xgs container directory to inspect.</param>
+	public static bool HasSaveSlots(string containerDirectory)
+	{
+		if (string.IsNullOrEmpty(containerDirectory) || !Directory.Exists(containerDirectory))
+			return false;
+
+		foreach (var subDirectory in Directory.EnumerateDirectories(containerDirectory))
+		{
+			string identifier = Path.GetFileName(subDirectory);
+			if (ContainersIndexManager.ExtractSlotNumber(identifier) > 0
+				&& File.Exists(Path.Combine(subDirectory, DataFileName)))
+				return true;
+		}
+		return false;
+	}
+
+	/// <summary>
 	/// Enumerates the slot folders of an xgs container.
 	/// </summary>
 	/// <param name="containerDirectory">The xgs container directory.</param>

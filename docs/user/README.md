@@ -1228,7 +1228,7 @@ NMSE checks for updates automatically a couple of seconds after startup and prom
 
 ### Where are my save files?
 
-NMSE auto-detects save locations for Steam, GOG, and Xbox Game Pass. If auto-detect doesn't work, save files are typically located at:
+NMSE auto-detects save locations for Steam, GOG, and Xbox Game Pass. Every detected store is offered in the directory dropdown (a Steam profile and a Game Pass container can both appear), and selecting a parent folder such as `...\SystemAppData`, `...\xgs` or `...\wgs` is accepted and resolved to the save container automatically. If auto-detect doesn't work, save files are typically located at:
 
 - **Steam:** `%APPDATA%\HelloGames\NMS\st_<steamid>\`
 - **GOG:** `%APPDATA%\HelloGames\NMS\DefaultUser\`

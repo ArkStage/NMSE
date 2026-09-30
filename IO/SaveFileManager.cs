@@ -132,102 +132,263 @@ public class SaveFileManager
 
     /// <summary>
     /// Attempts to find the default NMS save directory for the current OS.
+    /// Returns the first of <see cref="FindDefaultSaveDirectories"/>, or null when none exists.
+    /// </summary>
+    /// <returns>The path to the first discovered save directory, or null if not found.</returns>
+    public static string? FindDefaultSaveDirectory()
+        => FindDefaultSaveDirectories().FirstOrDefault();
+
+    /// <summary>
+    /// Attempts to find every default NMS save directory for the current OS, in preference
+    /// order. All detected stores are returned because they can coexist: for example a Steam
+    /// profile under <c>%APPDATA%\HelloGames\NMS</c> and a Game Pass container under
+    /// <c>%LOCALAPPDATA%\Packages\HelloGames*</c> are both offered to the user.
     /// <list type="bullet">
-    /// <item><description>Windows (Steam): <c>%APPDATA%\HelloGames\NMS\{profile}</c></description></item>
-    /// <item><description>Windows (Xbox GP): <c>%LOCALAPPDATA%\Packages\HelloGames*</c></description></item>
+    /// <item><description>Windows (Steam/GOG): <c>%APPDATA%\HelloGames\NMS\{profile}</c></description></item>
+    /// <item><description>Windows (Xbox GP): <c>%LOCALAPPDATA%\Packages\HelloGames*\SystemAppData\xgs\{id}</c>, or the legacy <c>wgs\{id}</c> container</description></item>
     /// <item><description>macOS: <c>~/Library/Application Support/HelloGames/NMS/{profile}</c></description></item>
-    /// <item><description>Linux (Steam/Proton): <c>~/.local/share/Steam/steamapps/compatdata/275850/pfx/drive_c/users/steamuser/AppData/Roaming/HelloGames/NMS/{profile}</c></description></item>
+    /// <item><description>Linux (Steam/Proton): <c>~/.local/share/Steam/steamapps/compatdata/275850/pfx/drive_c/users/steamuser/AppData/Roaming/HelloGames/NMS/{profile}</c> and the Flatpak equivalent</description></item>
     /// </list>
     /// </summary>
-    /// <returns>The path to the first discovered save profile directory, or null if not found.</returns>
-    public static string? FindDefaultSaveDirectory()
-    {
-        // Windows: Steam default location (%APPDATA%\HelloGames\NMS)
-        string steamPath = Path.Combine(
+    /// <returns>All discovered save directories; empty when none are found.</returns>
+    public static List<string> FindDefaultSaveDirectories()
+        => FindDefaultSaveDirectories(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "HelloGames", "NMS");
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 
-        if (Directory.Exists(steamPath))
-        {
-            var dirs = Directory.GetDirectories(steamPath);
-            if (dirs.Length > 0)
-                return dirs[0]; // Return first profile directory
-        }
+    /// <summary>
+    /// Testable core of <see cref="FindDefaultSaveDirectories()"/> with explicit root folders.
+    /// </summary>
+    /// <param name="appDataRoot">The roaming AppData root (<c>%APPDATA%</c>).</param>
+    /// <param name="localAppDataRoot">The local AppData root (<c>%LOCALAPPDATA%</c>).</param>
+    /// <param name="homeRoot">The user profile root (<c>%USERPROFILE%</c> or <c>~</c>).</param>
+    /// <returns>All discovered save directories in preference order.</returns>
+    internal static List<string> FindDefaultSaveDirectories(string appDataRoot, string localAppDataRoot, string homeRoot)
+    {
+        var result = new List<string>();
 
-        // Windows: Xbox Game Pass location
-        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string xboxPath = Path.Combine(localAppData, "Packages");
-        if (Directory.Exists(xboxPath))
+        void AddAll(IEnumerable<string> directories)
         {
-            var nmsDirs = Directory.GetDirectories(xboxPath, "HelloGames*");
-            foreach (var nmsDir in nmsDirs)
+            foreach (var dir in directories)
             {
-                // Xbox Game Pass saves now use XGameSaveFiles (xgs) containers, with the
-                // legacy wgs containers.index system kept as a mirror. Prefer xgs.
-                string xgsPath = Path.Combine(nmsDir, "SystemAppData", "xgs");
-                if (Directory.Exists(xgsPath))
-                {
-                    foreach (var containerDir in Directory.GetDirectories(xgsPath))
-                    {
-                        if (XgsSaveManager.IsXgsContainerDirectory(containerDir))
-                            return containerDir;
-                    }
-                }
-
-                // Legacy XGameSave (wgs) containers live under SystemAppData/wgs/{SaveId}/
-                // which contains the containers.index file.
-                string wgsPath = Path.Combine(nmsDir, "SystemAppData", "wgs");
-                if (Directory.Exists(wgsPath))
-                {
-                    foreach (var saveIdDir in Directory.GetDirectories(wgsPath))
-                    {
-                        if (File.Exists(Path.Combine(saveIdDir, "containers.index")))
-                            return saveIdDir;
-                    }
-                }
+                if (!result.Any(d => PathEquals(d, dir)))
+                    result.Add(dir);
             }
         }
+
+        // Windows: Steam/GOG profiles under %APPDATA%\HelloGames\NMS
+        AddAll(EnumerateSteamProfiles(Path.Combine(appDataRoot, "HelloGames", "NMS")));
+
+        // Windows: Xbox Game Pass containers under %LOCALAPPDATA%\Packages\HelloGames*
+        AddAll(EnumerateXboxContainers(Path.Combine(localAppDataRoot, "Packages")));
 
         // macOS: ~/Library/Application Support/HelloGames/NMS
-        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (OperatingSystem.IsMacOS())
-        {
-            string macPath = Path.Combine(home, "Library", "Application Support", "HelloGames", "NMS");
-            if (Directory.Exists(macPath))
-            {
-                var dirs = Directory.GetDirectories(macPath);
-                if (dirs.Length > 0)
-                    return dirs[0];
-            }
-        }
+        AddAll(EnumerateSteamProfiles(Path.Combine(homeRoot, "Library", "Application Support",
+            "HelloGames", "NMS")));
 
         // Linux: Steam/Proton compatibility data
-        if (OperatingSystem.IsLinux())
-        {
-            string protonPath = Path.Combine(home, ".local", "share", "Steam", "steamapps",
-                "compatdata", "275850", "pfx", "drive_c", "users", "steamuser",
-                "AppData", "Roaming", "HelloGames", "NMS");
-            if (Directory.Exists(protonPath))
-            {
-                var dirs = Directory.GetDirectories(protonPath);
-                if (dirs.Length > 0)
-                    return dirs[0];
-            }
+        AddAll(EnumerateSteamProfiles(Path.Combine(homeRoot, ".local", "share", "Steam", "steamapps",
+            "compatdata", "275850", "pfx", "drive_c", "users", "steamuser",
+            "AppData", "Roaming", "HelloGames", "NMS")));
 
-            // Flatpak Steam location
-            string flatpakPath = Path.Combine(home, ".var", "app", "com.valvesoftware.Steam",
-                "data", "Steam", "steamapps", "compatdata", "275850", "pfx", "drive_c",
-                "users", "steamuser", "AppData", "Roaming", "HelloGames", "NMS");
-            if (Directory.Exists(flatpakPath))
+        // Linux: Flatpak Steam location
+        AddAll(EnumerateSteamProfiles(Path.Combine(homeRoot, ".var", "app", "com.valvesoftware.Steam",
+            "data", "Steam", "steamapps", "compatdata", "275850", "pfx", "drive_c",
+            "users", "steamuser", "AppData", "Roaming", "HelloGames", "NMS")));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Enumerates valid NMS save profile directories under an NMS root folder
+    /// (for example <c>%APPDATA%\HelloGames\NMS</c>), most recently written first.
+    /// Non-profile folders such as <c>cache</c> or <c>SETTINGS</c> are ignored.
+    /// </summary>
+    /// <param name="nmsRoot">The NMS root folder that holds the profile directories.</param>
+    /// <returns>The valid profile directories; empty when the root does not exist.</returns>
+    internal static List<string> EnumerateSteamProfiles(string nmsRoot)
+    {
+        var profiles = new List<string>();
+        if (!Directory.Exists(nmsRoot)) return profiles;
+
+        try
+        {
+            foreach (var dir in Directory.GetDirectories(nmsRoot))
             {
-                var dirs = Directory.GetDirectories(flatpakPath);
-                if (dirs.Length > 0)
-                    return dirs[0];
+                if (IsSaveProfileDirectory(dir))
+                    profiles.Add(dir);
+            }
+        }
+        catch { /* inaccessible root - return what we have */ }
+
+        // Most recently written profile first so the active one becomes the default.
+        profiles.Sort((a, b) => GetProfileLastWrite(b).CompareTo(GetProfileLastWrite(a)));
+        return profiles;
+    }
+
+    /// <summary>
+    /// Returns whether a directory looks like an NMS save profile: it holds save data files
+    /// or carries a standard profile name (<c>st_*</c> or <c>DefaultUser</c>).
+    /// </summary>
+    private static bool IsSaveProfileDirectory(string directory)
+    {
+        try
+        {
+            if (Directory.GetFiles(directory, "save*.hg").Length > 0) return true;
+            if (File.Exists(Path.Combine(directory, "accountdata.hg"))) return true;
+        }
+        catch { /* inaccessible - fall through to the name check */ }
+
+        string name = Path.GetFileName(directory);
+        return name.StartsWith("st_", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "DefaultUser", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Latest write time of a profile's save files, or 0 when none are readable.</summary>
+    private static long GetProfileLastWrite(string profileDirectory)
+    {
+        try
+        {
+            long newest = 0;
+            foreach (var file in Directory.GetFiles(profileDirectory, "*.hg"))
+            {
+                long ticks = File.GetLastWriteTimeUtc(file).Ticks;
+                if (ticks > newest) newest = ticks;
+            }
+            return newest;
+        }
+        catch { return 0; }
+    }
+
+    /// <summary>
+    /// Enumerates Xbox Game Pass save containers under the given root, in preference order.
+    /// The root may be the <c>Packages</c> folder, a <c>HelloGames*</c> package folder, a
+    /// <c>SystemAppData</c> folder, or an <c>xgs</c>/<c>wgs</c> folder. Modern xgs containers
+    /// are preferred; the legacy wgs containers (folders holding <c>containers.index</c>) are
+    /// used when no xgs container with save slots exists.
+    /// </summary>
+    /// <param name="root">The folder to search, at any level of the Xbox save layout.</param>
+    /// <returns>The discovered container directories; empty when none are found.</returns>
+    internal static List<string> EnumerateXboxContainers(string root)
+    {
+        var packages = new List<string>();
+        if (Directory.Exists(root))
+        {
+            string name = Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (name.Equals("xgs", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("wgs", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("SystemAppData", StringComparison.OrdinalIgnoreCase)
+                || Directory.Exists(Path.Combine(root, "SystemAppData")))
+            {
+                packages.Add(root);
+            }
+            else
+            {
+                try { packages.AddRange(Directory.GetDirectories(root, "HelloGames*")); }
+                catch { /* inaccessible root */ }
             }
         }
 
-        return null;
+        var xgsWithSlots = new List<string>();
+        var xgsWithoutSlots = new List<string>();
+        var wgsContainers = new List<string>();
+        foreach (var package in packages)
+        {
+            string name = Path.GetFileName(package.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            string systemAppData = name.Equals("SystemAppData", StringComparison.OrdinalIgnoreCase)
+                ? package
+                : Path.Combine(package, "SystemAppData");
+            string xgsRoot = name.Equals("xgs", StringComparison.OrdinalIgnoreCase)
+                ? package
+                : Path.Combine(systemAppData, "xgs");
+            string wgsRoot = name.Equals("wgs", StringComparison.OrdinalIgnoreCase)
+                ? package
+                : Path.Combine(systemAppData, "wgs");
+
+            CollectXgsContainers(xgsRoot, xgsWithSlots, xgsWithoutSlots);
+            CollectWgsContainers(wgsRoot, wgsContainers);
+        }
+
+        // Prefer xgs containers that actually hold save slots, then the legacy wgs mirror,
+        // and only fall back to slot-less xgs containers (account/settings only) as a last
+        // resort so the user is still offered something to open.
+        if (xgsWithSlots.Count > 0) return xgsWithSlots;
+        if (wgsContainers.Count > 0) return wgsContainers;
+        return xgsWithoutSlots;
     }
+
+    /// <summary>
+    /// Adds xgs containers under an <c>xgs</c> folder to the lists. Containers that hold at
+    /// least one save slot folder (for example <c>Slot1Auto</c>) go to
+    /// <paramref name="withSlots"/>; containers with only account/settings data go to
+    /// <paramref name="withoutSlots"/>.
+    /// </summary>
+    private static void CollectXgsContainers(string xgsRoot, List<string> withSlots, List<string> withoutSlots)
+    {
+        if (!Directory.Exists(xgsRoot)) return;
+
+        try
+        {
+            foreach (var dir in Directory.GetDirectories(xgsRoot))
+            {
+                if (!XgsSaveManager.IsXgsContainerDirectory(dir)) continue;
+                (XgsSaveManager.HasSaveSlots(dir) ? withSlots : withoutSlots).Add(dir);
+            }
+        }
+        catch { /* inaccessible xgs root - keep what we have */ }
+    }
+
+    /// <summary>Adds legacy wgs containers (folders holding <c>containers.index</c>) to the list.</summary>
+    private static void CollectWgsContainers(string wgsRoot, List<string> containers)
+    {
+        if (!Directory.Exists(wgsRoot)) return;
+
+        try
+        {
+            foreach (var dir in Directory.GetDirectories(wgsRoot))
+            {
+                if (File.Exists(Path.Combine(dir, "containers.index")))
+                    containers.Add(dir);
+            }
+        }
+        catch { /* inaccessible wgs root - keep what we have */ }
+    }
+
+    /// <summary>
+    /// Resolves a user-selected directory to an actual save directory. Selecting a parent
+    /// folder (the Packages folder, a package folder, <c>SystemAppData</c>, <c>xgs</c>/<c>wgs</c>
+    /// or the NMS profile root) drills down to the first valid profile or container so manual
+    /// browsing is forgiving. Returns the input unchanged when it is already a save directory
+    /// or nothing can be resolved.
+    /// </summary>
+    /// <param name="directory">The directory the user selected or that was detected.</param>
+    /// <returns>The resolved save directory, or the input when no better match exists.</returns>
+    public static string ResolveSaveDirectory(string directory)
+    {
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+            return directory;
+
+        if (DetectPlatform(directory) != Platform.Unknown)
+            return directory;
+
+        // NMS profile root (Steam/GOG/macOS/Linux layout)
+        var profiles = EnumerateSteamProfiles(directory);
+        if (profiles.Count > 0)
+            return profiles[0];
+
+        // Xbox Game Pass parent folders
+        var containers = EnumerateXboxContainers(directory);
+        if (containers.Count > 0)
+            return containers[0];
+
+        return directory;
+    }
+
+    private static bool PathEquals(string a, string b)
+        => string.Equals(a, b, OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal);
 
     /// <summary>
     /// Resolves the backup root directory. Priority:

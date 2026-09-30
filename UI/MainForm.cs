@@ -911,8 +911,8 @@ public partial class MainFormResources : Form
         return page;
     }
 
-    /// <summary>The OS-detected default NMS save directory (cached on first load).</summary>
-    private string? _defaultSaveDirectory;
+    /// <summary>The OS-detected default NMS save directories, in preference order (cached on first load).</summary>
+    private List<string> _defaultSaveDirectories = new();
 
     private void LoadConfig()
     {
@@ -935,41 +935,39 @@ public partial class MainFormResources : Form
             }
         }
 
-        // Detect the OS default save directory
-        _defaultSaveDirectory = SaveFileManager.FindDefaultSaveDirectory();
+        // Detect every OS default save directory (Steam/GOG profiles and Game Pass containers
+        // can coexist; all of them are offered rather than just the first).
+        _defaultSaveDirectories = SaveFileManager.FindDefaultSaveDirectories();
 
         // Load recent directories from config
         var recent = config.RecentDirectories;
+        bool changed = false;
 
-        // If no recent directories exist, seed with either LastDirectory or the default
+        // If no recent directories exist, seed with either LastDirectory or the first default
         if (recent.Count == 0)
         {
-            string? initial = config.LastDirectory ?? _defaultSaveDirectory;
+            string? initial = config.LastDirectory ?? _defaultSaveDirectories.FirstOrDefault();
             if (initial != null)
             {
                 recent.Add(initial);
-
-                // If LastDirectory differs from default, ensure default is also present
-                if (_defaultSaveDirectory != null && !string.Equals(initial, _defaultSaveDirectory,
-                        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                    recent.Add(_defaultSaveDirectory);
-
-                config.RecentDirectories = recent;
-                config.Save();
+                changed = true;
             }
         }
-        else
+
+        // Ensure every detected default directory is present in the list
+        foreach (var def in _defaultSaveDirectories)
         {
-            // Ensure the default directory is always in the list
-            if (_defaultSaveDirectory != null &&
-                !recent.Any(d => string.Equals(d, _defaultSaveDirectory,
-                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
+            if (!recent.Any(d => string.Equals(d, def, PathComparison)))
             {
-                // Use AddRecentDirectory with the first entry to trigger default-pinning logic
-                config.AddRecentDirectory(recent[0], _defaultSaveDirectory);
-                recent = config.RecentDirectories;
-                config.Save();
+                recent.Add(def);
+                changed = true;
             }
+        }
+
+        if (changed)
+        {
+            config.RecentDirectories = recent;
+            config.Save();
         }
 
         // Populate the directory dropdown
@@ -1000,10 +998,37 @@ public partial class MainFormResources : Form
         foreach (var dir in directories)
             _directoryCombo.Items.Add(dir);
 
-        if (selectedDir != null && _directoryCombo.Items.Contains(selectedDir))
-            _directoryCombo.SelectedItem = selectedDir;
+        // Prefer the requested directory, but skip stale entries that no longer exist so a
+        // moved or deleted path cannot leave the slot list empty while valid defaults exist.
+        int index = -1;
+        if (!string.IsNullOrEmpty(selectedDir))
+        {
+            for (int i = 0; i < _directoryCombo.Items.Count; i++)
+            {
+                if (string.Equals(_directoryCombo.Items[i]?.ToString(), selectedDir, PathComparison))
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        if (index < 0 || !Directory.Exists(_directoryCombo.Items[index]?.ToString()))
+        {
+            index = -1;
+            for (int i = 0; i < _directoryCombo.Items.Count; i++)
+            {
+                if (Directory.Exists(_directoryCombo.Items[i]?.ToString()))
+                {
+                    index = i;
+                    break;
+                }
+            }
+        }
+        if (index >= 0)
+            _directoryCombo.SelectedIndex = index;
         else if (_directoryCombo.Items.Count > 0)
             _directoryCombo.SelectedIndex = 0;
+
         _directoryCombo.SelectedIndexChanged += OnDirectoryComboChanged;
     }
 
@@ -1189,6 +1214,13 @@ public partial class MainFormResources : Form
 
         if (_directoryCombo.SelectedItem is not string dir || !Directory.Exists(dir))
             return;
+
+        // Tolerate parent folders (the Packages folder, a package folder, SystemAppData,
+        // xgs/wgs or the NMS profile root) by resolving to the actual container or profile
+        // before detecting the platform and enumerating slots.
+        string resolvedDir = SaveFileManager.ResolveSaveDirectory(dir);
+        if (!string.Equals(resolvedDir, dir, PathComparison))
+            dir = resolvedDir;
 
         _detectedPlatform = SaveFileManager.DetectPlatform(dir);
 
@@ -2126,6 +2158,14 @@ public partial class MainFormResources : Form
             UseDescriptionForTitle = true
         };
 
+        // Open at the currently selected directory when it is valid, otherwise at the
+        // detected default, so Xbox users are not left hunting through the Packages tree.
+        string? current = _directoryCombo.SelectedItem as string;
+        if (!string.IsNullOrEmpty(current) && Directory.Exists(current))
+            dialog.SelectedPath = current;
+        else if (_defaultSaveDirectories.Count > 0 && Directory.Exists(_defaultSaveDirectories[0]))
+            dialog.SelectedPath = _defaultSaveDirectories[0];
+
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
             RecordRecentDirectory(dialog.SelectedPath);
@@ -2215,16 +2255,22 @@ public partial class MainFormResources : Form
         }
     }
 
+    /// <summary>Path comparison mode for the current OS.</summary>
+    private static StringComparison PathComparison =>
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
     /// <summary>
     /// Records a directory as the most recently used, updates the dropdown and persists to config.
+    /// Parent folders are resolved to an actual save directory first.
     /// </summary>
     private void RecordRecentDirectory(string directory)
     {
         var config = AppConfig.Instance;
-        config.AddRecentDirectory(directory, _defaultSaveDirectory);
+        string resolved = SaveFileManager.ResolveSaveDirectory(directory);
+        config.AddRecentDirectory(resolved, _defaultSaveDirectories.FirstOrDefault());
         config.Save();
 
-        RebuildDirectoryDropdown(config.RecentDirectories, directory);
+        RebuildDirectoryDropdown(config.RecentDirectories, resolved);
         PopulateSaveSlots();
     }
 
@@ -2233,7 +2279,7 @@ public partial class MainFormResources : Form
         if (_directoryCombo.SelectedItem is string dir)
         {
             var config = AppConfig.Instance;
-            config.AddRecentDirectory(dir, _defaultSaveDirectory);
+            config.AddRecentDirectory(dir, _defaultSaveDirectories.FirstOrDefault());
             config.Save();
 
             RebuildDirectoryDropdown(config.RecentDirectories, dir);
