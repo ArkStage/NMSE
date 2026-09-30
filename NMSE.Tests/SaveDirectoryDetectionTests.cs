@@ -140,6 +140,42 @@ public class SaveDirectoryDetectionTests : IDisposable
     }
 
     [Fact]
+    public void GetXboxSlotFiles_ResolvesXgsDataAndMetaPaths()
+    {
+        string container = Dir("xgs", "GGGG_7777");
+        WriteFile(Dir("xgs", "GGGG_7777", "Slot1Auto"), "data");
+        WriteFile(Dir("xgs", "GGGG_7777", "Slot1Auto"), "meta");
+
+        var (dataFile, metaFile) = SaveFileManager.GetXboxSlotFiles(container, "Slot1Auto");
+
+        Assert.Equal(Path.Combine(container, "Slot1Auto", "data"), dataFile);
+        Assert.Equal(Path.Combine(container, "Slot1Auto", "meta"), metaFile);
+    }
+
+    [Fact]
+    public void GetXboxSlotFiles_UnknownSlot_ReturnsNulls()
+    {
+        string container = Dir("xgs", "HHHH_8888");
+        WriteFile(Dir("xgs", "HHHH_8888", "Slot1Auto"), "data");
+
+        var (dataFile, metaFile) = SaveFileManager.GetXboxSlotFiles(container, "Slot9Manual");
+
+        Assert.Null(dataFile);
+        Assert.Null(metaFile);
+    }
+
+    [Fact]
+    public void GetXboxSlotFiles_ResolvesAccountDataBlob()
+    {
+        string container = Dir("xgs", "IIII_9999");
+        WriteFile(Dir("xgs", "IIII_9999", "AccountData"), "data");
+
+        var (dataFile, _) = SaveFileManager.GetXboxSlotFiles(container, ContainersIndexManager.AccountDataIdentifier);
+
+        Assert.Equal(Path.Combine(container, "AccountData", "data"), dataFile);
+    }
+
+    [Fact]
     public void FindDefaultSaveDirectories_ReturnsSteamProfileAndXboxContainerTogether()
     {
         string appData = Dir("appdata");

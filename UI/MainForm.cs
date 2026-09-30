@@ -1852,27 +1852,37 @@ public partial class MainFormResources : Form
 
     /// <summary>
     /// Starts watching the loaded save file, its meta file and the account data file for
-    /// changes made outside the editor. Xbox containers are skipped because they are not
-    /// plain files. Creates one watcher per distinct directory (the macOS account MXML
+    /// changes made outside the editor. Xbox saves are watched through the loaded slot's
+    /// data/meta blob files, the AccountData blob and the legacy wgs index instead of a
+    /// single save file. Creates one watcher per distinct directory (the macOS account MXML
     /// lives in a sibling SETTINGS folder).
     /// </summary>
-    /// <param name="saveFilePath">The loaded save file path.</param>
+    /// <param name="saveFilePath">The loaded save file path (unused for Xbox containers).</param>
     private void SetupExternalWatcher(string? saveFilePath)
     {
         DisposeExternalWatcher();
         _externalDiverged = false;
-        if (string.IsNullOrEmpty(saveFilePath) || _detectedPlatform == SaveFileManager.Platform.XboxGamePass)
-            return;
-
-        string? directory = Path.GetDirectoryName(saveFilePath);
-        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
-            return;
-
         _externalWatchedFiles.Clear();
-        _externalWatchedFiles.Add(saveFilePath);
-        _externalWatchedFiles.Add(Path.Combine(directory, "mf_" + Path.GetFileName(saveFilePath)));
-        if (!string.IsNullOrEmpty(_accountPanel.AccountFilePath))
-            _externalWatchedFiles.Add(_accountPanel.AccountFilePath);
+
+        if (_detectedPlatform == SaveFileManager.Platform.XboxGamePass)
+        {
+            AddXboxWatchedFiles();
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(saveFilePath)) return;
+
+            string? directory = Path.GetDirectoryName(saveFilePath);
+            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+                return;
+
+            _externalWatchedFiles.Add(saveFilePath);
+            _externalWatchedFiles.Add(Path.Combine(directory, "mf_" + Path.GetFileName(saveFilePath)));
+            if (!string.IsNullOrEmpty(_accountPanel.AccountFilePath))
+                _externalWatchedFiles.Add(_accountPanel.AccountFilePath);
+        }
+
+        if (_externalWatchedFiles.Count == 0) return;
         SnapshotExternalFileTimes();
 
         foreach (string watchedDirectory in _externalWatchedFiles
@@ -1904,6 +1914,71 @@ public partial class MainFormResources : Form
                 // Ignore directories that cannot be watched.
             }
         }
+    }
+
+    /// <summary>
+    /// Adds the loaded Xbox slot's data and meta files, the AccountData blob (part of the
+    /// same save) and the legacy wgs containers.index to the watched set.
+    /// </summary>
+    private void AddXboxWatchedFiles()
+    {
+        if (_xboxSavePath == null) return;
+
+        string? slotId = GetCurrentXboxSlotIdentifier();
+        if (slotId != null)
+        {
+            var (dataFile, metaFile) = SaveFileManager.GetXboxSlotFiles(_xboxSavePath, slotId);
+            if (!string.IsNullOrEmpty(dataFile)) _externalWatchedFiles.Add(dataFile);
+            if (!string.IsNullOrEmpty(metaFile)) _externalWatchedFiles.Add(metaFile);
+        }
+
+        // Account data is part of the same save: watch its data blob too.
+        var (accountDataFile, _) = SaveFileManager.GetXboxSlotFiles(
+            _xboxSavePath, ContainersIndexManager.AccountDataIdentifier);
+        if (!string.IsNullOrEmpty(accountDataFile)) _externalWatchedFiles.Add(accountDataFile);
+
+        // The wgs index is rewritten whenever a blob is added or replaced.
+        string indexPath = Path.Combine(_xboxSavePath, "containers.index");
+        if (File.Exists(indexPath)) _externalWatchedFiles.Add(indexPath);
+    }
+
+    /// <summary>
+    /// Reloads the Xbox AccountData blob from the loaded container. The save slot and the
+    /// account data are treated as one save, so an external change to either reloads both.
+    /// </summary>
+    private void ReloadXboxAccountData()
+    {
+        if (_xboxSavePath == null) return;
+
+        try
+        {
+            var slots = SaveFileManager.EnumerateXboxSlots(_xboxSavePath);
+            if (slots.TryGetValue(ContainersIndexManager.AccountDataIdentifier, out var accountSlot))
+            {
+                _accountPanel.LoadXboxAccountData(accountSlot);
+                _rawJsonPanel.CaptureAccountBaseline(_accountPanel.AccountData);
+            }
+        }
+        catch
+        {
+            // Ignore account data reload failures; the save slot reload still proceeds.
+        }
+    }
+
+    /// <summary>Returns the Xbox slot identifier currently selected in the slot/file combos.</summary>
+    private string? GetCurrentXboxSlotIdentifier()
+    {
+        if (_xboxFileIdentifiers == null) return null;
+
+        int slotIdx = _saveSlotCombo.SelectedIndex;
+        if (slotIdx < 0 || slotIdx >= _xboxFileIdentifiers.Count) return null;
+
+        var identifiers = _xboxFileIdentifiers[slotIdx];
+        if (identifiers.Count == 0) return null;
+
+        int fileIdx = _saveFileCombo.SelectedIndex;
+        if (fileIdx < 0 || fileIdx >= identifiers.Count) fileIdx = 0;
+        return identifiers[fileIdx];
     }
 
     /// <summary>Stops and disposes all external change watchers.</summary>
@@ -2082,6 +2157,18 @@ public partial class MainFormResources : Form
         {
             int slotIndex = _saveSlotCombo.SelectedIndex >= 0 ? _saveSlotCombo.SelectedIndex : 0;
             LoadPS4MemoryDatSaveData(_ps4MemoryDatPath, slotIndex);
+        }
+        else if (_detectedPlatform == SaveFileManager.Platform.XboxGamePass && _xboxSavePath != null)
+        {
+            // Xbox saves reload through the container/slot pipeline, not a single file.
+            // Reload the account data first so the save load captures the fresh baseline
+            // (the slot and account blobs are treated as one save).
+            string? slotId = GetCurrentXboxSlotIdentifier();
+            if (slotId != null)
+            {
+                ReloadXboxAccountData();
+                LoadXboxSaveData(_xboxSavePath, slotId);
+            }
         }
         else
         {
@@ -2680,14 +2767,15 @@ public partial class MainFormResources : Form
             _statusLabel.Text = string.IsNullOrEmpty(backupRoot)
                 ? UiStrings.Format("status.save_written", Path.GetFileName(_currentFilePath!))
                 : UiStrings.Format("status.save_written_with_backup", Path.GetFileName(_currentFilePath!), backupRoot);
-            _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
-            _hasUnsavedChanges = false;
-            SnapshotExternalFileTimes();
-            _externalDiverged = false;
-            UpdateCurrentSlotLabel();
-            MessageBox.Show(this, UiStrings.Get("dialog.save_success"), UiStrings.Get("dialog.success"),
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+                _rawJsonPanel.CaptureSavedBaseline(_currentSaveData, _accountPanel.AccountData);
+                _hasUnsavedChanges = false;
+                // Re-arm the watcher: wgs writes rotate the blob GUIDs, so the watched
+                // data path must be refreshed from the updated containers.index.
+                SetupExternalWatcher(null);
+                MessageBox.Show(this, UiStrings.Get("dialog.save_success"), UiStrings.Get("dialog.success"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
         catch (Exception ex)
         {
             MessageBox.Show(this, UiStrings.Format("dialog.save_failed", ex.Message), UiStrings.Get("dialog.error"),

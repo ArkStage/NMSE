@@ -131,6 +131,25 @@ public class SaveFileManager
     }
 
     /// <summary>
+    /// Returns the resolved data and meta file paths for an Xbox save slot, across both xgs
+    /// and wgs containers. Used by the external change watcher. Either path can be null when
+    /// the slot or its files cannot be resolved.
+    /// </summary>
+    /// <param name="savePath">The container directory (xgs container or containers.index folder).</param>
+    /// <param name="slotIdentifier">The slot identifier (for example "Slot1Auto").</param>
+    public static (string? DataFile, string? MetaFile) GetXboxSlotFiles(string savePath, string slotIdentifier)
+    {
+        try
+        {
+            var slots = EnumerateXboxSlots(savePath);
+            if (slots.TryGetValue(slotIdentifier, out var slotInfo))
+                return (slotInfo.DataFilePath, slotInfo.MetaFilePath);
+        }
+        catch { }
+        return (null, null);
+    }
+
+    /// <summary>
     /// Attempts to find the default NMS save directory for the current OS.
     /// Returns the first of <see cref="FindDefaultSaveDirectories"/>, or null when none exists.
     /// </summary>
