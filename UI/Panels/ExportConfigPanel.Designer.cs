@@ -135,7 +135,7 @@ partial class ExportConfigPanel
             "Frigate", "Squadron",
             "Exocraft", "Exocraft Cargo", "Exocraft Tech",
             "Companion", "Base", "Chest", "Storage",
-            "Discovery", "Settlement", "ByteBeat", "Outfit"
+            "Discovery", "Settlement", "ByteBeat", "Outfit", "Hotkeys"
         ];
 
         for (int i = 0; i < labels.Length; i++)
@@ -180,7 +180,7 @@ partial class ExportConfigPanel
             "Frigate", "Squadron",
             "Exocraft", "Exocraft Cargo", "Exocraft Tech",
             "Companion", "Base", "Chest", "Storage",
-            "Discovery", "Settlement", "ByteBeat", "Outfit"
+            "Discovery", "Settlement", "ByteBeat", "Outfit", "Hotkeys"
         ];
 
         _templateLabels = new Label[labels.Length];

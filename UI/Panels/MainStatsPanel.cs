@@ -169,6 +169,8 @@ public partial class MainStatsPanel : UserControl
             var playerState = saveData.GetObject("PlayerStateData");
             if (playerState == null) return;
 
+            _hotkeysPanel.LoadData(playerState);
+
             // Player stats - store raw values (only write back if user changed them)
             _rawStatValues = new Dictionary<string, decimal>
             {
@@ -1525,6 +1527,8 @@ public partial class MainStatsPanel : UserControl
             _tabs.TabPages[2].Text = UiStrings.Get("player.tab_titles");
             _tabs.TabPages[3].Text = UiStrings.Get("player.tab_multiplayer");
         }
+        if (_tabs.TabCount >= 5)
+            _tabs.TabPages[4].Text = UiStrings.Get("player.tab_hotkeys");
 
         // Buttons
         _copySlotBtn.Text = UiStrings.Get("player.copy_slot");
@@ -1666,6 +1670,7 @@ public partial class MainStatsPanel : UserControl
 
         // Multiplayer panel localisation
         _multiplayerPanel.ApplyUiLocalisation();
+        _hotkeysPanel.ApplyUiLocalisation();
     }
 
     private static void RefreshPresetCombo(ComboBox combo)

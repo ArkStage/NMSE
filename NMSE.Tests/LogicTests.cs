@@ -8102,6 +8102,14 @@ public class LogicTests
         Assert.Equal(".nmsbase", cfg.BaseExt);
         Assert.Equal(".nmschest", cfg.ChestExt);
         Assert.Equal(".nmsstore", cfg.StorageExt);
+        Assert.Equal(".nmshk", cfg.HotkeysExt);
+    }
+
+    [Fact]
+    public void ExportConfig_DefaultHotkeysTemplate_IsName()
+    {
+        var cfg = ExportConfig.Instance;
+        Assert.Equal("{name}", cfg.HotkeysTemplate);
     }
 
     // --- InventoryImportHelper --------------------------------------

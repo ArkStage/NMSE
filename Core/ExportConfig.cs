@@ -57,6 +57,8 @@ public class ExportConfig
     public string ByteBeatExt { get; set; } = ".nmssong";
     /// <summary>File extension for outfit exports.</summary>
     public string OutfitExt { get; set; } = ".nmsfit";
+    /// <summary>File extension for hotkey exports.</summary>
+    public string HotkeysExt { get; set; } = ".nmshk";
 
     // Naming Templates
     // Template variables:
@@ -127,6 +129,8 @@ public class ExportConfig
     public string ByteBeatTemplate { get; set; } = "{name}_{timestamp}";
     /// <summary>Naming template for outfit exports.</summary>
     public string OutfitTemplate { get; set; } = "{name}";
+    /// <summary>Naming template for hotkey exports.</summary>
+    public string HotkeysTemplate { get; set; } = "{name}";
 
     // --- Singleton -------------------------------------------------
     private static ExportConfig? _instance;

@@ -49,6 +49,7 @@ public partial class ExportConfigPanel : UserControl
         SetField(_extFields, "Settlement", cfg.SettlementExt);
         SetField(_extFields, "ByteBeat", cfg.ByteBeatExt);
         SetField(_extFields, "Outfit", cfg.OutfitExt);
+        SetField(_extFields, "Hotkeys", cfg.HotkeysExt);
 
         // Templates
         SetField(_templateFields, "Exosuit Cargo", cfg.ExosuitCargoTemplate);
@@ -75,6 +76,7 @@ public partial class ExportConfigPanel : UserControl
         SetField(_templateFields, "Settlement", cfg.SettlementTemplate);
         SetField(_templateFields, "ByteBeat", cfg.ByteBeatTemplate);
         SetField(_templateFields, "Outfit", cfg.OutfitTemplate);
+        SetField(_templateFields, "Hotkeys", cfg.HotkeysTemplate);
     }
 
     /// <summary>
@@ -108,6 +110,7 @@ public partial class ExportConfigPanel : UserControl
         cfg.SettlementExt = GetField(_extFields, "Settlement", cfg.SettlementExt);
         cfg.ByteBeatExt = GetField(_extFields, "ByteBeat", cfg.ByteBeatExt);
         cfg.OutfitExt = GetField(_extFields, "Outfit", cfg.OutfitExt);
+        cfg.HotkeysExt = GetField(_extFields, "Hotkeys", cfg.HotkeysExt);
 
         // Templates
         cfg.ExosuitCargoTemplate = GetField(_templateFields, "Exosuit Cargo", cfg.ExosuitCargoTemplate);
@@ -134,6 +137,7 @@ public partial class ExportConfigPanel : UserControl
         cfg.SettlementTemplate = GetField(_templateFields, "Settlement", cfg.SettlementTemplate);
         cfg.ByteBeatTemplate = GetField(_templateFields, "ByteBeat", cfg.ByteBeatTemplate);
         cfg.OutfitTemplate = GetField(_templateFields, "Outfit", cfg.OutfitTemplate);
+        cfg.HotkeysTemplate = GetField(_templateFields, "Hotkeys", cfg.HotkeysTemplate);
     }
 
     // --- Event Handlers --------------------------------------------
@@ -211,7 +215,7 @@ public partial class ExportConfigPanel : UserControl
             if (!val.StartsWith('.'))
             {
                 tb.Text = "." + val;
-                warnings.Add($"{label} extension was missing leading dot (auto-corrected).");
+                warnings.Add(UiStrings.Format("export_config.ext_auto_corrected", label));
             }
         }
         return warnings;
@@ -246,7 +250,8 @@ public partial class ExportConfigPanel : UserControl
             "export_config.template_chest", "export_config.template_storage",
             "export_config.template_discovery", "export_config.template_settlement",
             "export_config.template_bytebeat",
-            "export_config.template_outfit"
+            "export_config.template_outfit",
+            "export_config.template_hotkeys"
         };
         if (_templateLabels != null)
         {

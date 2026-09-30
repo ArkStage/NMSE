@@ -615,6 +615,13 @@ partial class MainStatsPanel
         multiplayerPage.Controls.Add(_multiplayerPanel);
         tabs.TabPages.Add(multiplayerPage);
 
+        // -- Hotkeys Tab --
+        var hotkeysPage = new TabPage("Hotkeys");
+        _hotkeysPanel = new HotkeysPanel { Dock = DockStyle.Fill };
+        _hotkeysPanel.DataModified += (s, e) => RaiseDataModified();
+        hotkeysPage.Controls.Add(_hotkeysPanel);
+        tabs.TabPages.Add(hotkeysPage);
+
         Controls.Add(tabs);
     }
 
@@ -767,4 +774,5 @@ partial class MainStatsPanel
 
     // Multiplayer sub-panel
     private MultiplayerPanel _multiplayerPanel = null!;
+    private HotkeysPanel _hotkeysPanel = null!;
 }
