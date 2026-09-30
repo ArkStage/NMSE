@@ -4,7 +4,8 @@ namespace NMSE.Core.Utilities;
 
 /// <summary>
 /// Static helpers for manipulating inventory slot JSON data.
-/// Used by InventoryGridPanel for drag-and-drop operations.
+/// Used by InventoryGridPanel for drag-and-drop operations and by InventoryBulkActions
+/// when it lays out or duplicates slots.
 /// </summary>
 internal static class InventorySlotHelper
 {

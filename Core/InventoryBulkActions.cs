@@ -1,6 +1,4 @@
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using NMSE.Data;
 using NMSE.Core.Utilities;
 using NMSE.Models;
@@ -22,7 +20,7 @@ internal sealed class ChestSortResult
     /// <summary>True if the sort was applied. False if there wasn't enough space (nothing was changed).</summary>
     public required bool Success { get; init; }
 
-    /// <summary>Total number of item stacks placed (after merging matching items together).</summary>
+    /// <summary>Total number of item stacks placed (after merging matching items together). When the sort fails, the number that would have needed placing.</summary>
     public int StacksPlaced { get; init; }
 
     /// <summary>Total slots available for placement across all 10 chests after padding was reserved.</summary>
@@ -881,7 +879,8 @@ internal static class InventoryBulkActions
     {
         public required string ItemId { get; init; }
         public required JsonObject Template { get; init; }
-        public int TotalAmount { get; set; }
+        /// <summary>Summed as long so a few near-int.MaxValue stacks (hand-edited saves) can't wrap.</summary>
+        public long TotalAmount { get; set; }
         public int MaxAmount { get; set; }
         public string SortName { get; set; } = "";
         public string SortType { get; set; } = "";
@@ -910,23 +909,25 @@ internal static class InventoryBulkActions
         ["Always"] = 12,
     };
 
+    /// <summary>Inventory group name chest grids use when looking up stack limits.</summary>
+    private const string ChestInventoryGroup = "Chest";
+
     /// <summary>
     /// Resolves the max stack size to use for a group when no source slot carried a usable
     /// MaxAmount (corrupted/hand-edited save) - falls back to the game's authoritative
     /// stack-size formula instead of trusting a missing/zero value, which would otherwise
     /// let a merge produce a stack exceeding the item's real in-game limit.
     /// </summary>
-    private static int ResolveAuthoritativeMaxAmount(JsonObject templateSlot, GameItem? gameItem)
+    private static int ResolveAuthoritativeMaxAmount(JsonObject templateSlot, GameItem? gameItem, string inventoryGroup)
     {
         if (gameItem == null) return 0;
         string invType = ResolveInventoryTypeForSlot(templateSlot, gameItem);
-        return InventoryStackDatabase.GetMaxAmount(gameItem, invType, "Chest");
+        return InventoryStackDatabase.GetMaxAmount(gameItem, invType, inventoryGroup);
     }
 
-    private static readonly Regex TechPackHashPattern = new(@"^\^[0-9A-Fa-f]{12}$", RegexOptions.Compiled);
-
-    /// <summary>Checks whether the given ID (without any #variant suffix) is a TechPack hash.</summary>
-    private static bool IsTechPackHash(string baseId) => baseId.Length == 13 && TechPackHashPattern.IsMatch(baseId);
+    /// <summary>Largest amount one stack of the group may hold (the total itself if no max is known).</summary>
+    private static int StackLimit(ChestSortGroup group) =>
+        group.MaxAmount > 0 ? group.MaxAmount : (int)Math.Min(group.TotalAmount, int.MaxValue);
 
     /// <summary>
     /// Resolves a chest item ID to its <see cref="GameItem"/>, mirroring
@@ -943,63 +944,104 @@ internal static class InventoryBulkActions
         var gameItem = database.GetItem(baseId);
         if (gameItem != null) return gameItem;
 
-        if (IsTechPackHash(baseId) && TechPacks.Dictionary.TryGetValue(baseId, out var techPack))
-            return database.GetItem(techPack.Id);
+        if (!TechPackLogic.IsPackHashId(baseId)) return null;
+
+        if (TechPacks.Dictionary.TryGetValue(baseId, out var techPack))
+        {
+            gameItem = database.GetItem(techPack.Id);
+            if (gameItem != null) return gameItem;
+        }
+
+        // Codec fallback: covers pack hashes outside the mined dictionary (and any casing).
+        if (TechPackLogic.TryResolveTechId(baseId, database, out var techId, out _))
+            return database.GetItem(techId);
 
         return null;
     }
 
+    private enum ChestSlotKind
+    {
+        /// <summary>Blank, placeholder or unreadable slot - nothing to carry over.</summary>
+        Empty,
+        /// <summary>Ordinary cargo stack that can be pooled with matching stacks.</summary>
+        Mergeable,
+        /// <summary>
+        /// Real slot that must never be pooled or resized: Technology (Amount is charge, not a
+        /// count) or an occupied slot with a non-positive/unreadable Amount (e.g. damaged tech).
+        /// </summary>
+        PassThrough,
+    }
+
+    private static JsonObject? GetSlotOrNull(JsonArray slots, int index)
+    {
+        try { return slots.GetObject(index); }
+        catch { return null; }
+    }
+
+    private static ChestSlotKind ClassifyChestSlot(JsonObject? slot, out string itemId, out int amount, out int maxAmount)
+    {
+        itemId = "";
+        amount = 0;
+        maxAmount = 0;
+        if (slot == null) return ChestSlotKind.Empty;
+
+        itemId = ExtractAutoStackSlotItemId(slot);
+        if (string.IsNullOrEmpty(itemId) || itemId == "^" || itemId == "^YOURSLOTITEM")
+            return ChestSlotKind.Empty;
+
+        if (IsAutoStackTechnologySlot(slot)) return ChestSlotKind.PassThrough;
+
+        amount = GetAutoStackAmount(slot);
+        if (amount <= 0) return ChestSlotKind.PassThrough;
+
+        maxAmount = GetAutoStackMaxAmount(slot);
+        return ChestSlotKind.Mergeable;
+    }
+
     /// <summary>
-    /// Scans all 10 standard Chest inventories and groups every occupied slot by exact item ID
+    /// Scans all 10 standard Chest inventories and groups every mergeable slot by exact item ID
     /// (including any procedural #seed suffix, so distinct variants stay distinct), resolving
-    /// each group's display name/type/rarity for sorting along the way.
+    /// each group's display name/type/rarity for sorting along the way. Slots that must not be
+    /// pooled (see <see cref="ChestSlotKind.PassThrough"/>) are returned separately, untouched.
     /// </summary>
-    private static (Dictionary<string, ChestSortGroup> groups, List<string> order, int occupiedSlotCount) CollectChestGroups(
+    private static (List<ChestSortGroup> groups, List<JsonObject> passThrough, int occupiedSlotCount) CollectChestGroups(
         IEnumerable<JsonObject?> chestInventories, GameItemDatabase database)
     {
-        var groups = new Dictionary<string, ChestSortGroup>(StringComparer.OrdinalIgnoreCase);
-        var groupOrder = new List<string>();
+        var byId = new Dictionary<string, ChestSortGroup>(StringComparer.OrdinalIgnoreCase);
+        var groups = new List<ChestSortGroup>();
+        var passThrough = new List<JsonObject>();
         int occupiedSlotCount = 0;
 
         foreach (var inv in chestInventories)
         {
-            if (inv == null) continue;
-            var slots = inv.GetArray("Slots");
+            var slots = inv?.GetArray("Slots");
             if (slots == null) continue;
 
             for (int i = 0; i < slots.Length; i++)
             {
-                JsonObject? slot;
-                try { slot = slots.GetObject(i); }
-                catch { continue; }
-                if (slot == null) continue;
-
-                string itemId = ExtractAutoStackSlotItemId(slot);
-                if (string.IsNullOrEmpty(itemId) || itemId == "^" || itemId == "^YOURSLOTITEM")
-                    continue;
-
-                int amount;
-                try { amount = slot.GetInt("Amount"); }
-                catch { continue; }
-                if (amount <= 0) continue;
-
-                int maxAmount = 0;
-                try { maxAmount = slot.GetInt("MaxAmount"); } catch { }
+                var slot = GetSlotOrNull(slots, i);
+                var kind = ClassifyChestSlot(slot, out string itemId, out int amount, out int maxAmount);
+                if (kind == ChestSlotKind.Empty) continue;
 
                 occupiedSlotCount++;
 
-                if (!groups.TryGetValue(itemId, out var group))
+                if (kind == ChestSlotKind.PassThrough)
                 {
-                    group = new ChestSortGroup { ItemId = itemId, Template = slot };
-                    groups[itemId] = group;
-                    groupOrder.Add(itemId);
+                    passThrough.Add(slot!);
+                    continue;
+                }
+
+                if (!byId.TryGetValue(itemId, out var group))
+                {
+                    group = new ChestSortGroup { ItemId = itemId, Template = slot! };
+                    byId[itemId] = group;
+                    groups.Add(group);
                 }
                 group.TotalAmount += amount;
                 if (maxAmount > group.MaxAmount) group.MaxAmount = maxAmount;
             }
         }
-
-        foreach (var group in groups.Values)
+        foreach (var group in groups)
         {
             var gameItem = ResolveChestGameItem(group.ItemId, database);
             group.SortName = gameItem?.Name ?? group.ItemId;
@@ -1019,19 +1061,19 @@ internal static class InventoryBulkActions
             // above it is respected: the inventory editor lets users set MaxAmount freely.
             if (group.MaxAmount <= 0)
             {
-                int authoritativeMax = ResolveAuthoritativeMaxAmount(group.Template, gameItem);
+                int authoritativeMax = ResolveAuthoritativeMaxAmount(group.Template, gameItem, ChestInventoryGroup);
                 if (authoritativeMax > 0) group.MaxAmount = authoritativeMax;
             }
         }
 
-        return (groups, groupOrder, occupiedSlotCount);
+        return (groups, passThrough, occupiedSlotCount);
     }
 
     /// <summary>
     /// Sorts items across all 10 standard Chest inventories as a single pool: matching items
     /// (same item ID, including any procedural seed) are first merged into as few stacks as
     /// possible (never exceeding each item's max stack size), the resulting stacks are sorted
-    /// by name, type, rarity, or type then rarity, and then laid out across Chest 1-10 in order, filling one
+    /// by name, type, rarity, or type then rarity, and then laid out across Chest 0-9 in order, filling one
     /// chest's slots before spilling into the next.
     /// </summary>
     /// <param name="playerState">The PlayerStateData JSON object.</param>
@@ -1055,12 +1097,11 @@ internal static class InventoryBulkActions
             chestPositions.Add(inv != null ? GetSortPositions(inv) : new List<(int, int)>());
         }
 
-        var (groups, groupOrder, occupiedSlotCount) = CollectChestGroups(chestInventories, database);
+        var (sortedGroups, passThrough, occupiedSlotCount) = CollectChestGroups(chestInventories, database);
 
-        if (groups.Count == 0)
+        if (sortedGroups.Count == 0 && passThrough.Count == 0)
             return new ChestSortResult { Success = true, StacksPlaced = 0, SlotsAvailable = 0, SlotsFreed = 0 };
 
-        var sortedGroups = groupOrder.Select(id => groups[id]).ToList();
         Comparison<ChestSortGroup> comparison;
         switch (mode)
         {
@@ -1098,22 +1139,7 @@ internal static class InventoryBulkActions
 
         // OrderBy is stable (List.Sort is not), so tied items keep their current relative order
         // and repeated sorts give identical results.
-        sortedGroups = sortedGroups.OrderBy(g => g, Comparer<ChestSortGroup>.Create(comparison)).ToList();
-
-        // Expand each (now-merged) group into the minimum number of stacks, respecting
-        // that item's max stack size - never combine more than MaxAmount into one slot.
-        var stacks = new List<(string itemId, JsonObject template, int amount, int maxAmount)>();
-        foreach (var group in sortedGroups)
-        {
-            int max = group.MaxAmount > 0 ? group.MaxAmount : group.TotalAmount;
-            int remaining = group.TotalAmount;
-            while (remaining > 0)
-            {
-                int take = Math.Min(remaining, max);
-                stacks.Add((group.ItemId, group.Template, take, max));
-                remaining -= take;
-            }
-        }
+        var orderedGroups = sortedGroups.OrderBy(g => g, Comparer<ChestSortGroup>.Create(comparison)).ToList();
 
         // Reserve the requested padding at the end of each chest's slot list.
         var usablePositions = new List<List<(int x, int y)>>();
@@ -1121,21 +1147,46 @@ internal static class InventoryBulkActions
         foreach (var positions in chestPositions)
         {
             int usableCount = Math.Max(0, positions.Count - paddingPerChest);
-            var usable = positions.Take(usableCount).ToList();
+            var usable = positions.GetRange(0, usableCount);
             usablePositions.Add(usable);
             totalAvailable += usable.Count;
         }
 
-        if (stacks.Count > totalAvailable)
+        // Technology / non-positive-amount slots are never pooled or resized, but they are real
+        // items, so they're carried through untouched (only re-positioned) after the sorted
+        // stacks rather than dropped. Count the stacks needed first (as long) so an absurd
+        // quantity fails the capacity check instead of being expanded into millions of stacks.
+        long stacksNeeded = passThrough.Count;
+        foreach (var group in orderedGroups)
+            stacksNeeded += (group.TotalAmount + StackLimit(group) - 1) / StackLimit(group);
+
+        if (stacksNeeded > totalAvailable)
         {
             return new ChestSortResult
             {
                 Success = false,
-                StacksPlaced = stacks.Count,
+                StacksPlaced = (int)Math.Min(stacksNeeded, int.MaxValue),
                 SlotsAvailable = totalAvailable,
                 SlotsFreed = 0,
             };
         }
+
+        // Expand each (now-merged) group into the minimum number of stacks, respecting
+        // that item's max stack size - never combine more than MaxAmount into one slot.
+        var stacks = new List<(JsonObject template, int amount, int maxAmount)>();
+        foreach (var group in orderedGroups)
+        {
+            int max = StackLimit(group);
+            long remaining = group.TotalAmount;
+            while (remaining > 0)
+            {
+                int take = (int)Math.Min(remaining, max);
+                stacks.Add((group.Template, take, max));
+                remaining -= take;
+            }
+        }
+
+        int totalToPlace = stacks.Count + passThrough.Count;
 
         // Rebuild each chest's Slots array in sorted order.
         int cursor = 0;
@@ -1147,11 +1198,23 @@ internal static class InventoryBulkActions
             var newSlots = new JsonArray();
             foreach (var (x, y) in usablePositions[i])
             {
-                if (cursor >= stacks.Count) break;
-                var s = stacks[cursor++];
-                var newSlot = InventorySlotHelper.DuplicateSlot(s.template, x, y);
-                newSlot.Set("Amount", s.amount);
-                newSlot.Set("MaxAmount", s.maxAmount);
+                if (cursor >= totalToPlace) break;
+
+                JsonObject newSlot;
+                if (cursor < stacks.Count)
+                {
+                    var s = stacks[cursor];
+                    newSlot = InventorySlotHelper.DuplicateSlot(s.template, x, y);
+                    newSlot.Set("Amount", s.amount);
+                    newSlot.Set("MaxAmount", s.maxAmount);
+                }
+                else
+                {
+                    // Deep clone keeps every field exactly as it was (FullyInstalled etc.).
+                    newSlot = passThrough[cursor - stacks.Count].DeepClone();
+                    InventorySlotHelper.UpdateSlotIndex(newSlot, x, y);
+                }
+                cursor++;
                 newSlots.Add(newSlot);
             }
 
@@ -1161,9 +1224,9 @@ internal static class InventoryBulkActions
         return new ChestSortResult
         {
             Success = true,
-            StacksPlaced = stacks.Count,
+            StacksPlaced = totalToPlace,
             SlotsAvailable = totalAvailable,
-            SlotsFreed = Math.Max(0, occupiedSlotCount - stacks.Count),
+            SlotsFreed = Math.Max(0, occupiedSlotCount - totalToPlace),
         };
     }
 
@@ -1199,31 +1262,21 @@ internal static class InventoryBulkActions
 
             for (int i = 0; i < slots.Length; i++)
             {
-                JsonObject? slot;
-                try { slot = slots.GetObject(i); }
-                catch { continue; }
-                if (slot == null) continue;
-
-                string itemId = ExtractAutoStackSlotItemId(slot);
-                if (string.IsNullOrEmpty(itemId) || itemId == "^" || itemId == "^YOURSLOTITEM")
-                    continue;
-
-                int amount;
-                try { amount = slot.GetInt("Amount"); }
-                catch { continue; }
-                if (amount <= 0) continue;
-
-                int maxAmount = 0;
-                try { maxAmount = slot.GetInt("MaxAmount"); } catch { }
+                var slot = GetSlotOrNull(slots, i);
+                var kind = ClassifyChestSlot(slot, out string itemId, out int amount, out int maxAmount);
+                if (kind == ChestSlotKind.Empty) continue;
 
                 occupiedSlotCount++;
+
+                // Pass-through slots (technology, non-positive amount) are counted but left alone.
+                if (kind == ChestSlotKind.PassThrough) continue;
 
                 if (!groups.TryGetValue(itemId, out var list))
                 {
                     list = new List<(int, int, JsonObject, int, int)>();
                     groups[itemId] = list;
                 }
-                list.Add((c, i, slot, amount, maxAmount));
+                list.Add((c, i, slot!, amount, maxAmount));
             }
         }
 
@@ -1235,30 +1288,33 @@ internal static class InventoryBulkActions
         {
             if (entries.Count < 2) continue; // nothing to merge
 
-            int total = entries.Sum(e => e.amount);
+            long total = entries.Sum(e => (long)e.amount);
             int max = entries.Max(e => e.maxAmount);
             if (max <= 0)
             {
                 var gameItem = ResolveChestGameItem(itemId, database);
-                max = ResolveAuthoritativeMaxAmount(entries[0].slot, gameItem);
-                if (max <= 0) max = total;
+                max = ResolveAuthoritativeMaxAmount(entries[0].slot, gameItem, ChestInventoryGroup);
+                if (max <= 0) max = (int)Math.Min(total, int.MaxValue);
             }
 
-            int neededStacks = (total + max - 1) / max; // ceiling division
+            long neededStacks = (total + max - 1) / max; // ceiling division
 
-            // neededStacks can only exceed entries.Count if the resolved max is smaller than
-            // what's already crammed into an existing slot (only possible via the authoritative
-            // fallback above, not the normal per-entry-derived max) - rebalancing would lose
-            // quantity in that case, so leave everything untouched rather than risk data loss.
+            // neededStacks can exceed entries.Count when the resolved max is smaller than what's
+            // already crammed into an existing slot (a stored Amount above its own MaxAmount, or
+            // the authoritative fallback max) - rebalancing would lose quantity in that case, so
+            // leave everything untouched rather than risk data loss.
             if (neededStacks > entries.Count) continue;
 
-            int remaining = total;
+            long remaining = total;
             for (int i = 0; i < entries.Count; i++)
             {
                 if (i < neededStacks)
                 {
-                    int take = Math.Min(remaining, max);
+                    int take = (int)Math.Min(remaining, max);
                     entries[i].slot.Set("Amount", take);
+                    // Normalise to the group's max (as the full sort does) so a surviving slot
+                    // with a lower stored MaxAmount can't be left holding more than it allows.
+                    entries[i].slot.Set("MaxAmount", max);
                     remaining -= take;
                 }
                 else
@@ -1449,7 +1505,9 @@ internal static class InventoryBulkActions
     /// <summary>
     /// Slot positions available to a chest for sorting: its valid/grid positions, or, for
     /// legacy chests with no size metadata at all, a grid inferred from its occupied slots so
-    /// their items aren't forced into other chests.
+    /// their items aren't forced into other chests. The inferred grid shrinks to the packed items,
+    /// so re-sorting such a chest with padding can differ from the first sort; chests that carry
+    /// size metadata (all real saves) are unaffected.
     /// </summary>
     private static List<(int x, int y)> GetSortPositions(JsonObject inventory)
     {
@@ -1462,11 +1520,8 @@ internal static class InventoryBulkActions
         int maxX = -1, maxY = -1;
         for (int i = 0; i < slots.Length; i++)
         {
-            JsonObject? slot;
-            try { slot = slots.GetObject(i); }
-            catch { continue; }
-            if (slot == null) continue;
-            if (TryGetAutoStackSlotPosition(slot, out int x, out int y))
+            var slot = GetSlotOrNull(slots, i);
+            if (slot != null && TryGetAutoStackSlotPosition(slot, out int x, out int y))
             {
                 if (x > maxX) maxX = x;
                 if (y > maxY) maxY = y;
@@ -1480,7 +1535,9 @@ internal static class InventoryBulkActions
 
     private static List<(int x, int y)> GetAvailablePositions(JsonObject inventory, JsonArray slots)
     {
+        var positions = new List<(int x, int y)>();
         var occupied = new HashSet<(int x, int y)>();
+
         for (int i = 0; i < slots.Length; i++)
         {
             JsonObject? slot;
@@ -1492,27 +1549,72 @@ internal static class InventoryBulkActions
                 occupied.Add((slotX, slotY));
         }
 
-        // GetAllValidPositions already covers ValidSlotIndices and an explicit Width/Height
-        // grid. If neither yielded anything, infer a grid from the occupied slots themselves -
-        // needed for legacy/malformed inventories with no size metadata at all.
-        var allPositions = GetAllValidPositions(inventory);
-        if (allPositions.Count == 0)
+        var validSlots = inventory.GetArray("ValidSlotIndices");
+        if (validSlots != null)
         {
-            int maxX = -1, maxY = -1;
-            foreach (var (occupiedX, occupiedY) in occupied)
+            for (int i = 0; i < validSlots.Length; i++)
             {
-                if (occupiedX > maxX) maxX = occupiedX;
-                if (occupiedY > maxY) maxY = occupiedY;
+                JsonObject? idx;
+                try { idx = validSlots.GetObject(i); }
+                catch { continue; }
+                if (idx == null) continue;
+
+                int x;
+                int y;
+                try
+                {
+                    x = idx.GetInt("X");
+                    y = idx.GetInt("Y");
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!occupied.Contains((x, y)))
+                    positions.Add((x, y));
             }
-            int width = maxX >= 0 ? maxX + 1 : 0;
-            int height = maxY >= 0 ? maxY + 1 : 0;
-            for (int y = 0; y < height; y++)
-                for (int x = 0; x < width; x++)
-                    allPositions.Add((x, y));
+        }
+        else
+        {
+            int width = 0;
+            int height = 0;
+            try { width = inventory.GetInt("Width"); } catch { }
+            try { height = inventory.GetInt("Height"); } catch { }
+
+            if (width <= 0 || height <= 0)
+            {
+                int maxX = -1;
+                int maxY = -1;
+                foreach (var (occupiedX, occupiedY) in occupied)
+                {
+                    if (occupiedX > maxX) maxX = occupiedX;
+                    if (occupiedY > maxY) maxY = occupiedY;
+                }
+
+                if (width <= 0) width = maxX >= 0 ? maxX + 1 : 0;
+                if (height <= 0) height = maxY >= 0 ? maxY + 1 : 0;
+            }
+
+            if (width > 0 && height > 0)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        if (!occupied.Contains((x, y)))
+                            positions.Add((x, y));
+                    }
+                }
+            }
         }
 
-        // allPositions is already sorted row-major by GetAllValidPositions; Where preserves order.
-        return allPositions.Where(p => !occupied.Contains(p)).ToList();
+        positions.Sort((a, b) =>
+        {
+            int byY = a.y.CompareTo(b.y);
+            return byY != 0 ? byY : a.x.CompareTo(b.x);
+        });
+        return positions;
     }
 
     private static bool IsSlotEnabled(JsonObject inventory, JsonObject slot)

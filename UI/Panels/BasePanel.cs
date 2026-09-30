@@ -2818,7 +2818,7 @@ internal class ChestsSubPanel : UserControl
         _allChestsPaddingInput = new NumericUpDown
         {
             Minimum = 0,
-            Maximum = 119,
+            Maximum = 119, // largest chest is 10 x 12 = 120 slots; leave at least one usable
             Value = 0,
             Width = 70,
             Anchor = AnchorStyles.Left,
@@ -2877,11 +2877,18 @@ internal class ChestsSubPanel : UserControl
         allChestsForm.Controls.Add(_allChestsSortButton, 1, 3);
 
         var allChestsPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
-        // Reverse add-order for Dock=Top children (see WinForms docking note above):
-        // status label goes in last-visually so it's added first.
+        // Dock=Top children stack in reverse add-order, so the status label (last visually)
+        // is added first.
         allChestsPanel.Controls.Add(_allChestsStatusLabel);
         allChestsPanel.Controls.Add(allChestsForm);
         allChestsPanel.Controls.Add(_allChestsInfoLabel);
+
+        // Constrain the info label's width to the panel so long text (and longer translations)
+        // wraps instead of clipping on a narrow window.
+        void UpdateAllChestsInfoWidth() =>
+            _allChestsInfoLabel.MaximumSize = new Size(Math.Max(0, allChestsPanel.ClientSize.Width - allChestsPanel.Padding.Horizontal), 0);
+        allChestsPanel.SizeChanged += (_, _) => UpdateAllChestsInfoWidth();
+        UpdateAllChestsInfoWidth();
 
         _allChestsPage = new TabPage(UiStrings.Get("base.all_chests_tab"));
         _allChestsPage.Controls.Add(allChestsPanel);
@@ -3008,6 +3015,9 @@ internal class ChestsSubPanel : UserControl
                 }
             };
         }
+
+        // Open on Chest 0, not on the destructive All Chests tab (raw index 0).
+        _storageTabs.SelectedIndex = 1;
 
         // Lazy-load grids when tab is selected
         _storageTabs.SelectedIndexChanged += OnTabSelected;
