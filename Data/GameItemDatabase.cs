@@ -247,6 +247,18 @@ public class GameItemDatabase
                         if (element.TryGetProperty("Procedural", out var procProp) && procProp.ValueKind == JsonValueKind.True)
                             item.IsProcedural = true;
 
+                        // BrokenSlotTech is serialised as a string ("true"/"false") rather than
+                        // a JSON boolean, so parse both forms.
+                        if (element.TryGetProperty("BrokenSlotTech", out var brokenSlotProp))
+                        {
+                            item.BrokenSlotTech = brokenSlotProp.ValueKind switch
+                            {
+                                JsonValueKind.True => true,
+                                JsonValueKind.String => bool.TryParse(brokenSlotProp.GetString(), out bool broken) && broken,
+                                _ => false
+                            };
+                        }
+
                         if (element.TryGetProperty("IsCraftable", out var craftProp) && craftProp.ValueKind == JsonValueKind.True)
                             item.IsCraftable = true;
 

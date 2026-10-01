@@ -59,11 +59,38 @@ internal sealed class CatalogueDatabase
 	internal IReadOnlyList<string> KnownTech => _knownTech ??= ReadExtractedUnion(
 		["CatalogueCrafting"], CatalogueKnownValues.ResidualTech);
 
+	/// <summary>
+	/// Known technology IDs for completion counters and "Add All Missing": the raw
+	/// <see cref="KnownTech"/> list with damaged/blocked-slot placeholder technologies
+	/// (game flag <see cref="GameItem.BrokenSlotTech"/>) removed. Those entries stay in the
+	/// item database so blocked slots can be displayed and repaired, but they are not
+	/// learnable technology and must not count towards catalogue completion.
+	/// </summary>
+	/// <param name="items">The loaded item database used to resolve the game flag.</param>
+	/// <returns>The filtered list of completion technology IDs.</returns>
+	internal IReadOnlyList<string> KnownTechForCompletion(GameItemDatabase items)
+	{
+		if (!ReferenceEquals(_knownTechForCompletionSource, items) || _knownTechForCompletion == null)
+		{
+			var filtered = new List<string>(KnownTech.Count);
+			foreach (string id in KnownTech)
+			{
+				if (items.GetItem(id)?.BrokenSlotTech == true) continue;
+				filtered.Add(id);
+			}
+			_knownTechForCompletion = filtered;
+			_knownTechForCompletionSource = items;
+		}
+		return _knownTechForCompletion;
+	}
+
 	/// <summary>Known special IDs: not part of the portal catalogue, so editor-known.</summary>
 	internal IReadOnlyList<string> KnownSpecials => _knownSpecials ??= NormalizeIds(CatalogueKnownValues.ResidualSpecials);
 
 	private IReadOnlyList<string>? _knownProducts;
 	private IReadOnlyList<string>? _knownTech;
+	private IReadOnlyList<string>? _knownTechForCompletion;
+	private GameItemDatabase? _knownTechForCompletionSource;
 
 	/// <summary>Refiner recipe IDs derived from the game's recipe table.</summary>
 	internal IReadOnlyList<string> KnownRefinerRecipes => _knownRefinerRecipes ??= ReadExtractedStringList("KnownRefinerRecipes");
@@ -2315,7 +2342,13 @@ internal static class CatalogueKnownValues
 		"BLD_HOLOGEK",
 	];
 
-	/// <summary>Known technology IDs: extracted catalogue crafting plus legacy IDs.</summary>
+	/// <summary>
+	/// Known technology IDs: extracted catalogue crafting plus legacy IDs.
+	/// Damaged/blocked-slot placeholders (the game's BrokenSlotTech entries) are deliberately
+	/// not listed here; <see cref="KnownTechForCompletion"/> filters them defensively in case
+	/// they reappear in an extracted or reference list. Obsolete Technology (OBSOLETE) is also
+	/// excluded: it is legacy, unusable content with no acquisition path in the game.
+	/// </summary>
 	internal static readonly string[] ResidualTech =
 	[
 		"BOLT_SM",
@@ -2325,22 +2358,9 @@ internal static class CatalogueKnownValues
 		"HYPERDRIVE_SPEC",
 		"LASER_XO",
 		"LAUNCHER_SPEC",
-		"OBSOLETE",
 		"PHOTONIX_CORE",
 		"SHIP_LIFESUP",
 		"SHIPJUMP_SPEC",
-		"SHIPSLOT_DMG1",
-		"SHIPSLOT_DMG10",
-		"SHIPSLOT_DMG11",
-		"SHIPSLOT_DMG12",
-		"SHIPSLOT_DMG2",
-		"SHIPSLOT_DMG3",
-		"SHIPSLOT_DMG4",
-		"SHIPSLOT_DMG5",
-		"SHIPSLOT_DMG6",
-		"SHIPSLOT_DMG7",
-		"SHIPSLOT_DMG8",
-		"SHIPSLOT_DMG9",
 		"T_BOBBLE_APOLLO",
 		"T_BOBBLE_ART",
 		"T_BOBBLE_ATLAS",
@@ -2355,30 +2375,6 @@ internal static class CatalogueKnownValues
 		"T_SHIP_RED",
 		"T_SHIP_ROGUE",
 		"UT_S10_SCAN",
-		"WEAPSENT_DMG1",
-		"WEAPSENT_DMG2",
-		"WEAPSENT_DMG3",
-		"WEAPSENT_DMG4",
-		"WEAPSLOT_DMG1",
-		"WEAPSLOT_DMG10",
-		"WEAPSLOT_DMG11",
-		"WEAPSLOT_DMG12",
-		"WEAPSLOT_DMG2",
-		"WEAPSLOT_DMG3",
-		"WEAPSLOT_DMG4",
-		"WEAPSLOT_DMG5",
-		"WEAPSLOT_DMG6",
-		"WEAPSLOT_DMG7",
-		"WEAPSLOT_DMG8",
-		"WEAPSLOT_DMG9",
-		"SHIPEASY_DMG1",
-		"SHIPEASY_DMG2",
-		"SHIPEASY_DMG3",
-		"SHIPEASY_DMG4",
-		"WEAPEASY_DMG1",
-		"WEAPEASY_DMG2",
-		"WEAPEASY_DMG3",
-		"WEAPEASY_DMG4",
 		"S15_FISHLASER",
 		"T_BOBBLE_OCTO",
 		"T_SHIP_ATLAS",

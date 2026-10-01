@@ -351,12 +351,59 @@ public class CatalogueCompletionLogicTests
 
         Assert.True(pack.IsAvailable);
         Assert.Equal(3582, pack.KnownProducts.Count);
-        Assert.Equal(429, pack.KnownTech.Count);
+        Assert.Equal(392, pack.KnownTech.Count);
+        Assert.DoesNotContain("OBSOLETE", pack.KnownTech);
         Assert.Equal(276, pack.KnownSpecials.Count);
         Assert.Equal(1684, pack.KnownRefinerRecipes.Count);
         Assert.Equal(3831, pack.KnownWordGroups.Count);
         Assert.Equal(220, pack.Fishing.Count);
         Assert.Equal(65535, pack.KnownPortalRunes);
+    }
+
+    [Fact]
+    public void Pack_KnownTechForCompletion_ExcludesBrokenSlotTech()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var db = new GameItemDatabase();
+        db.LoadItemsFromJsonDirectory(jsonDir);
+
+        var completion = pack.KnownTechForCompletion(db);
+
+        // The 36 damaged/blocked-slot placeholders are excluded from the raw union.
+        Assert.Equal(392, completion.Count);
+        Assert.DoesNotContain("SHIPSLOT_DMG1", completion);
+        Assert.DoesNotContain("WEAPSLOT_DMG12", completion);
+        Assert.DoesNotContain("SHIPEASY_DMG4", completion);
+        Assert.DoesNotContain("WEAPEASY_DMG1", completion);
+        Assert.DoesNotContain("WEAPSENT_DMG2", completion);
+        Assert.DoesNotContain("OBSOLETE", completion);
+        Assert.Contains("UT_STUNDMG", completion); // real stun upgrade, not a placeholder
+
+        // The game flag drives the exclusion: no completion ID may be a broken-slot tech.
+        foreach (string id in completion)
+            Assert.False(db.GetItem(id)?.BrokenSlotTech == true, $"{id} is a broken-slot placeholder");
+    }
+
+    [Fact]
+    public void GameItemDatabase_ParsesBrokenSlotTechFlag()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var db = new GameItemDatabase();
+        db.LoadItemsFromJsonDirectory(jsonDir);
+
+        // The flag is serialised as a string ("true"/"false") and must round-trip.
+        Assert.True(db.GetItem("^WEAPSLOT_DMG1")?.BrokenSlotTech == true);
+        Assert.True(db.GetItem("^SHIPSLOT_DMG1")?.BrokenSlotTech == true);
+        Assert.True(db.GetItem("^SHIPEASY_DMG1")?.BrokenSlotTech == true);
+        Assert.True(db.GetItem("^WEAPEASY_DMG1")?.BrokenSlotTech == true);
+        Assert.True(db.GetItem("^WEAPSENT_DMG1")?.BrokenSlotTech == true);
+        Assert.False(db.GetItem("^UT_STUNDMG")?.BrokenSlotTech == true);
+        Assert.False(db.GetItem("^OBSOLETE")?.BrokenSlotTech == true);
     }
 
     private static string? FindResourceJsonDir()

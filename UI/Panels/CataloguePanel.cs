@@ -2023,6 +2023,16 @@ public partial class CataloguePanel : UserControl
     // --- Catalogue completion (verified pack) ---
 
     /// <summary>
+    /// The technology IDs used for the completion counter and "Add All Missing": the verified
+    /// list with damaged/blocked-slot placeholder technologies removed via the game's
+    /// BrokenSlotTech flag. Falls back to the raw list when the item database is unavailable.
+    /// </summary>
+    private IReadOnlyList<string>? CompletionKnownTech =>
+        _catalogueDatabase == null ? null
+        : _database != null ? _catalogueDatabase.KnownTechForCompletion(_database)
+        : _catalogueDatabase.KnownTech;
+
+    /// <summary>
     /// Refreshes the per-tab "Known: have / total (pct)" counters from the verified
     /// pack and hides the "Add All Missing" actions when the pack is unavailable.
     /// </summary>
@@ -2049,12 +2059,14 @@ public partial class CataloguePanel : UserControl
             return;
         }
 
-        SetCompletionLabel(_techCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownTech", _catalogueDatabase!.KnownTech));
-        SetCompletionLabel(_productCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownProducts", _catalogueDatabase.KnownProducts));
-        SetCompletionLabel(_specialsCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownSpecials", _catalogueDatabase.KnownSpecials));
-        SetCompletionLabel(_recipesCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownRefinerRecipes", _catalogueDatabase.KnownRefinerRecipes));
-        SetCompletionLabel(_wordsCompletionLabel, CatalogueCompletionLogic.GetWordGroupCompletion(playerState, _catalogueDatabase.KnownWordGroups));
-        SetCompletionLabel(_fishCompletionLabel, CatalogueCompletionLogic.GetFishingCompletion(playerState, _catalogueDatabase.Fishing));
+        var catalogue = _catalogueDatabase!;
+        var completionTech = CompletionKnownTech!;
+        SetCompletionLabel(_techCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownTech", completionTech));
+        SetCompletionLabel(_productCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownProducts", catalogue.KnownProducts));
+        SetCompletionLabel(_specialsCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownSpecials", catalogue.KnownSpecials));
+        SetCompletionLabel(_recipesCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownRefinerRecipes", catalogue.KnownRefinerRecipes));
+        SetCompletionLabel(_wordsCompletionLabel, CatalogueCompletionLogic.GetWordGroupCompletion(playerState, catalogue.KnownWordGroups));
+        SetCompletionLabel(_fishCompletionLabel, CatalogueCompletionLogic.GetFishingCompletion(playerState, catalogue.Fishing));
 
         int glyphs = System.Numerics.BitOperations.PopCount((uint)CatalogueLogic.LoadGlyphBitfield(playerState) & 0xFFFFu);
         _glyphsCompletionLabel.Text = FormatCompletion(glyphs, 16);
@@ -2081,7 +2093,7 @@ public partial class CataloguePanel : UserControl
     }
 
     private void AddAllMissingTech_Click(object? sender, EventArgs e) =>
-        AddAllMissingItems("KnownTech", _catalogueDatabase?.KnownTech, _techGrid);
+        AddAllMissingItems("KnownTech", CompletionKnownTech, _techGrid);
 
     private void AddAllMissingProducts_Click(object? sender, EventArgs e) =>
         AddAllMissingItems("KnownProducts", _catalogueDatabase?.KnownProducts, _productGrid);

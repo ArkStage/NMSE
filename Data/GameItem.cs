@@ -95,6 +95,13 @@ public class GameItem
     public bool IsCore { get; set; }
     /// <summary>Whether this technology generates procedurally.</summary>
     public bool IsProcedural { get; set; }
+    /// <summary>
+    /// Whether this technology occupies a damaged or blocked slot placeholder (the game's
+    /// BrokenSlotTech flag, for example SHIPSLOT_DMG1 or WEAPSENT_DMG2). These entries are
+    /// kept in the item database so blocked slots can be displayed and repaired, but they
+    /// are not learnable technology and are excluded from catalogue completion.
+    /// </summary>
+    public bool BrokenSlotTech { get; set; }
     /// <summary>Minimum number of stat bonuses rolled for procedural technologies.</summary>
     public int NumStatsMin { get; set; }
     /// <summary>Maximum number of stat bonuses rolled for procedural technologies.</summary>
