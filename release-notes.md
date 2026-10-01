@@ -1,6 +1,27 @@
-## NMSE - No Man's Save Editor v1.4.22
+## NMSE - No Man's Save Editor v1.4.29
 
 ### Changelog
+
+#### Features:
+
+- Add external change detection options to Edit menu. (per FR #135)
+- Add Xbox account external change detection for data blob sections.
+- Add in-game quick menu hotkey editing support. (per FR #76)
+- Improve platform save path detection.
+- Add Sort All Chests feature to the chest inventories (per PR #128) - thanks `@radialmonster`
+
+#### Bug Fixes:
+
+- Fix for multiple external change popups. (per Issue #135)
+- Fix for high display scaling on some UI fields. (per Issue #133)
+- Fix for extra 'unknowable' game items in the Known Technologies list. (Per Issue #136)
+
+<br />
+
+<details>
+<summary>Previous Changelogs</summary>
+
+### Changelog v1.4.22
 
 #### Features:
 
@@ -37,9 +58,6 @@
 - Fix for hotloading issues in panels. (per Issue #123)
 
 <br />
-
-<details>
-<summary>Previous Changelogs</summary>
 
 ### Changelog v1.3.16
 
