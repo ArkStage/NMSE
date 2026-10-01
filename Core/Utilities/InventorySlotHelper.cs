@@ -4,7 +4,8 @@ namespace NMSE.Core.Utilities;
 
 /// <summary>
 /// Static helpers for manipulating inventory slot JSON data.
-/// Used by InventoryGridPanel for drag-and-drop operations.
+/// Used by InventoryGridPanel for drag-and-drop operations and by InventoryBulkActions
+/// when it lays out or duplicates slots.
 /// </summary>
 internal static class InventorySlotHelper
 {
@@ -58,9 +59,14 @@ internal static class InventorySlotHelper
             newSlot.Add("Type", typeObj);
         }
 
-        // Copy Id
+        // Copy Id. Nested-object IDs ("Id": { "Id": "^ITEM" }) must be deep-cloned rather
+        // than shared by reference - callers such as InventoryBulkActions.SortAllChests
+        // duplicate the same source slot multiple times when splitting a merged stack, and
+        // sharing one JsonObject instance across several parents corrupts its Parent chain.
         var idVal = sourceSlot.Get("Id");
-        if (idVal != null)
+        if (idVal is JsonObject idObj)
+            newSlot.Add("Id", idObj.DeepClone());
+        else if (idVal != null)
             newSlot.Add("Id", idVal);
 
         // Copy numeric fields
