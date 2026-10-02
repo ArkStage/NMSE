@@ -64,14 +64,16 @@ internal static class DevNotesLogic
     /// SeenStories slot 5 page 13; the larger of the two is used so either source
     /// alone reports the correct progress.
     /// </summary>
-    internal static int GetUnlockedCount(JsonObject? playerState)
+    internal static int GetUnlockedCount(
+        JsonObject? playerState,
+        int slot = KnowledgeCatalogue.DevNotesPageSlot,
+        int pageIndex = KnowledgeCatalogue.DevNotesPageIndex)
     {
         if (playerState == null)
             return 0;
 
         int fromLastSeen = 0;
-        if (CatalogueCompletionLogic.GetLastSeen(playerState,
-                KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex) is int seen)
+        if (CatalogueCompletionLogic.GetLastSeen(playerState, slot, pageIndex) is int seen)
         {
             fromLastSeen = seen;
         }
@@ -110,24 +112,28 @@ internal static class DevNotesLogic
     /// the commentary state.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool SetUnlockedCount(JsonObject playerState, int count)
+    internal static bool SetUnlockedCount(
+        JsonObject playerState, int count,
+        int slot = KnowledgeCatalogue.DevNotesPageSlot,
+        int pageIndex = KnowledgeCatalogue.DevNotesPageIndex)
     {
         count = Math.Clamp(count, 0, EntryCount);
         if (count == 0)
-            return Clear(playerState);
+            return Clear(playerState, slot, pageIndex);
 
-        bool changed = CatalogueCompletionLogic.UpsertLastSeen(playerState,
-            KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex, count);
+        bool changed = CatalogueCompletionLogic.UpsertLastSeen(playerState, slot, pageIndex, count);
         changed |= SetGlobalIndex(playerState, count - 1);
         return changed;
     }
 
     /// <summary>Removes the commentary state (DEV_NOTES stat and SeenStories count).</summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool Clear(JsonObject playerState)
+    internal static bool Clear(
+        JsonObject playerState,
+        int slot = KnowledgeCatalogue.DevNotesPageSlot,
+        int pageIndex = KnowledgeCatalogue.DevNotesPageIndex)
     {
-        bool changed = CatalogueCompletionLogic.RemoveLastSeen(playerState,
-            KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex);
+        bool changed = CatalogueCompletionLogic.RemoveLastSeen(playerState, slot, pageIndex);
 
         var map = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
         if (map.TryGetValue(StatId, out var stat)
@@ -145,11 +151,14 @@ internal static class DevNotesLogic
     /// DEV_NOTES stat and the matching SeenStories count.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool SetUnlockedIndex(JsonObject playerState, int index)
+    internal static bool SetUnlockedIndex(
+        JsonObject playerState, int index,
+        int slot = KnowledgeCatalogue.DevNotesPageSlot,
+        int pageIndex = KnowledgeCatalogue.DevNotesPageIndex)
     {
         if (index < 0) index = 0;
         if (index > MaxIndex) index = MaxIndex;
-        return SetUnlockedCount(playerState, index + 1);
+        return SetUnlockedCount(playerState, index + 1, slot, pageIndex);
     }
 
     /// <summary>

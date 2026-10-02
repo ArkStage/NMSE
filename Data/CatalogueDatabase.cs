@@ -16,6 +16,13 @@ internal sealed class CatalogueDatabase
 	/// <summary>A fish species with its pack count and largest catch.</summary>
 	internal sealed record FishEntry(string Id, int Count, double Largest);
 
+	/// <summary>
+	/// A story page from the current game build's story table. The category order maps
+	/// to the save's SeenStories slot and the page order within a category to the page
+	/// index.
+	/// </summary>
+	internal sealed record StoryPageEntry(int Slot, int PageIndex, string Id, int Entries, string Stat, bool Bitmask);
+
 	/// <summary>A SavedInteractionIndicies patch (race/looped values by interaction index).</summary>
 	internal sealed record SiiPatch(int Index, int[] Races, bool[] Looped);
 
@@ -60,11 +67,38 @@ internal sealed class CatalogueDatabase
 		["CatalogueCrafting"], CatalogueKnownValues.ResidualTech);
 
 	/// <summary>
+	/// Known product IDs for completion counters and "Add All Missing": the raw
+	/// <see cref="KnownProducts"/> list with substances removed. The game's save loader
+	/// only resolves products, so substance IDs written into <c>KnownProducts</c> are
+	/// silently dropped on load (raw materials complete through the account
+	/// <c>SeenSubstances</c> list instead).
+	/// </summary>
+	/// <param name="items">The loaded item database used to resolve the item source table.</param>
+	/// <returns>The filtered list of completion product IDs.</returns>
+	internal IReadOnlyList<string> KnownProductsForCompletion(GameItemDatabase items)
+	{
+		if (!ReferenceEquals(_knownProductsForCompletionSource, items) || _knownProductsForCompletion == null)
+		{
+			var filtered = new List<string>(KnownProducts.Count);
+			foreach (string id in KnownProducts)
+			{
+				if (IsSubstance(items.GetItem(id))) continue;
+				filtered.Add(id);
+			}
+			_knownProductsForCompletion = filtered;
+			_knownProductsForCompletionSource = items;
+		}
+		return _knownProductsForCompletion;
+	}
+
+	/// <summary>
 	/// Known technology IDs for completion counters and "Add All Missing": the raw
 	/// <see cref="KnownTech"/> list with damaged/blocked-slot placeholder technologies
 	/// (game flag <see cref="GameItem.BrokenSlotTech"/>) removed. Those entries stay in the
 	/// item database so blocked slots can be displayed and repaired, but they are not
 	/// learnable technology and must not count towards catalogue completion.
+	/// Constructed-technology entries with a <c>Product</c> source table are also removed:
+	/// the game resolves them as products, so it drops them from <c>KnownTech</c> on load.
 	/// </summary>
 	/// <param name="items">The loaded item database used to resolve the game flag.</param>
 	/// <returns>The filtered list of completion technology IDs.</returns>
@@ -75,7 +109,18 @@ internal sealed class CatalogueDatabase
 			var filtered = new List<string>(KnownTech.Count);
 			foreach (string id in KnownTech)
 			{
-				if (items.GetItem(id)?.BrokenSlotTech == true) continue;
+				var item = items.GetItem(id);
+				if (item?.BrokenSlotTech == true) continue;
+
+				// The game resolves constructed-technology products as products and drops
+				// them from KnownTech. T_ prefixed aliases (T_BOBBLE_*) resolve through the
+				// game's technology lookup and are kept, so only exact product matches go.
+				if (item != null
+					&& string.Equals(item.SourceTable, "Product", StringComparison.OrdinalIgnoreCase)
+					&& string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase))
+				{
+					continue;
+				}
 				filtered.Add(id);
 			}
 			_knownTechForCompletion = filtered;
@@ -87,10 +132,50 @@ internal sealed class CatalogueDatabase
 	/// <summary>Known special IDs: not part of the portal catalogue, so editor-known.</summary>
 	internal IReadOnlyList<string> KnownSpecials => _knownSpecials ??= NormalizeIds(CatalogueKnownValues.ResidualSpecials);
 
+	/// <summary>
+	/// Known special IDs for completion counters and "Add All Missing": the residual list
+	/// plus every catalogue product whose game trade category is <c>SpecialShop</c>. The
+	/// game tracks specials in <c>KnownSpecials</c> even when they are also catalogue
+	/// products (base decorations and similar), so adding them only to <c>KnownProducts</c>
+	/// leaves them unknown in the in-game catalogue.
+	/// </summary>
+	/// <param name="items">The loaded item database used to resolve the trade category.</param>
+	/// <returns>The filtered list of completion special IDs.</returns>
+	internal IReadOnlyList<string> KnownSpecialsForCompletion(GameItemDatabase items)
+	{
+		if (!ReferenceEquals(_knownSpecialsForCompletionSource, items) || _knownSpecialsForCompletion == null)
+		{
+			var result = new List<string>(KnownSpecials.Count);
+			var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			foreach (string id in KnownSpecials)
+				if (seen.Add(id)) result.Add(id);
+
+			foreach (string id in KnownProductsForCompletion(items))
+			{
+				if (!seen.Add(id)) continue;
+				if (IsSpecialShop(items.GetItem(id))) result.Add(id);
+			}
+
+			_knownSpecialsForCompletion = result;
+			_knownSpecialsForCompletionSource = items;
+		}
+		return _knownSpecialsForCompletion;
+	}
+
+	private static bool IsSpecialShop(GameItem? item) =>
+		string.Equals(item?.TradeCategory, "SpecialShop", StringComparison.OrdinalIgnoreCase);
+
+	private static bool IsSubstance(GameItem? item) =>
+		string.Equals(item?.SourceTable, "Substance", StringComparison.OrdinalIgnoreCase);
+
 	private IReadOnlyList<string>? _knownProducts;
+	private IReadOnlyList<string>? _knownProductsForCompletion;
+	private GameItemDatabase? _knownProductsForCompletionSource;
 	private IReadOnlyList<string>? _knownTech;
 	private IReadOnlyList<string>? _knownTechForCompletion;
 	private GameItemDatabase? _knownTechForCompletionSource;
+	private IReadOnlyList<string>? _knownSpecialsForCompletion;
+	private GameItemDatabase? _knownSpecialsForCompletionSource;
 
 	/// <summary>Refiner recipe IDs derived from the game's recipe table.</summary>
 	internal IReadOnlyList<string> KnownRefinerRecipes => _knownRefinerRecipes ??= ReadExtractedStringList("KnownRefinerRecipes");
@@ -119,6 +204,68 @@ internal sealed class CatalogueDatabase
 
 	/// <summary>Story completer data used by the Collected Knowledge tab.</summary>
 	internal StoryCompleterPack StoryCompleters => CatalogueKnownValues.StoryCompleters;
+
+	/// <summary>
+	/// Story pages from the current game build's story table (extractor-emitted), or an
+	/// empty list when the pack predates story extraction.
+	/// </summary>
+	internal IReadOnlyList<StoryPageEntry> StoryPages => _storyPages ??= ReadStoryPages();
+
+	/// <summary>
+	/// The entry count for a story page from the current game build, or null when the
+	/// extractor pack has no story data.
+	/// </summary>
+	/// <param name="slot">The SeenStories category slot.</param>
+	/// <param name="pageIndex">The page index within the category.</param>
+	/// <returns>The page entry count, or null.</returns>
+	internal int? GetStoryPageEntryCount(int slot, int pageIndex)
+	{
+		foreach (var page in StoryPages)
+		{
+			if (page.Slot == slot && page.PageIndex == pageIndex)
+				return page.Entries;
+		}
+		return null;
+	}
+
+	/// <summary>Finds a story page by its game table ID (case-insensitive).</summary>
+	/// <param name="gameId">The story table page ID (for example <c>UI_PIRATESMISS_NAME</c>).</param>
+	/// <returns>The page entry, or null when the pack has no story data for it.</returns>
+	internal StoryPageEntry? FindStoryPage(string gameId)
+	{
+		foreach (var page in StoryPages)
+		{
+			if (string.Equals(page.Id, gameId, StringComparison.OrdinalIgnoreCase))
+				return page;
+		}
+		return null;
+	}
+
+	private IReadOnlyList<StoryPageEntry> ReadStoryPages()
+	{
+		var result = new List<StoryPageEntry>();
+		var array = ExtractedFields.GetArray("StoryPages");
+		if (array == null) return result;
+
+		for (int i = 0; i < array.Length; i++)
+		{
+			var entry = array.GetObject(i);
+			if (entry == null) continue;
+
+			int slot = entry.Get("Slot") is null ? 0 : entry.GetInt("Slot");
+			int page = entry.Get("Page") is null ? 0 : entry.GetInt("Page");
+			int entries = entry.Get("Entries") is null ? 0 : entry.GetInt("Entries");
+			result.Add(new StoryPageEntry(
+				slot, page,
+				entry.GetString("Id") ?? "",
+				entries,
+				entry.GetString("Stat") ?? "",
+				entry.GetBool("Bitmask")));
+		}
+		return result;
+	}
+
+	private IReadOnlyList<StoryPageEntry>? _storyPages;
 
 	/// <summary>Baked treasure wonder records.</summary>
 	internal IReadOnlyList<JsonObject> WonderTreasureRecords =>
@@ -228,8 +375,40 @@ internal sealed class CatalogueDatabase
 			if (seen.Add(group.Group)) result.Add(group);
 
 		foreach (var group in CatalogueKnownValues.WordGroups)
-			if (seen.Add(group.Group)) result.Add(group);
+			if (seen.Add(group.Group)) result.Add(new WordGroup(group.Group, NormalizeRaceFlags(group.Races)));
 
+		return result;
+	}
+
+	/// <summary>Valid word group race ordinals; the save indexes race flags by ordinal.</summary>
+	internal static readonly int[] WordRaceOrdinals = [0, 1, 2, 4, 8];
+
+	/// <summary>Number of race slots in a save's KnownWordGroups Races array.</summary>
+	internal const int WordRaceCount = 9;
+
+	/// <summary>
+	/// Normalises a word group race flag array to the game's 9-slot ordinal layout.
+	/// Extractor packs produced before 2026-10-02 used a compact 5-slot layout ordered
+	/// [0, 1, 2, 4, 8]; those are expanded by ordinal so the Atlas and Autophage flags
+	/// land on the indices the game reads.
+	/// </summary>
+	/// <param name="flags">The raw flag array.</param>
+	/// <returns>A 9-slot ordinal-indexed flag array.</returns>
+	internal static bool[] NormalizeRaceFlags(bool[] flags)
+	{
+		if (flags.Length == WordRaceCount) return flags;
+
+		var result = new bool[WordRaceCount];
+		if (flags.Length == WordRaceOrdinals.Length)
+		{
+			for (int i = 0; i < flags.Length; i++)
+				if (flags[i]) result[WordRaceOrdinals[i]] = true;
+		}
+		else
+		{
+			for (int i = 0; i < flags.Length && i < WordRaceCount; i++)
+				result[i] = flags[i];
+		}
 		return result;
 	}
 
@@ -250,7 +429,7 @@ internal sealed class CatalogueDatabase
 			for (int r = 0; r < races.Length; r++)
 				races[r] = racesArray!.Get(r) is bool b && b;
 
-			result.Add(new WordGroup(group, races));
+			result.Add(new WordGroup(group, NormalizeRaceFlags(races)));
 		}
 		return result;
 	}
@@ -3172,6 +3351,6 @@ internal static class CatalogueKnownValues
 
 	/// <summary>Baked weird base part wonder records (JSON).</summary>
 	internal const string WonderWeirdJson = """
-[{"GenerationID":["0x474E455F45534142",72921284693577],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4145425F45534142",76202640692045],"WonderStatValue":110.0,"SeenInFrontend":true},{"GenerationID":["0x4255425F45534142","0x53554C43454C42"],"WonderStatValue":4.0,"SeenInFrontend":true},{"GenerationID":["0x44454D5F45534142","0x5254454D4F4547"],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4148535F45534142",17490],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4154535F45534142",92695214115410],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":[0,0],"WonderStatValue":0.0,"SeenInFrontend":false},{"GenerationID":["0x4E4F435F45534142","0x444F5052554F54"],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4459485F45534142",293388439378],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":[0,0],"WonderStatValue":0.0,"SeenInFrontend":false},{"GenerationID":[0,0],"WonderStatValue":0.0,"SeenInFrontend":false}]
+[{"GenerationID":["0x474E455F45534142",72921284693577],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4145425F45534142",76202640692045],"WonderStatValue":110.0,"SeenInFrontend":true},{"GenerationID":["0x4255425F45534142","0x53554C43454C42"],"WonderStatValue":4.0,"SeenInFrontend":true},{"GenerationID":["0x44454D5F45534142","0x5254454D4F4547"],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4148535F45534142",17490],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4154535F45534142",92695214115410],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4E4F425F45534142",22031207923533637],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4E4F435F45534142","0x444F5052554F54"],"WonderStatValue":2.0,"SeenInFrontend":true},{"GenerationID":["0x4459485F45534142",293388439378],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4548535F45534142",19514447116061772],"WonderStatValue":1.0,"SeenInFrontend":true},{"GenerationID":["0x4945575F45534142",76151200629842],"WonderStatValue":1.0,"SeenInFrontend":true}]
 """;
 }

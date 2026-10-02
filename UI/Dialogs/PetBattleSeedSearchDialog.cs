@@ -64,7 +64,7 @@ internal sealed class PetBattleSeedSearchDialog : Form
     public bool HasScale { get; private set; }
 
     /// <summary>Gets the chosen scale.</summary>
-    public double Scale { get; private set; }
+    public double SelectedScale { get; private set; }
 
     /// <summary>Creates the seed solver dialog for a pet with the given context.</summary>
     /// <param name="healthLevel">The pet's current Health gene edit level.</param>
@@ -627,7 +627,7 @@ internal sealed class PetBattleSeedSearchDialog : Form
         SpeciesSeed = candidate.SpeciesSeed;
         GenusSeed = candidate.GenusSeed;
         HasScale = _lastSearchAdjustedScale;
-        Scale = candidate.Scale;
+            SelectedScale = candidate.Scale;
         Applied = true;
         DialogResult = DialogResult.OK;
     }

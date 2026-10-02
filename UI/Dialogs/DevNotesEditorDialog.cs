@@ -20,6 +20,8 @@ internal sealed class DevNotesEditorDialog : Form
     private readonly InvariantNumericTextBox _countField;
     private readonly ListBox _entryList;
     private readonly TextBox _preview;
+    private readonly int _devNotesSlot;
+    private readonly int _devNotesPageIndex;
     private bool _updating;
 
     /// <summary>Gets whether the dialog changed the save data.</summary>
@@ -28,10 +30,14 @@ internal sealed class DevNotesEditorDialog : Form
     /// <summary>Creates the editor for the given player state.</summary>
     /// <param name="playerState">PlayerStateData from the loaded save.</param>
     /// <param name="localisation">Active game localisation, when available.</param>
-    public DevNotesEditorDialog(JsonObject playerState, LocalisationService? localisation)
+    /// <param name="devNotesSlot">SeenStories slot of the Developer Commentary page.</param>
+    /// <param name="devNotesPageIndex">Page index of the Developer Commentary page.</param>
+    public DevNotesEditorDialog(JsonObject playerState, LocalisationService? localisation, int devNotesSlot = KnowledgeCatalogue.DevNotesPageSlot, int devNotesPageIndex = KnowledgeCatalogue.DevNotesPageIndex)
     {
         _playerState = playerState;
         _localisation = localisation;
+        _devNotesSlot = devNotesSlot;
+        _devNotesPageIndex = devNotesPageIndex;
 
         Text = UiStrings.Get("devnotes.title");
         Size = new Size(620, 560);
@@ -132,7 +138,7 @@ internal sealed class DevNotesEditorDialog : Form
         _updating = true;
         try
         {
-            _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState);
+            _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState, _devNotesSlot, _devNotesPageIndex);
             UpdateEntryList();
             UpdatePreview();
         }
@@ -148,13 +154,13 @@ internal sealed class DevNotesEditorDialog : Form
         if (_updating) return;
 
         int count = (int)(_countField.NumericValue ?? 0);
-        if (DevNotesLogic.SetUnlockedCount(_playerState, count))
+        if (DevNotesLogic.SetUnlockedCount(_playerState, count, _devNotesSlot, _devNotesPageIndex))
             Modified = true;
 
         _updating = true;
         try
         {
-            _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState);
+            _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState, _devNotesSlot, _devNotesPageIndex);
             UpdateEntryList();
         }
         finally
@@ -171,13 +177,13 @@ internal sealed class DevNotesEditorDialog : Form
         int selected = _entryList.SelectedIndex;
         if (selected >= 0)
         {
-            if (DevNotesLogic.SetUnlockedCount(_playerState, selected + 1))
+            if (DevNotesLogic.SetUnlockedCount(_playerState, selected + 1, _devNotesSlot, _devNotesPageIndex))
                 Modified = true;
 
             _updating = true;
             try
             {
-                _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState);
+                _countField.NumericValue = DevNotesLogic.GetUnlockedCount(_playerState, _devNotesSlot, _devNotesPageIndex);
                 UpdateEntryList();
             }
             finally
@@ -191,7 +197,7 @@ internal sealed class DevNotesEditorDialog : Form
     /// <summary>Rebuilds the entry list with the current unlock state.</summary>
     private void UpdateEntryList()
     {
-        int unlocked = DevNotesLogic.GetUnlockedCount(_playerState);
+        int unlocked = DevNotesLogic.GetUnlockedCount(_playerState, _devNotesSlot, _devNotesPageIndex);
         int selected = _entryList.SelectedIndex;
 
         _entryList.BeginUpdate();

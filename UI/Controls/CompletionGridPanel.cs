@@ -419,17 +419,24 @@ internal abstract class CompletionGridPanel : UserControl
     {
         var (have, total) = GetCompletion();
         int missing = total - have;
+        if (missing > 0 && !Confirm("discovery.complete_all_confirm", missing)) return;
+
+        // Always attempt the fix, even when the counter already reads complete: older saves
+        // can hold values the editor reads as complete but the game rejects (for example the
+        // -1 page stats that the in-game Collected Knowledge counter credits as zero).
+        int changed = CompleteAll();
+        Reload();
+        if (changed > 0)
+        {
+            RaiseDataModified();
+            return;
+        }
+
         if (missing <= 0)
         {
             MessageBox.Show(this, UiStrings.Get("discovery.add_all_missing_none"),
                 UiStrings.Get("discovery.add_all_missing_title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
         }
-        if (!Confirm("discovery.complete_all_confirm", missing)) return;
-
-        int changed = CompleteAll();
-        Reload();
-        if (changed > 0) RaiseDataModified();
     }
 
     private void OnClearAllRequested()

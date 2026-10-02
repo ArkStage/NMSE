@@ -93,6 +93,31 @@ public class CatalogueCompletionLogicTests
         Assert.Equal(2, total);
     }
 
+    [Fact]
+    public void GetCombinedCompletion_RequiresSaveAndAccountEntry()
+    {
+        var playerState = NewPlayerState();
+        var array = new JsonArray();
+        array.Add("^AMMO");
+        array.Add("^NANOTUBES");
+        playerState.Set("KnownProducts", array);
+
+        var settings = new JsonObject();
+        var seen = new JsonArray();
+        seen.Add("^AMMO");
+        settings.Set("SeenProducts", seen);
+
+        var (have, total) = CatalogueCompletionLogic.GetCombinedCompletion(
+            playerState, "KnownProducts", settings, "SeenProducts", new[] { "AMMO", "NANOTUBES", "CARBON" });
+
+        Assert.Equal(1, have); // AMMO is in both lists, NANOTUBES only in the save array
+        Assert.Equal(3, total);
+
+        var (withoutAccount, _) = CatalogueCompletionLogic.GetCombinedCompletion(
+            playerState, "KnownProducts", null, null, new[] { "AMMO", "NANOTUBES", "CARBON" });
+        Assert.Equal(2, withoutAccount);
+    }
+
     // --- Word groups ---
 
     [Fact]
@@ -145,6 +170,89 @@ public class CatalogueCompletionLogicTests
         Assert.True(updated.GetBool(0));
         Assert.True(updated.GetBool(1));
         Assert.False(updated.GetBool(2));
+    }
+
+    [Fact]
+    public void NormalizeRaceFlags_MapsLegacyCompactLayoutByOrdinal()
+    {
+        var gek = CatalogueDatabase.NormalizeRaceFlags([true, false, false, false, false]);
+        Assert.Equal(9, gek.Length);
+        Assert.True(gek[0]);
+
+        var atlas = CatalogueDatabase.NormalizeRaceFlags([false, false, false, true, false]);
+        Assert.True(atlas[4]);   // Atlas ordinal 4 -> index 4, not 3
+        Assert.False(atlas[3]);
+
+        var autophage = CatalogueDatabase.NormalizeRaceFlags([false, false, false, false, true]);
+        Assert.True(autophage[8]); // Autophage ordinal 8 -> index 8, not 4
+        Assert.False(autophage[4]);
+    }
+
+    [Fact]
+    public void AddMissingWordGroups_ExpandsLegacyFiveSlotEntry()
+    {
+        var playerState = NewPlayerState();
+        var existing = new JsonArray();
+        var entry = new JsonObject();
+        entry.Set("Group", "^ATLAS_A");
+        var legacy = new JsonArray();
+        legacy.Add(false);
+        legacy.Add(false);
+        legacy.Add(false);
+        legacy.Add(true);  // old compact layout: Atlas at index 3
+        legacy.Add(false);
+        entry.Set("Races", legacy);
+        existing.Add(entry);
+        playerState.Set("KnownWordGroups", existing);
+
+        var packGroups = new[]
+        {
+            new CatalogueDatabase.WordGroup("ATLAS_A", [false, false, false, false, true, false, false, false, false])
+        };
+
+        var (added, upgraded) = CatalogueCompletionLogic.AddMissingWordGroups(playerState, packGroups);
+
+        Assert.Equal(0, added);
+        Assert.Equal(1, upgraded);
+        var races = entry.GetArray("Races")!;
+        Assert.Equal(9, races.Length);
+        Assert.True(races.GetBool(4));
+        Assert.False(races.GetBool(3));
+    }
+
+    [Fact]
+    public void Pack_WordGroups_UseNineSlotOrdinalRaceLayout()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+
+        Assert.All(pack.KnownWordGroups, g => Assert.Equal(9, g.Races.Length));
+
+        var atlas = pack.KnownWordGroups.FirstOrDefault(g => string.Equals(g.Group, "ATLAS_A", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(atlas);
+        Assert.True(atlas!.Races[4]);
+    }
+
+    [Fact]
+    public void GetWordPageCompletion_AtlasWordsTrackRaceFlags()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var page = KnowledgeCatalogue.Pages.First(p => p.Id == "atlas_words");
+        var playerState = NewPlayerState();
+
+        var (haveBefore, total) = CatalogueCompletionLogic.GetWordPageCompletion(playerState, pack, page);
+        Assert.Equal(0, haveBefore);
+        Assert.True(total > 0);
+
+        CatalogueCompletionLogic.AddMissingWordGroups(playerState, pack.KnownWordGroups);
+
+        var (haveAfter, _) = CatalogueCompletionLogic.GetWordPageCompletion(playerState, pack, page);
+        Assert.Equal(total, haveAfter);
     }
 
     [Fact]
@@ -372,19 +480,70 @@ public class CatalogueCompletionLogicTests
 
         var completion = pack.KnownTechForCompletion(db);
 
-        // The 36 damaged/blocked-slot placeholders are excluded from the raw union.
-        Assert.Equal(392, completion.Count);
+        // Only real technologies remain: damaged/blocked-slot placeholders and
+        // constructed-technology products (which the game drops from KnownTech on load).
+        Assert.Equal(205, completion.Count);
         Assert.DoesNotContain("SHIPSLOT_DMG1", completion);
         Assert.DoesNotContain("WEAPSLOT_DMG12", completion);
         Assert.DoesNotContain("SHIPEASY_DMG4", completion);
         Assert.DoesNotContain("WEAPEASY_DMG1", completion);
         Assert.DoesNotContain("WEAPSENT_DMG2", completion);
         Assert.DoesNotContain("OBSOLETE", completion);
+        Assert.DoesNotContain("U_HYPER1", completion);   // Product source, not technology
+        Assert.Contains("HYPERDRIVE", completion);       // Technology source
         Assert.Contains("UT_STUNDMG", completion); // real stun upgrade, not a placeholder
 
         // The game flag drives the exclusion: no completion ID may be a broken-slot tech.
         foreach (string id in completion)
             Assert.False(db.GetItem(id)?.BrokenSlotTech == true, $"{id} is a broken-slot placeholder");
+    }
+
+    [Fact]
+    public void Pack_KnownProductsForCompletion_ExcludesSubstances()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var db = new GameItemDatabase();
+        db.LoadItemsFromJsonDirectory(jsonDir);
+
+        var completion = pack.KnownProductsForCompletion(db);
+
+        Assert.Equal(3511, completion.Count);
+        Assert.DoesNotContain("FUEL1", completion);      // substance
+        Assert.DoesNotContain("ASTBELT1", completion);   // substance
+        Assert.Contains("BASE_AQUARIUM", completion);    // building product
+    }
+
+    [Fact]
+    public void Pack_KnownSpecialsForCompletion_IncludesSpecialShopProducts()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var db = new GameItemDatabase();
+        db.LoadItemsFromJsonDirectory(jsonDir);
+
+        var completion = pack.KnownSpecialsForCompletion(db);
+
+        // The residual editor-known list plus every SpecialShop catalogue product.
+        Assert.Equal(652, completion.Count);
+        Assert.Contains("BASE_AQUARIUM", completion);   // building parts tracked as specials
+        Assert.Contains("BASE_FLOWER1", completion);
+        Assert.Contains("TRUCK_BODY03", completion);    // exocraft customisation special
+        Assert.Contains("SPEC_TITLE11", completion);    // residual special
+        Assert.DoesNotContain("FUEL1", completion);     // raw substance, not a special
+        Assert.DoesNotContain("IRON", completion);      // ordinary product, not a special
+
+        // The reference tool writes 566 specials; the completion list must cover all of them.
+        Assert.True(completion.Count >= 566 && completion.Count >= pack.KnownSpecials.Count);
+
+        // Every product-derived entry must really be a SpecialShop item.
+        var fromProducts = completion.Except(pack.KnownSpecials, StringComparer.OrdinalIgnoreCase);
+        foreach (string id in fromProducts)
+            Assert.Equal("SpecialShop", db.GetItem(id)?.TradeCategory);
     }
 
     [Fact]
@@ -728,6 +887,91 @@ public class CatalogueCompletionLogicTests
     }
 
     [Fact]
+    public void GetPageTarget_UsesExtractorStoryEntryCounts()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"nmse_story_targets_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "Catalogue Pack.json"), """
+            {
+              "KnownRefinerRecipes": [], "KnownWordGroups": [], "Fossils": [],
+              "KnownPortalRunes": 65535,
+              "CatalogueMaterials": [], "CatalogueBuilding": [], "CatalogueCrafting": [],
+              "StoryPages": [
+                { "Slot": 5, "Page": 2, "Id": "UI_OVERSEER_TITLE", "Entries": 15, "Stat": "OVERSEER_LORE", "Bitmask": false },
+                { "Slot": 0, "Page": 1, "Id": "UI_PORTAL_TRA_LIB_TITLE", "Entries": 12, "Stat": "LIB_TRA_LORE", "Bitmask": true }
+              ]
+            }
+            """);
+
+            var pack = new CatalogueDatabase(dir);
+            Assert.Equal(15, pack.GetStoryPageEntryCount(5, 2));
+
+            var counter = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_overseer");
+            Assert.Equal(12, CatalogueCompletionLogic.GetPageTarget(counter, null)); // compiled fallback
+            Assert.Equal(14, CatalogueCompletionLogic.GetPageTarget(counter, pack)); // entries - 1
+
+            var bitmask = KnowledgeCatalogue.Pages.Single(p => p.Id == "gek_archive");
+            Assert.Equal(1023, CatalogueCompletionLogic.GetPageTarget(bitmask, null));
+            Assert.Equal(4095, CatalogueCompletionLogic.GetPageTarget(bitmask, pack)); // (1 << 12) - 1
+
+            // The pack re-aligns the page (compiled slot 5 page 3 -> game page 2) and raises
+            // the target, so a value that passes the compiled target is under the pack one.
+            var resolved = CatalogueCompletionLogic.ResolvePage(counter, pack);
+            Assert.Equal(5, resolved.Slot);
+            Assert.Equal(2, resolved.PageIndex);
+            Assert.Equal(14, resolved.TableMax);
+
+            var playerState = new JsonObject();
+            CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, counter, 13, pack);
+            Assert.Equal(13, CatalogueCompletionLogic.GetLastSeen(playerState, resolved.Slot, resolved.PageIndex));
+            Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, counter.Slot, counter.PageIndex));
+            var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+            Assert.Equal("UNDER", CatalogueCompletionLogic.GetKnowledgeStatus(playerState, counter, globals, pack).Status);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { }
+        }
+    }
+
+    [Fact]
+    public void Pack_StoryPages_AlignEveryCompiledPage()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        if (pack.StoryPages.Count == 0) return; // Pack predates story extraction
+
+        foreach (var page in KnowledgeCatalogue.Pages)
+        {
+            Assert.False(string.IsNullOrEmpty(page.GameId), $"{page.Id} has no game page ID");
+            var entry = pack.FindStoryPage(page.GameId!);
+            Assert.NotNull(entry);
+
+            var resolved = CatalogueCompletionLogic.ResolvePage(page, pack);
+            Assert.Equal(entry!.Slot, resolved.Slot);
+            Assert.Equal(entry.PageIndex, resolved.PageIndex);
+        }
+
+        // The current build puts Developer Commentary at page 1 and Under a Rebel Star at 13.
+        var devNotes = CatalogueCompletionLogic.ResolvePage(KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_devnotes"), pack);
+        Assert.Equal(5, devNotes.Slot);
+        Assert.Equal(1, devNotes.PageIndex);
+
+        var baseComp = CatalogueCompletionLogic.ResolvePage(KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_basecomp"), pack);
+        Assert.Equal(5, baseComp.Slot);
+        Assert.Equal(2, baseComp.PageIndex);
+
+        var pirates = CatalogueCompletionLogic.ResolvePage(KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_pirate"), pack);
+        Assert.Equal(5, pirates.Slot);
+        Assert.Equal(13, pirates.PageIndex);
+        Assert.Equal(7, pirates.TableMax);
+    }
+
+    [Fact]
     public void KnowledgeCompleters_ApplyAndClearEverything()
     {
         var playerState = new JsonObject();
@@ -747,8 +991,10 @@ public class CatalogueCompletionLogicTests
         Assert.True(changed > 0);
         Assert.True(playerState.GetBool("BuildersKnown"));
         Assert.True(playerState.GetBool("HasDiscoveredPurpleSystems"));
-        Assert.Equal(21, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 1));
-        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(21, CatalogueCompletionLogic.GetLastSeen(playerState,
+            KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState,
+            KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
 
         var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
         Assert.Equal(9, CatalogueCompletionLogic.GetGlobalInt(globals["ATLAS_PATH"]));
@@ -762,9 +1008,46 @@ public class CatalogueCompletionLogicTests
         Assert.True(cleared > 0);
         Assert.False(playerState.GetBool("BuildersKnown"));
         Assert.False(playerState.GetBool("HasDiscoveredPurpleSystems"));
-        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 1));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState,
+            KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex));
         Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // -1 is the empty marker
-        Assert.Equal(-1, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
+        Assert.Equal(0, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1")); // cleared to not-started
+    }
+
+    [Fact]
+    public void ApplyKnowledgePage_ReplacesNegativeGlobalWithPositiveTarget()
+    {
+        var playerState = new JsonObject();
+        CatalogueCompletionLogic.SetGlobalStatValue(playerState, "ATLAS_LORE", -1);
+
+        var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "atlas_iface");
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [], []);
+
+        Assert.True(CatalogueCompletionLogic.ApplyKnowledgePage(playerState, page, pack));
+
+        var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
+        // The game's counter credits nothing for -1 stats, so the page forces a positive target.
+        Assert.Equal(11, CatalogueCompletionLogic.GetGlobalInt(globals["ATLAS_LORE"]));
+    }
+
+    [Fact]
+    public void GetKnowledgeCompleterStatuses_TreatsMinusOneMissionProgressAsComplete()
+    {
+        var playerState = new JsonObject();
+        var missions = new JsonArray();
+        var mission = new JsonObject();
+        mission.Set("Mission", "^PIRATES_LORE");
+        mission.Set("Progress", -1);
+        missions.Add(mission);
+        playerState.Set("MissionProgress", missions);
+
+        var pack = new CatalogueDatabase.StoryCompleterPack(21, [],
+            [new CatalogueDatabase.MissionCompleter("PIRATES_LORE", 2, 0)]);
+
+        var status = CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack)
+            .Single(s => s.Id == "PIRATES_LORE");
+
+        Assert.True(status.Complete); // -1 is the game's completed marker
     }
 
     [Fact]
@@ -781,6 +1064,34 @@ public class CatalogueCompletionLogicTests
 
         Assert.Contains(statuses, s => s.Kind == KnowledgeCompleterKind.Flag && s.Id == "BuildersKnown");
         Assert.Contains(statuses, s => s.Kind == KnowledgeCompleterKind.Mission && s.Id == "ATLAS1" && !s.Complete);
+    }
+
+    [Fact]
+    public void Pack_WonderWeirdRecords_CoverAllElevenGlitchSlots()
+    {
+        var jsonDir = FindResourceJsonDir();
+        if (jsonDir == null) return; // Skip when the working directory does not contain Resources
+
+        var pack = new CatalogueDatabase(jsonDir);
+        var records = pack.WonderWeirdBasePartRecords;
+
+        // All eleven glitch slots must be fillable (issue #137: slots 7, 10 and 11 were empty).
+        Assert.Equal(11, records.Count);
+        Assert.All(records, r => Assert.True(CatalogueCompletionLogic.IsWonderSlotFilled(r)));
+        Assert.All(records, r => Assert.True(r.GetBool("SeenInFrontend")));
+
+        // The base part ID is packed into the two GenerationID chunks (little-endian ASCII).
+        Assert.Equal(GenerationChunk("BASE_BON"), records[6].GetArray("GenerationID")!.GetString(0));
+        Assert.Equal(GenerationChunk("BASE_SHE"), records[9].GetArray("GenerationID")!.GetString(0));
+        Assert.Equal(GenerationChunk("BASE_WEI"), records[10].GetArray("GenerationID")!.GetString(0));
+    }
+
+    private static string GenerationChunk(string text)
+    {
+        ulong value = 0;
+        for (int i = 0; i < text.Length; i++)
+            value |= (ulong)(byte)text[i] << (8 * i);
+        return "0x" + value.ToString("X", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     // --- Extended pack integration ---
@@ -856,9 +1167,9 @@ public class CatalogueCompletionLogicTests
 
         int cleared = CatalogueCompletionLogic.ClearKnowledgeCompleters(playerState, pack.StoryCompleters);
         Assert.True(cleared > 0);
-        // Mission targets of -1 are already-complete sentinels in the pack and stay that way.
+        // Mission targets of 0 or -1 are already-complete sentinels in the pack and stay that way.
         Assert.All(CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, pack.StoryCompleters),
-            s => Assert.True(!s.Complete || s.Target < 0, $"{s.Id} should be cleared"));
+            s => Assert.True(!s.Complete || s.Target <= 0, $"{s.Id} should be cleared"));
     }
 
     [Fact]
@@ -899,12 +1210,12 @@ public class CatalogueCompletionLogicTests
         var page = KnowledgeCatalogue.Pages.Single(p => p.Id == "jr_devnotes");
 
         Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 5));
-        Assert.Equal(5, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(5, CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
         var globals = CatalogueCompletionLogic.GetGlobalStatsMap(playerState);
         Assert.Equal(4, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"])); // highest index, count 5
 
         Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, KnowledgeCatalogue.DevNotesTarget));
-        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
         Assert.Equal(38, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
 
         var status = CatalogueCompletionLogic.GetKnowledgeStatus(playerState, page,
@@ -912,7 +1223,7 @@ public class CatalogueCompletionLogicTests
         Assert.Equal("OK", status.Status);
 
         Assert.True(CatalogueCompletionLogic.ApplyKnowledgePageProgress(playerState, page, 0));
-        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
         Assert.Equal(-1, CatalogueCompletionLogic.GetGlobalInt(globals["DEV_NOTES"]));
     }
 
@@ -930,7 +1241,7 @@ public class CatalogueCompletionLogicTests
         Assert.False(status.Complete);
 
         Assert.True(CatalogueCompletionLogic.ApplyKnowledgeCompleterProgress(playerState, status, 0));
-        Assert.Equal(-1, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1"));
+        Assert.Equal(0, CatalogueCompletionLogic.GetMissionProgress(playerState, "ATLAS1")); // cleared to not-started
     }
 
     [Fact]

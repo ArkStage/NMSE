@@ -62,6 +62,39 @@ internal static partial class CatalogueCompletionLogic
     }
 
     /// <summary>
+    /// Computes completion counts against both the save array and an optional account
+    /// seen array: an entry only counts when it is present in both. Used by the tabs whose
+    /// in-game state depends on the account seen lists (products, technologies and specials).
+    /// </summary>
+    /// <param name="playerState">The PlayerStateData object.</param>
+    /// <param name="arrayName">The JSON key of the save array.</param>
+    /// <param name="userSettings">The account UserSettingsData object, or null.</param>
+    /// <param name="accountArrayName">The Seen* array name, or null when there is no account side.</param>
+    /// <param name="packIds">The verified pack IDs.</param>
+    /// <returns>The number of fully present pack IDs and the unique pack total.</returns>
+    internal static (int Have, int Total) GetCombinedCompletion(
+        JsonObject playerState, string arrayName,
+        JsonObject? userSettings, string? accountArrayName,
+        IReadOnlyList<string> packIds)
+    {
+        var current = GetCurrentIdSet(playerState, arrayName);
+        HashSet<string>? account = null;
+        if (userSettings != null && !string.IsNullOrEmpty(accountArrayName))
+            account = GetSeenIdSet(userSettings, accountArrayName);
+
+        int have = 0, total = 0;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string raw in packIds)
+        {
+            string id = NormalizeId(raw);
+            if (id.Length == 0 || !seen.Add(id)) continue;
+            total++;
+            if (current.Contains(id) && (account == null || account.Contains(id))) have++;
+        }
+        return (have, total);
+    }
+
+    /// <summary>
     /// Adds every verified pack ID that is not already present in the named array,
     /// writing the game's caret-prefixed form. Existing entries and their order are
     /// preserved.
@@ -169,7 +202,7 @@ internal static partial class CatalogueCompletionLogic
                 entry = new JsonObject();
                 entry.Set("Group", "^" + id);
                 var races = new JsonArray();
-                foreach (bool known in packGroup.Races)
+                foreach (bool known in CatalogueDatabase.NormalizeRaceFlags(packGroup.Races))
                     races.Add(known);
                 entry.Set("Races", races);
                 groups.Add(entry);
@@ -193,6 +226,25 @@ internal static partial class CatalogueCompletionLogic
         }
 
         bool changed = false;
+
+        // Arrays written by older builds used the compact 5-slot layout; expand them so
+        // the Atlas and Autophage flags land on the ordinal indices the game reads.
+        if (races.Length == CatalogueDatabase.WordRaceOrdinals.Length)
+        {
+            var expanded = new JsonArray();
+            for (int i = 0; i < CatalogueDatabase.WordRaceCount; i++)
+                expanded.Add(false);
+            for (int i = 0; i < races.Length; i++)
+            {
+                if (races.Get(i) is true)
+                    expanded.Set(CatalogueDatabase.WordRaceOrdinals[i], true);
+            }
+            entry.Set("Races", expanded);
+            races = expanded;
+            changed = true;
+        }
+
+        packRaces = CatalogueDatabase.NormalizeRaceFlags(packRaces);
         for (int i = 0; i < packRaces.Length; i++)
         {
             if (i >= races.Length)

@@ -47,7 +47,7 @@ public class DevNotesLogicTests
 
         Assert.Equal(38, DevNotesLogic.GetUnlockedIndex(playerState));
         Assert.Equal(39, DevNotesLogic.GetUnlockedCount(playerState));
-        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(39, CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class DevNotesLogicTests
         DevNotesLogic.SetUnlockedIndex(playerState, 5);
 
         Assert.Equal(6, DevNotesLogic.GetUnlockedCount(playerState));
-        Assert.Equal(6, CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Equal(6, CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class DevNotesLogicTests
     {
         var playerState = new JsonObject();
         DevNotesLogic.SetUnlockedIndex(playerState, 20);
-        CatalogueCompletionLogic.RemoveLastSeen(playerState, 5, 13);
+        CatalogueCompletionLogic.RemoveLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex);
 
         Assert.Equal(21, DevNotesLogic.GetUnlockedCount(playerState));
     }
@@ -103,7 +103,7 @@ public class DevNotesLogicTests
 
         Assert.Equal(-1, DevNotesLogic.GetUnlockedIndex(playerState));
         Assert.Equal(0, DevNotesLogic.GetUnlockedCount(playerState));
-        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, 5, 13));
+        Assert.Null(CatalogueCompletionLogic.GetLastSeen(playerState, KnowledgeCatalogue.DevNotesPageSlot, KnowledgeCatalogue.DevNotesPageIndex));
     }
 
     [Fact]

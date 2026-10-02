@@ -36,7 +36,9 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
         if (PlayerState == null) return;
 
         var localisation = (FindForm() as MainFormResources)?.CurrentLocalisation;
-        using var dialog = new DevNotesEditorDialog(PlayerState, localisation);
+        var devPage = CatalogueCompletionLogic.ResolvePage(
+            KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), Catalogue);
+        using var dialog = new DevNotesEditorDialog(PlayerState, localisation, devPage.Slot, devPage.PageIndex);
         dialog.ShowDialog(this);
         if (!dialog.Modified) return;
 
@@ -68,13 +70,28 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
     protected override void PopulateRows()
     {
         _pageComplete = _pageTotal = _completerComplete = _completerTotal = 0;
-        if (Catalogue == null || PlayerState == null) return;
+        var catalogue = Catalogue;
+        var playerState = PlayerState;
+        if (catalogue == null || playerState == null) return;
 
-        foreach (var status in CatalogueCompletionLogic.GetKnowledgeStatuses(PlayerState))
+        foreach (var status in CatalogueCompletionLogic.GetKnowledgeStatuses(playerState, catalogue))
         {
-            bool skipped = status.Page.Recipe == KnowledgeRecipe.Words;
+            bool wordsPage = status.Page.Recipe == KnowledgeRecipe.Words;
             bool complete = status.Status == "OK";
-            if (!skipped)
+            int? progress = status.LastSeen;
+            int target = CatalogueCompletionLogic.GetPageTarget(status.Page, catalogue);
+
+            // Words/glyphs pages complete through the Words and Glyphs tabs; show their
+            // real progress instead of an opaque skip marker.
+            if (wordsPage)
+            {
+                var (have, total) = CatalogueCompletionLogic.GetWordPageCompletion(playerState, catalogue, status.Page);
+                complete = total > 0 && have >= total;
+                progress = have;
+                target = total;
+            }
+
+            if (!wordsPage)
             {
                 _pageTotal++;
                 if (complete) _pageComplete++;
@@ -85,20 +102,20 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
                 complete,
                 status.Page.Category,
                 status.Page.Name,
-                DisplayValue(status.LastSeen),
-                status.Page.TableMax > 0 ? status.Page.TableMax : "-",
-                skipped ? UiStrings.Get("discovery.status_skip") : LocalisedStatus(status.Status),
-                skipped ? "" : FormatDetail(status));
+                DisplayValue(progress),
+                target > 0 ? target : "-",
+                LocalisedStatus(wordsPage ? (complete ? "OK" : "UNDER") : status.Status),
+                wordsPage ? "" : FormatDetail(status));
             row.Tag = new KnowledgeRow(status.Page, null);
             Grid.Rows.Add(row);
 
             // Column-name lookups only resolve once the row belongs to the grid.
-            if (skipped && Grid.Columns["Done"] is DataGridViewColumn done)
+            if (wordsPage && Grid.Columns["Done"] is DataGridViewColumn done)
                 row.Cells[done.Index].ReadOnly = true;
             ApplyProgressEditability(row);
         }
 
-        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters))
+        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(playerState, catalogue.StoryCompleters, catalogue))
         {
             // The Developer Commentary page row covers this completer; it is kept in the
             // logic (for Complete All / Clear All parity) but not shown twice.
@@ -141,21 +158,23 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
         if (info.Page != null)
         {
             return complete
-                ? CatalogueCompletionLogic.ApplyKnowledgePage(PlayerState, info.Page, Catalogue.StoryCompleters, includeCompleters: false)
+                ? CatalogueCompletionLogic.ApplyKnowledgePage(PlayerState, info.Page, Catalogue.StoryCompleters, Catalogue, includeCompleters: false)
                 : CatalogueCompletionLogic.ClearKnowledgePage(PlayerState, info.Page);
         }
 
         if (info.Completer == null) return false;
         return complete
-            ? CatalogueCompletionLogic.ApplyKnowledgeCompleter(PlayerState, info.Completer, Catalogue.StoryCompleters)
-            : CatalogueCompletionLogic.ClearKnowledgeCompleter(PlayerState, info.Completer);
+            ? CatalogueCompletionLogic.ApplyKnowledgeCompleter(PlayerState, info.Completer, Catalogue.StoryCompleters, Catalogue)
+            : CatalogueCompletionLogic.ClearKnowledgeCompleter(PlayerState, info.Completer, Catalogue);
     }
 
     protected override (int Min, int Max)? GetProgressRange(DataGridViewRow row)
     {
         if (row.Tag is not KnowledgeRow info) return null;
         if (info.Page != null)
-            return info.Page.Recipe == KnowledgeRecipe.Words ? null : (0, Math.Max(0, info.Page.TableMax));
+            return info.Page.Recipe == KnowledgeRecipe.Words
+                ? null
+                : (0, Math.Max(0, CatalogueCompletionLogic.GetPageTarget(info.Page, Catalogue)));
         if (info.Completer == null) return null;
 
         return info.Completer.Kind switch
@@ -174,25 +193,39 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
         if (info.Page != null)
             return CatalogueCompletionLogic.ApplyKnowledgePageProgress(PlayerState, info.Page, value);
         if (info.Completer == null) return false;
-        return CatalogueCompletionLogic.ApplyKnowledgeCompleterProgress(PlayerState, info.Completer, value);
+        return CatalogueCompletionLogic.ApplyKnowledgeCompleterProgress(PlayerState, info.Completer, value, Catalogue);
     }
 
     protected override int CompleteAll()
     {
         if (Catalogue == null || PlayerState == null) return 0;
 
-        int changed = CatalogueCompletionLogic.ApplyKnowledgeCompleters(PlayerState, Catalogue.StoryCompleters);
+        int changed = CatalogueCompletionLogic.ApplyKnowledgeCompleters(PlayerState, Catalogue.StoryCompleters, Catalogue);
+
+        // The language word pages complete from KnownWordGroups, not SeenStories.
+        var (wordsAdded, wordsUpgraded) =
+            CatalogueCompletionLogic.AddMissingWordGroups(PlayerState, Catalogue.KnownWordGroups);
+        changed += wordsAdded + wordsUpgraded;
+
+        // The Atlas glyphs page completes from the KnownPortalRunes bitfield.
+        int runes = Catalogue.KnownPortalRunes;
+        if (runes > 0 && CatalogueLogic.LoadGlyphBitfield(PlayerState) != runes)
+        {
+            CatalogueLogic.SaveGlyphBitfield(PlayerState, runes);
+            changed++;
+        }
+
         foreach (var page in KnowledgeCatalogue.Pages)
         {
             if (page.Recipe == KnowledgeRecipe.Words) continue;
-            if (CatalogueCompletionLogic.ApplyKnowledgePage(PlayerState, page, Catalogue.StoryCompleters, includeCompleters: false))
+            if (CatalogueCompletionLogic.ApplyKnowledgePage(PlayerState, page, Catalogue.StoryCompleters, Catalogue, includeCompleters: false))
                 changed++;
         }
 
-        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters))
+        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters, Catalogue))
         {
             if (status.Complete) continue;
-            if (CatalogueCompletionLogic.ApplyKnowledgeCompleter(PlayerState, status, Catalogue.StoryCompleters)) changed++;
+            if (CatalogueCompletionLogic.ApplyKnowledgeCompleter(PlayerState, status, Catalogue.StoryCompleters, Catalogue)) changed++;
         }
         return changed;
     }
@@ -208,10 +241,10 @@ internal sealed class KnowledgeCompletionPanel : CompletionGridPanel
             if (CatalogueCompletionLogic.ClearKnowledgePage(PlayerState, page)) changed++;
         }
 
-        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters))
+        foreach (var status in CatalogueCompletionLogic.GetKnowledgeCompleterStatuses(PlayerState, Catalogue.StoryCompleters, Catalogue))
         {
             if (!status.Complete) continue;
-            if (CatalogueCompletionLogic.ClearKnowledgeCompleter(PlayerState, status)) changed++;
+            if (CatalogueCompletionLogic.ClearKnowledgeCompleter(PlayerState, status, Catalogue)) changed++;
         }
         return changed;
     }

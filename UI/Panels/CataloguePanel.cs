@@ -25,6 +25,9 @@ public partial class CataloguePanel : UserControl
     private RecipeDatabase? _recipeDatabase;
     private CatalogueDatabase? _catalogueDatabase;
 
+    // Account UserSettingsData (for the account-level SeenSubstances merge), or null.
+    private JsonObject? _userSettings;
+
     // Reference to save data's KnownWordGroups for word state operations
     private JsonArray? _knownWordGroups;
 
@@ -89,6 +92,7 @@ public partial class CataloguePanel : UserControl
     /// <param name="accountData">The loaded accountdata root, or null when unavailable.</param>
     public void SetAccountData(JsonObject? accountData)
     {
+        _userSettings = accountData?.GetObject("UserSettingsData") ?? accountData;
         _fossilsPanel.SetAccountData(accountData);
         _rawMaterialsPanel.SetAccountData(accountData);
     }
@@ -689,7 +693,6 @@ public partial class CataloguePanel : UserControl
         RaiseDataModified();
     }
 
-    private void LearnAllWords_Click(object? sender, EventArgs e) => SetAllWordFlags(true);
     private void UnlearnAllWords_Click(object? sender, EventArgs e) => SetAllWordFlags(false);
 
     /// <summary>
@@ -2033,6 +2036,27 @@ public partial class CataloguePanel : UserControl
         : _catalogueDatabase.KnownTech;
 
     /// <summary>
+    /// The product IDs used for the completion counter and "Add All Missing": the catalogue
+    /// products with substances removed (the game drops substances from KnownProducts;
+    /// raw materials complete through the account SeenSubstances list).
+    /// </summary>
+    private IReadOnlyList<string>? CompletionKnownProducts =>
+        _catalogueDatabase == null ? null
+        : _database != null ? _catalogueDatabase.KnownProductsForCompletion(_database)
+        : _catalogueDatabase.KnownProducts;
+
+    /// <summary>
+    /// The special IDs used for the completion counter and "Add All Missing": the residual
+    /// editor-known list plus every catalogue product whose game trade category is
+    /// <c>SpecialShop</c>. Those products need a <c>KnownSpecials</c> entry for the in-game
+    /// catalogue to treat them as known. Falls back to the residual list without the database.
+    /// </summary>
+    private IReadOnlyList<string>? CompletionKnownSpecials =>
+        _catalogueDatabase == null ? null
+        : _database != null ? _catalogueDatabase.KnownSpecialsForCompletion(_database)
+        : _catalogueDatabase.KnownSpecials;
+
+    /// <summary>
     /// Refreshes the per-tab "Known: have / total (pct)" counters from the verified
     /// pack and hides the "Add All Missing" actions when the pack is unavailable.
     /// </summary>
@@ -2061,9 +2085,17 @@ public partial class CataloguePanel : UserControl
 
         var catalogue = _catalogueDatabase!;
         var completionTech = CompletionKnownTech!;
-        SetCompletionLabel(_techCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownTech", completionTech));
-        SetCompletionLabel(_productCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownProducts", catalogue.KnownProducts));
-        SetCompletionLabel(_specialsCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownSpecials", catalogue.KnownSpecials));
+        var completionProducts = CompletionKnownProducts!;
+        var completionSpecials = CompletionKnownSpecials!;
+
+        // These tabs also depend on the account seen lists, so the counter only counts an
+        // entry as complete when it is present in both the save array and the account list.
+        SetCompletionLabel(_techCompletionLabel, CatalogueCompletionLogic.GetCombinedCompletion(
+            playerState, "KnownTech", _userSettings, "SeenTechnologies", completionTech));
+        SetCompletionLabel(_productCompletionLabel, CatalogueCompletionLogic.GetCombinedCompletion(
+            playerState, "KnownProducts", _userSettings, "SeenProducts", completionProducts));
+        SetCompletionLabel(_specialsCompletionLabel, CatalogueCompletionLogic.GetCombinedCompletion(
+            playerState, "KnownSpecials", _userSettings, "SeenProducts", completionSpecials));
         SetCompletionLabel(_recipesCompletionLabel, CatalogueCompletionLogic.GetCompletion(playerState, "KnownRefinerRecipes", catalogue.KnownRefinerRecipes));
         SetCompletionLabel(_wordsCompletionLabel, CatalogueCompletionLogic.GetWordGroupCompletion(playerState, catalogue.KnownWordGroups));
         SetCompletionLabel(_fishCompletionLabel, CatalogueCompletionLogic.GetFishingCompletion(playerState, catalogue.Fishing));
@@ -2092,14 +2124,101 @@ public partial class CataloguePanel : UserControl
         return UiStrings.Format("discovery.completion_counter", have, total, percent);
     }
 
-    private void AddAllMissingTech_Click(object? sender, EventArgs e) =>
-        AddAllMissingItems("KnownTech", CompletionKnownTech, _techGrid);
+    private void AddAllMissingTech_Click(object? sender, EventArgs e)
+    {
+        if (_savedPlayerState == null || _catalogueDatabase == null) return;
+        var tech = CompletionKnownTech;
+        if (tech == null) return;
 
-    private void AddAllMissingProducts_Click(object? sender, EventArgs e) =>
-        AddAllMissingItems("KnownProducts", _catalogueDatabase?.KnownProducts, _productGrid);
+        // Constructed-technology wiki entries are products and use the account seen state,
+        // so completion requires the save array and SeenTechnologies together.
+        var (have, total) = CatalogueCompletionLogic.GetCombinedCompletion(
+            _savedPlayerState, "KnownTech", _userSettings, "SeenTechnologies", tech);
+        int missing = total - have;
 
-    private void AddAllMissingSpecials_Click(object? sender, EventArgs e) =>
-        AddAllMissingItems("KnownSpecials", _catalogueDatabase?.KnownSpecials, _specialsGrid);
+        if (!ConfirmMissing(missing)) return;
+
+        int added = CatalogueCompletionLogic.AddMissingIds(_savedPlayerState, "KnownTech", tech);
+        if (_userSettings != null)
+        {
+            // The account seen list keeps the constructed-technology entries (products) that
+            // the game drops from KnownTech on load, so the in-game Technology page stays
+            // complete for saves that never had them seen through gameplay.
+            added += CatalogueCompletionLogic.AddMissingSeen(_userSettings, "SeenTechnologies", _catalogueDatabase.KnownTech);
+        }
+
+        LoadKnownItems(_savedPlayerState, "KnownTech", _techGrid);
+        RefreshCompletionCounters();
+        RaiseDataModified();
+        ShowAddedMessage(added);
+    }
+
+    private void AddAllMissingProducts_Click(object? sender, EventArgs e)
+    {
+        if (_savedPlayerState == null || _catalogueDatabase == null) return;
+        var products = CompletionKnownProducts;
+        var specials = CompletionKnownSpecials;
+        if (products == null || specials == null) return;
+
+        // SpecialShop products must also reach KnownSpecials: the game checks that array
+        // for them even though they are catalogue products (this mirrors the verified
+        // reference tool, which merges building parts into both arrays). Catalogue
+        // products without a recipe additionally use the account SeenProducts state, and
+        // raw materials use SeenSubstances.
+        var (haveProducts, totalProducts) = CatalogueCompletionLogic.GetCombinedCompletion(
+            _savedPlayerState, "KnownProducts", _userSettings, "SeenProducts", products);
+        var (haveSpecials, totalSpecials) = CatalogueCompletionLogic.GetCombinedCompletion(
+            _savedPlayerState, "KnownSpecials", _userSettings, "SeenProducts", specials);
+        int missing = (totalProducts - haveProducts) + (totalSpecials - haveSpecials);
+
+        var substances = _catalogueDatabase.SeenSubstances;
+        if (_userSettings != null)
+        {
+            var (haveSubstances, totalSubstances) =
+                CatalogueCompletionLogic.GetSeenCompletion(_userSettings, "SeenSubstances", substances);
+            missing += totalSubstances - haveSubstances;
+        }
+
+        if (!ConfirmMissing(missing)) return;
+
+        int added = CatalogueCompletionLogic.AddMissingIds(_savedPlayerState, "KnownProducts", products);
+        added += CatalogueCompletionLogic.AddMissingIds(_savedPlayerState, "KnownSpecials", specials);
+        if (_userSettings != null)
+        {
+            added += CatalogueCompletionLogic.AddMissingSeen(_userSettings, "SeenProducts", products);
+            added += CatalogueCompletionLogic.AddMissingSeen(_userSettings, "SeenSubstances", substances);
+        }
+
+        LoadKnownItems(_savedPlayerState, "KnownProducts", _productGrid);
+        LoadKnownItems(_savedPlayerState, "KnownSpecials", _specialsGrid);
+        _rawMaterialsPanel.Reload();
+        RefreshCompletionCounters();
+        RaiseDataModified();
+        ShowAddedMessage(added);
+    }
+
+    private void AddAllMissingSpecials_Click(object? sender, EventArgs e)
+    {
+        if (_savedPlayerState == null || _catalogueDatabase == null) return;
+        var specials = CompletionKnownSpecials;
+        if (specials == null) return;
+
+        // Non-recipe specials use the account seen state, so completion requires both.
+        var (have, total) = CatalogueCompletionLogic.GetCombinedCompletion(
+            _savedPlayerState, "KnownSpecials", _userSettings, "SeenProducts", specials);
+        int missing = total - have;
+
+        if (!ConfirmMissing(missing)) return;
+
+        int added = CatalogueCompletionLogic.AddMissingIds(_savedPlayerState, "KnownSpecials", specials);
+        if (_userSettings != null)
+            added += CatalogueCompletionLogic.AddMissingSeen(_userSettings, "SeenProducts", specials);
+
+        LoadKnownItems(_savedPlayerState, "KnownSpecials", _specialsGrid);
+        RefreshCompletionCounters();
+        RaiseDataModified();
+        ShowAddedMessage(added);
+    }
 
     private void AddAllMissingRecipes_Click(object? sender, EventArgs e)
     {
@@ -2136,17 +2255,6 @@ public partial class CataloguePanel : UserControl
 
         int added = CatalogueCompletionLogic.AddMissingFish(_savedPlayerState, packFish);
         LoadKnownFish(_savedPlayerState);
-        RefreshCompletionCounters();
-        RaiseDataModified();
-        ShowAddedMessage(added);
-    }
-
-    private void AddAllMissingItems(string arrayName, IReadOnlyList<string>? packIds, DataGridView grid)
-    {
-        if (_savedPlayerState == null || packIds == null) return;
-        if (!ConfirmAndAddMissing(arrayName, packIds, out int added)) return;
-
-        LoadKnownItems(_savedPlayerState, arrayName, grid);
         RefreshCompletionCounters();
         RaiseDataModified();
         ShowAddedMessage(added);
@@ -2227,7 +2335,6 @@ public partial class CataloguePanel : UserControl
         _removeProductButton.Text = UiStrings.Get("discovery.remove_selected");
         _addSpecialsButton.Text = UiStrings.Get("discovery.add_special");
         _removeSpecialsButton.Text = UiStrings.Get("discovery.remove_selected");
-        _learnAllWordsButton.Text = UiStrings.Get("discovery.learn_all");
         _unlearnAllWordsButton.Text = UiStrings.Get("discovery.unlearn_all");
         _learnSelectedWordsButton.Text = UiStrings.Get("discovery.learn_selected");
         _unlearnSelectedWordsButton.Text = UiStrings.Get("discovery.unlearn_selected");

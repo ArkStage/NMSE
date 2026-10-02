@@ -1887,12 +1887,12 @@ public partial class MainFormResources : Form
 
         foreach (string watchedDirectory in _externalWatchedFiles
                      .Select(Path.GetDirectoryName)
-                     .Where(d => !string.IsNullOrEmpty(d))
+                     .OfType<string>()
                      .Distinct(StringComparer.OrdinalIgnoreCase))
         {
             try
             {
-                var watcher = new FileSystemWatcher(watchedDirectory!)
+                var watcher = new FileSystemWatcher(watchedDirectory)
                 {
                     // Raise events on the UI thread: the debounce timer, the reload prompt and
                     // the watched-file bookkeeping all assume the UI thread. Set before the

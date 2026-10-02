@@ -328,9 +328,7 @@ partial class CataloguePanel
         _addMissingWordsBtn.Click += AddAllMissingWords_Click;
         wordButtonPanel.Controls.Add(_wordsCompletionLabel);
         wordButtonPanel.Controls.Add(_addMissingWordsBtn);
-        _learnAllWordsButton = new Button { Text = "Learn All", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         _unlearnAllWordsButton = new Button { Text = "Unlearn All", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
-        _learnAllWordsButton.Click += LearnAllWords_Click;
         _unlearnAllWordsButton.Click += UnlearnAllWords_Click;
         _learnSelectedWordsButton = new Button { Text = "Learn Selected", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         _unlearnSelectedWordsButton = new Button { Text = "Unlearn Selected", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
@@ -340,7 +338,6 @@ partial class CataloguePanel
         _exportWordsBtn.Click += (s, e) => ExportKnownWordsList();
         _importWordsBtn = new Button { Text = "Import", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         _importWordsBtn.Click += (s, e) => ImportWordsList();
-        wordButtonPanel.Controls.Add(_learnAllWordsButton);
         wordButtonPanel.Controls.Add(_unlearnAllWordsButton);
         wordButtonPanel.Controls.Add(_learnSelectedWordsButton);
         wordButtonPanel.Controls.Add(_unlearnSelectedWordsButton);
@@ -827,7 +824,7 @@ partial class CataloguePanel
 
     // Tab 4: Known Words
     private DataGridView _wordGrid = null!;
-    private Button _learnAllWordsButton = null!;
+
     private Button _unlearnAllWordsButton = null!;
     private Button _learnSelectedWordsButton = null!;
     private Button _unlearnSelectedWordsButton = null!;

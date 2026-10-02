@@ -128,6 +128,7 @@ public static class ExtractorConfig
         "*REALITY/cataloguematerials.mbin",
         "*REALITY/cataloguerecipes.mbin",
         "*REALITY/cataloguewonders.mbin",
+        "*REALITY/TABLES/storiestable.mbin",
     ];
 
     /// <summary>

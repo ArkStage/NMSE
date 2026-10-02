@@ -13,6 +13,10 @@ namespace NMSE.Extractor.Data;
 /// </summary>
 public static class CataloguePackBuilder
 {
+    /// <summary>Number of race slots in a save's KnownWordGroups Races array.</summary>
+    private const int WordRaceCount = 9;
+
+    /// <summary>Valid race ordinals; the save indexes the race flags by ordinal.</summary>
     private static readonly int[] WordRaceOrdinals = [0, 1, 2, 4, 8];
 
     private static readonly Dictionary<string, string> CatalogueTableKeys = new(StringComparer.OrdinalIgnoreCase)
@@ -45,6 +49,8 @@ public static class CataloguePackBuilder
         foreach (var (key, fileName) in CatalogueTableKeys)
             root[key] = ReadCatalogueItems(Path.Combine(mbinDir, fileName));
 
+        root["StoryPages"] = ReadStoryPages(Path.Combine(mbinDir, "storiestable.MXML"));
+
         var options = new JsonSerializerOptions
         {
             WriteIndented = true,
@@ -57,7 +63,72 @@ public static class CataloguePackBuilder
             $"{((List<string>)root["Fossils"]!).Count} fossils, " +
             $"{((List<string>)root["CatalogueMaterials"]!).Count} catalogue materials, " +
             $"{((List<string>)root["CatalogueBuilding"]!).Count} catalogue building, " +
-            $"{((List<string>)root["CatalogueCrafting"]!).Count} catalogue technology");
+            $"{((List<string>)root["CatalogueCrafting"]!).Count} catalogue technology, " +
+            $"{((List<Dictionary<string, object?>>)root["StoryPages"]!).Count} story pages");
+    }
+
+    /// <summary>
+    /// Reads the game's story page table. The category order maps to the save's
+    /// SeenStories slot and the page order within a category to the page index, which
+    /// lets the editor derive Collected Knowledge completion targets for the current
+    /// game build (entry counts change between updates).
+    /// </summary>
+    /// <param name="mxmlPath">Path to the converted storiestable MXML.</param>
+    /// <returns>One entry per story page with slot, page index, entry count, stat and bitmask flag.</returns>
+    private static List<Dictionary<string, object?>> ReadStoryPages(string mxmlPath)
+    {
+        var result = new List<Dictionary<string, object?>>();
+        if (!File.Exists(mxmlPath)) return result;
+
+        try
+        {
+            var doc = XDocument.Load(mxmlPath);
+            var table = doc.Root?.Element("Property");
+            if (table == null) return result;
+
+            int slot = 0;
+            foreach (var category in table.Elements("Property"))
+            {
+                var pagesContainer = category.Elements("Property")
+                    .FirstOrDefault(e => e.Attribute("name")?.Value == "Pages");
+                if (pagesContainer != null)
+                {
+                    int pageIndex = 0;
+                    foreach (var page in pagesContainer.Elements("Property"))
+                    {
+                        var entriesContainer = page.Elements("Property")
+                            .FirstOrDefault(e => e.Attribute("name")?.Value == "Entries");
+                        int entries = entriesContainer?.Elements("Property").Count() ?? 0;
+                        string stat = page.Elements("Property")
+                            .FirstOrDefault(e => e.Attribute("name")?.Value == "Stat")?.Attribute("value")?.Value ?? "";
+                        bool bitmask = string.Equals(
+                            page.Elements("Property")
+                                .FirstOrDefault(e => e.Attribute("name")?.Value == "StatIsBitmask")?.Attribute("value")?.Value,
+                            "true", StringComparison.OrdinalIgnoreCase);
+                        string id = page.Attribute("_id")?.Value
+                            ?? page.Elements("Property")
+                                .FirstOrDefault(e => e.Attribute("name")?.Value == "ID")?.Attribute("value")?.Value ?? "";
+
+                        result.Add(new Dictionary<string, object?>
+                        {
+                            ["Slot"] = slot,
+                            ["Page"] = pageIndex,
+                            ["Id"] = id,
+                            ["Entries"] = entries,
+                            ["Stat"] = stat,
+                            ["Bitmask"] = bitmask,
+                        });
+                        pageIndex++;
+                    }
+                }
+                slot++;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARN] Story table {Path.GetFileName(mxmlPath)}: {ex.Message}");
+        }
+        return result;
     }
 
     /// <summary>
@@ -140,7 +211,7 @@ public static class CataloguePackBuilder
 
                     if (!raceFlags.TryGetValue(groupId, out var flags))
                     {
-                        flags = new bool[WordRaceOrdinals.Length];
+                        flags = new bool[WordRaceCount];
                         raceFlags[groupId] = flags;
                     }
 
@@ -150,8 +221,8 @@ public static class CataloguePackBuilder
                         long l => (int)l,
                         _ => -1
                     };
-                    int index = Array.IndexOf(WordRaceOrdinals, ordinal);
-                    if (index >= 0) flags[index] = true;
+                    if (ordinal >= 0 && ordinal < WordRaceCount && Array.IndexOf(WordRaceOrdinals, ordinal) >= 0)
+                        flags[ordinal] = true;
                 }
             }
         }

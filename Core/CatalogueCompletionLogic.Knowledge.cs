@@ -245,7 +245,7 @@ internal static partial class CatalogueCompletionLogic
         return true;
     }
 
-    /// <summary>Resets a lore mission's progress to -1. Returns true when changed.</summary>
+    /// <summary>Resets a lore mission's progress to 0 (not started). Returns true when changed.</summary>
     internal static bool ClearMissionProgress(JsonObject playerState, string missionId)
     {
         missionId = NormalizeId(missionId);
@@ -258,8 +258,10 @@ internal static partial class CatalogueCompletionLogic
             if (mission == null || !MissionIdMatches(mission, missionId)) continue;
 
             int old = mission.Get("Progress") is null ? 0 : mission.GetInt("Progress");
-            if (old == -1) return false;
-            mission.Set("Progress", -1);
+            // -1 is the game's completed marker, so clearing resets to 0 (not started)
+            // rather than to -1, which would still read as complete.
+            if (old == 0) return false;
+            mission.Set("Progress", 0);
             return true;
         }
         return false;
@@ -305,29 +307,115 @@ internal static partial class CatalogueCompletionLogic
 
     // --- Page status and apply/clear ---
 
+    /// <summary>
+    /// Re-aligns a story page to the current game build: the slot, page index and target come
+    /// from the extracted story table, matched by <see cref="KnowledgePage.GameId"/>. This
+    /// keeps completion correct when a game update inserts or reorders story pages. Falls
+    /// back to the compiled page values when the pack has no story data.
+    /// </summary>
+    /// <param name="page">The story page.</param>
+    /// <param name="catalogue">The loaded catalogue pack, or null.</param>
+    /// <returns>The aligned page.</returns>
+    internal static KnowledgePage ResolvePage(KnowledgePage page, CatalogueDatabase? catalogue)
+    {
+        if (catalogue == null || string.IsNullOrEmpty(page.GameId)) return page;
+
+        var entry = catalogue.FindStoryPage(page.GameId);
+        if (entry == null) return page;
+
+        int target = page.Recipe == KnowledgeRecipe.Bitmask
+            ? entry.Entries >= 31 ? int.MaxValue : (1 << entry.Entries) - 1
+            : Math.Max(0, entry.Entries - 1);
+        return page with { Slot = entry.Slot, PageIndex = entry.PageIndex, TableMax = target };
+    }
+
+    internal static int GetPageTarget(KnowledgePage page, CatalogueDatabase? catalogue) =>
+        ResolvePage(page, catalogue).TableMax;
+
     /// <summary>Computes the status of every Collected Knowledge page.</summary>
-    internal static IReadOnlyList<KnowledgePageStatus> GetKnowledgeStatuses(JsonObject playerState)
+    internal static IReadOnlyList<KnowledgePageStatus> GetKnowledgeStatuses(
+        JsonObject playerState, CatalogueDatabase? catalogue = null)
     {
         var globals = GetGlobalStatsMap(playerState);
         var results = new List<KnowledgePageStatus>(KnowledgeCatalogue.Pages.Length);
         foreach (var page in KnowledgeCatalogue.Pages)
-            results.Add(GetKnowledgeStatus(playerState, page, globals));
+            results.Add(GetKnowledgeStatus(playerState, page, globals, catalogue));
         return results;
+    }
+
+    /// <summary>
+    /// Computes the completion of a words/glyphs page from the save state: language pages
+    /// count the pack's word groups known for the page's race, the glyph page counts the
+    /// known portal runes.
+    /// </summary>
+    /// <param name="playerState">The PlayerStateData object.</param>
+    /// <param name="pack">The loaded catalogue pack.</param>
+    /// <param name="page">The words/glyphs page.</param>
+    /// <returns>The number of known entries and the page total.</returns>
+    internal static (int Have, int Total) GetWordPageCompletion(
+        JsonObject playerState, CatalogueDatabase pack, KnowledgePage page)
+    {
+        if (string.Equals(page.Id, "atlas_glyphs", StringComparison.OrdinalIgnoreCase))
+        {
+            int runes = CatalogueLogic.LoadGlyphBitfield(playerState);
+            return (System.Numerics.BitOperations.PopCount((uint)runes & 0xFFFFu), 16);
+        }
+
+        if (!KnowledgeCatalogue.WordPageRaceOrdinals.TryGetValue(page.Id, out int raceOrdinal))
+            return (0, 0);
+
+        int have = 0, total = 0;
+        foreach (var group in pack.KnownWordGroups)
+        {
+            if (raceOrdinal >= group.Races.Length || !group.Races[raceOrdinal]) continue;
+            total++;
+            if (IsWordGroupKnownForRace(playerState, group.Group, raceOrdinal)) have++;
+        }
+        return (have, total);
+    }
+
+    /// <summary>True when the save's KnownWordGroups marks a group as known for a race.</summary>
+    internal static bool IsWordGroupKnownForRace(JsonObject playerState, string group, int raceOrdinal)
+    {
+        var groups = playerState.GetArray("KnownWordGroups");
+        if (groups == null) return false;
+
+        string target = NormalizeId(group);
+        for (int i = 0; i < groups.Length; i++)
+        {
+            var entry = groups.GetObject(i);
+            if (entry == null) continue;
+            if (!string.Equals(NormalizeId(entry.GetString("Group")), target, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var races = entry.GetArray("Races");
+            if (races == null) return false;
+
+            // Older NMSE builds wrote the compact 5-slot layout.
+            int index = races.Length == CatalogueDatabase.WordRaceOrdinals.Length
+                ? Array.IndexOf(CatalogueDatabase.WordRaceOrdinals, raceOrdinal)
+                : raceOrdinal;
+            return index >= 0 && index < races.Length && races.Get(index) is true;
+        }
+        return false;
     }
 
     /// <summary>Computes the status of one Collected Knowledge page.</summary>
     internal static KnowledgePageStatus GetKnowledgeStatus(
-        JsonObject playerState, KnowledgePage page, Dictionary<string, JsonObject> globals)
+        JsonObject playerState, KnowledgePage page, Dictionary<string, JsonObject> globals,
+        CatalogueDatabase? catalogue = null)
     {
         if (page.Recipe == KnowledgeRecipe.Words)
             return new KnowledgePageStatus(page, null, null, "SKIP", "words/glyphs - not auto-maxed");
 
+        page = ResolvePage(page, catalogue);
+        int target = page.TableMax;
         int? last = GetLastSeen(playerState, page.Slot, page.PageIndex);
         if (string.Equals(page.Id, "jr_devnotes", StringComparison.OrdinalIgnoreCase))
         {
             // The game records commentary unlocks in DEV_NOTES; SeenStories may be absent
             // (for example when the commentary was unlocked outside the mission flow).
-            int count = DevNotesLogic.GetUnlockedCount(playerState);
+            int count = DevNotesLogic.GetUnlockedCount(playerState, page.Slot, page.PageIndex);
             last = count > 0 ? count : null;
         }
         int? global = null;
@@ -340,33 +428,33 @@ internal static partial class CatalogueCompletionLogic
             {
                 string detail = $"LastSeen {Display(last)} · Global {Display(global)}";
                 if (last is null && !StatAtLeast(global, 1, page.GlobalStat) && (global ?? 0) == 0)
-                    return new KnowledgePageStatus(page, last, global, "MISSING", $"{detail} · need mask {page.TableMax}");
+                    return new KnowledgePageStatus(page, last, global, "MISSING", $"{detail} · need mask {target}");
 
-                bool okGlobal = StatAtLeast(global, page.TableMax, page.GlobalStat);
-                bool okLastSeen = StatAtLeast(last, page.TableMax, null);
+                bool okGlobal = StatAtLeast(global, target, page.GlobalStat);
+                bool okLastSeen = StatAtLeast(last, target, null);
                 return okGlobal && okLastSeen
                     ? new KnowledgePageStatus(page, last, global, "OK", detail)
-                    : new KnowledgePageStatus(page, last, global, "UNDER", $"{detail} · need both at {page.TableMax} (or -1)");
+                    : new KnowledgePageStatus(page, last, global, "UNDER", $"{detail} · need both at {target} (or -1)");
             }
 
             case KnowledgeRecipe.Counter:
             {
                 string detail = $"LastSeen {Display(last)} · Global {Display(global)}";
                 if (last is null && !StatAtLeast(global, 1, page.GlobalStat) && (global ?? 0) == 0)
-                    return new KnowledgePageStatus(page, last, global, "MISSING", $"{detail} · need {page.TableMax}");
+                    return new KnowledgePageStatus(page, last, global, "MISSING", $"{detail} · need {target}");
 
-                bool okLastSeen = StatAtLeast(last, page.TableMax, null);
+                bool okLastSeen = StatAtLeast(last, target, null);
                 // DEV_NOTES stores the highest unlocked index, one less than the count.
                 int globalTarget = string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
-                    ? page.TableMax - 1
-                    : page.TableMax;
-                bool okGlobal = global is null || StatAtLeast(global, globalTarget, page.GlobalStat);
-                if (okLastSeen)
+                    ? target - 1
+                    : target;
+                bool okGlobal = page.GlobalStat != null && StatAtLeast(global, globalTarget, page.GlobalStat);
+                if (okLastSeen || okGlobal)
                 {
                     string label = string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
                         ? "Unlocked"
                         : "LastSeen";
-                    detail = $"{label} {Display(last)}/{page.TableMax}";
+                    detail = $"{label} {Display(last)}/{target}";
                     if (page.GlobalStat != null && !okGlobal)
                         detail += $" · Global {Display(global)} (can sync)";
                     return new KnowledgePageStatus(page, last, global, "OK", detail);
@@ -378,10 +466,10 @@ internal static partial class CatalogueCompletionLogic
             default:
             {
                 if (last is null)
-                    return new KnowledgePageStatus(page, null, global, "MISSING", $"No entry · need LastSeen {page.TableMax}");
+                    return new KnowledgePageStatus(page, null, global, "MISSING", $"No entry · need LastSeen {target}");
 
-                string detail = $"LastSeen {Display(last)}/{page.TableMax}";
-                if (last < page.TableMax)
+                string detail = $"LastSeen {Display(last)}/{target}";
+                if (last < target)
                     return new KnowledgePageStatus(page, last, global, "UNDER", detail);
 
                 if (page.SiiIndex != null && page.SiiTarget != null)
@@ -407,12 +495,15 @@ internal static partial class CatalogueCompletionLogic
         JsonObject playerState,
         KnowledgePage page,
         CatalogueDatabase.StoryCompleterPack pack,
+        CatalogueDatabase? catalogue = null,
         bool includeCompleters = true)
     {
         if (page.Recipe == KnowledgeRecipe.Words) return false;
 
-        bool changed = includeCompleters && ApplyKnowledgeCompleters(playerState, pack) > 0;
-        changed |= UpsertLastSeen(playerState, page.Slot, page.PageIndex, page.TableMax);
+        page = ResolvePage(page, catalogue);
+        int target = page.TableMax;
+        bool changed = includeCompleters && ApplyKnowledgeCompleters(playerState, pack, catalogue) > 0;
+        changed |= UpsertLastSeen(playerState, page.Slot, page.PageIndex, target);
 
         if (page.GlobalStat != null)
         {
@@ -420,7 +511,7 @@ internal static partial class CatalogueCompletionLogic
             {
                 var stat = EnsureGlobalStat(playerState, page.GlobalStat);
                 int current = GetGlobalInt(stat);
-                int updated = current < 0 ? page.TableMax : current | page.TableMax;
+                int updated = current < 0 ? target : current | target;
                 if (updated != current)
                 {
                     SetGlobalInt(stat, updated);
@@ -430,11 +521,16 @@ internal static partial class CatalogueCompletionLogic
             else if (string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase))
             {
                 // Keeps the DEV_NOTES index in step with the SeenStories count.
-                changed |= DevNotesLogic.SetUnlockedCount(playerState, KnowledgeCatalogue.DevNotesTarget);
+                changed |= DevNotesLogic.SetUnlockedCount(
+                    playerState, KnowledgeCatalogue.DevNotesTarget, page.Slot, page.PageIndex);
             }
             else
             {
-                changed |= SetGlobalStatAtLeast(playerState, page.GlobalStat, page.TableMax);
+                // The game derives the page's expected entry index from this GLOBAL stat
+                // (expected = min(stat, entries - 1)) and a -1 "full" marker makes the
+                // in-game Collected Knowledge counter credit zero entries for the page.
+                // Force a positive value at least as large as the page target.
+                changed |= SetGlobalStatPositive(playerState, page.GlobalStat, target);
             }
         }
 
@@ -456,15 +552,17 @@ internal static partial class CatalogueCompletionLogic
 
     /// <summary>Reverses a page: removes LastSeen, zeroes its GLOBAL and SII slots.</summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool ClearKnowledgePage(JsonObject playerState, KnowledgePage page)
+    internal static bool ClearKnowledgePage(
+        JsonObject playerState, KnowledgePage page, CatalogueDatabase? catalogue = null)
     {
         if (page.Recipe == KnowledgeRecipe.Words) return false;
 
+        page = ResolvePage(page, catalogue);
         bool changed = RemoveLastSeen(playerState, page.Slot, page.PageIndex);
         if (page.GlobalStat != null)
         {
             changed |= string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase)
-                ? DevNotesLogic.Clear(playerState)
+                ? DevNotesLogic.Clear(playerState, page.Slot, page.PageIndex)
                 : ClearGlobalStat(playerState, page.GlobalStat);
         }
         if (page.Recipe == KnowledgeRecipe.Interaction && page.SiiIndex != null)
@@ -478,10 +576,13 @@ internal static partial class CatalogueCompletionLogic
     /// LastSeen only.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool ApplyKnowledgePageProgress(JsonObject playerState, KnowledgePage page, int value)
+    internal static bool ApplyKnowledgePageProgress(
+        JsonObject playerState, KnowledgePage page, int value,
+        CatalogueDatabase? catalogue = null)
     {
         if (page.Recipe == KnowledgeRecipe.Words) return false;
-        if (value <= 0) return ClearKnowledgePage(playerState, page);
+        page = ResolvePage(page, catalogue);
+        if (value <= 0) return ClearKnowledgePage(playerState, page, catalogue);
 
         bool changed = UpsertLastSeen(playerState, page.Slot, page.PageIndex, value);
         if (page.GlobalStat != null)
@@ -489,7 +590,7 @@ internal static partial class CatalogueCompletionLogic
             if (string.Equals(page.GlobalStat, "DEV_NOTES", StringComparison.OrdinalIgnoreCase))
             {
                 // Keeps the DEV_NOTES index in step with the SeenStories count.
-                changed |= DevNotesLogic.SetUnlockedCount(playerState, value);
+                changed |= DevNotesLogic.SetUnlockedCount(playerState, value, page.Slot, page.PageIndex);
             }
             else
             {
@@ -499,6 +600,22 @@ internal static partial class CatalogueCompletionLogic
             }
         }
         return changed;
+    }
+
+    /// <summary>
+    /// Raises a page GLOBAL stat to at least the target, replacing the game's -1 "full"
+    /// marker with a positive value. The Collected Knowledge counter derives each page's
+    /// expected entry index from this stat and credits nothing when it is negative.
+    /// </summary>
+    /// <returns>True when the stat changed.</returns>
+    private static bool SetGlobalStatPositive(JsonObject playerState, string statId, int target)
+    {
+        var stat = EnsureGlobalStat(playerState, statId);
+        int current = GetGlobalInt(stat);
+        if (current >= target) return false;
+
+        SetGlobalInt(stat, target);
+        return true;
     }
 
     private static bool SetGlobalStatBits(JsonObject playerState, string statId, int bits)
@@ -516,18 +633,23 @@ internal static partial class CatalogueCompletionLogic
 
     /// <summary>Applies every story completer (globals, SII patches, lore missions and flags).</summary>
     /// <returns>The number of changes applied.</returns>
-    internal static int ApplyKnowledgeCompleters(JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack)
+    internal static int ApplyKnowledgeCompleters(
+        JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack,
+        CatalogueDatabase? catalogue = null)
     {
         int changed = 0;
 
-        foreach (var (slot, pageIndex, _) in KnowledgeCatalogue.LanguageGlyphPages)
-            if (UpsertLastSeen(playerState, slot, pageIndex, 1)) changed++;
+        foreach (var (pageId, _) in KnowledgeCatalogue.LanguageGlyphPages)
+        {
+            var page = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == pageId), catalogue);
+            if (UpsertLastSeen(playerState, page.Slot, page.PageIndex, 1)) changed++;
+        }
 
         foreach (var (statId, target) in KnowledgeCatalogue.StoryCompleterGlobals)
             if (SetGlobalStatAtLeast(playerState, statId, target)) changed++;
 
-        changed += ApplyBaseComputer(playerState, pack) ? 1 : 0;
-        changed += ApplyDevNotes(playerState) ? 1 : 0;
+        changed += ApplyBaseComputer(playerState, pack, catalogue) ? 1 : 0;
+        changed += ApplyDevNotes(playerState, catalogue) ? 1 : 0;
 
         foreach (var patch in pack.SiiPatches)
             if (ApplySiiRacesAtLeast(playerState, patch.Index, patch.Races, patch.Looped)) changed++;
@@ -552,19 +674,27 @@ internal static partial class CatalogueCompletionLogic
 
     /// <summary>Reverses every story completer.</summary>
     /// <returns>The number of changes applied.</returns>
-    internal static int ClearKnowledgeCompleters(JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack)
+    internal static int ClearKnowledgeCompleters(
+        JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack,
+        CatalogueDatabase? catalogue = null)
     {
         int changed = 0;
 
-        foreach (var (slot, pageIndex, _) in KnowledgeCatalogue.LanguageGlyphPages)
-            if (RemoveLastSeen(playerState, slot, pageIndex)) changed++;
+        foreach (var (pageId, _) in KnowledgeCatalogue.LanguageGlyphPages)
+        {
+            var page = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == pageId), catalogue);
+            if (RemoveLastSeen(playerState, page.Slot, page.PageIndex)) changed++;
+        }
 
         foreach (var (statId, _) in KnowledgeCatalogue.StoryCompleterGlobals)
             if (ClearGlobalStat(playerState, statId)) changed++;
 
-        if (RemoveLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex)) changed++;
+        var baseComp = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_basecomp"), catalogue);
+        if (RemoveLastSeen(playerState, baseComp.Slot, baseComp.PageIndex)) changed++;
         if (ClearGlobalStat(playerState, "BASECOMP_LORE")) changed++;
-        if (DevNotesLogic.Clear(playerState)) changed++;
+
+        var devNotes = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), catalogue);
+        if (DevNotesLogic.Clear(playerState, devNotes.Slot, devNotes.PageIndex)) changed++;
 
         foreach (var patch in pack.SiiPatches)
             if (ClearSiiEntry(playerState, patch.Index)) changed++;
@@ -587,25 +717,33 @@ internal static partial class CatalogueCompletionLogic
         return changed;
     }
 
-    private static bool ApplyBaseComputer(JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack)
+    private static bool ApplyBaseComputer(
+        JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack,
+        CatalogueDatabase? catalogue)
     {
-        bool changed = UpsertLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex, pack.BaseCompMax);
+        var page = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_basecomp"), catalogue);
+        bool changed = UpsertLastSeen(playerState, page.Slot, page.PageIndex, pack.BaseCompMax);
         changed |= SetGlobalStatAtLeast(playerState, "BASECOMP_LORE", pack.BaseCompMax);
         return changed;
     }
 
-    private static bool ApplyDevNotes(JsonObject playerState)
+    private static bool ApplyDevNotes(JsonObject playerState, CatalogueDatabase? catalogue)
     {
         // Writes both the DEV_NOTES high-water index and the SeenStories count.
-        return DevNotesLogic.SetUnlockedCount(playerState, KnowledgeCatalogue.DevNotesTarget);
+        var page = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), catalogue);
+        return DevNotesLogic.SetUnlockedCount(
+            playerState, KnowledgeCatalogue.DevNotesTarget, page.Slot, page.PageIndex);
     }
 
     /// <summary>Builds the Story Completers group rows for the Collected Knowledge tab.</summary>
     internal static IReadOnlyList<KnowledgeCompleterStatus> GetKnowledgeCompleterStatuses(
-        JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack)
+        JsonObject playerState, CatalogueDatabase.StoryCompleterPack pack,
+        CatalogueDatabase? catalogue = null)
     {
         var globals = GetGlobalStatsMap(playerState);
         var results = new List<KnowledgeCompleterStatus>();
+        var baseCompPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_basecomp"), catalogue);
+        var devNotesPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), catalogue);
 
         foreach (var (statId, target) in KnowledgeCatalogue.StoryCompleterGlobals)
         {
@@ -615,14 +753,14 @@ internal static partial class CatalogueCompletionLogic
                 $"{Display(value)} / {target}"));
         }
 
-        int? baseCompLastSeen = GetLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex);
+        int? baseCompLastSeen = GetLastSeen(playerState, baseCompPage.Slot, baseCompPage.PageIndex);
         int? baseCompGlobal = globals.TryGetValue("BASECOMP_LORE", out var baseCompStat) ? GetGlobalInt(baseCompStat) : null;
         bool baseCompComplete = StatAtLeast(baseCompLastSeen, pack.BaseCompMax, null);
         results.Add(new KnowledgeCompleterStatus("BASECOMP_LORE", "Base Computer Archives", KnowledgeCompleterKind.BaseComputer,
             pack.BaseCompMax, baseCompLastSeen, baseCompComplete,
             $"LastSeen {Display(baseCompLastSeen)} · Global {Display(baseCompGlobal)} · target {pack.BaseCompMax}"));
 
-        int devNotesCount = DevNotesLogic.GetUnlockedCount(playerState);
+        int devNotesCount = DevNotesLogic.GetUnlockedCount(playerState, devNotesPage.Slot, devNotesPage.PageIndex);
         int? devNotesGlobal = globals.TryGetValue("DEV_NOTES", out var devNotesStat) ? GetGlobalInt(devNotesStat) : null;
         bool devNotesComplete = devNotesCount >= KnowledgeCatalogue.DevNotesTarget;
         results.Add(new KnowledgeCompleterStatus("DEV_NOTES", "Developer Commentary", KnowledgeCompleterKind.DevNotes,
@@ -653,7 +791,8 @@ internal static partial class CatalogueCompletionLogic
         foreach (var mission in pack.Missions)
         {
             int? progress = GetMissionProgress(playerState, mission.Mission);
-            bool complete = progress is int p && p >= mission.Progress;
+            // The game marks completed/retired lore missions with Progress = -1.
+            bool complete = progress is int p && (p == -1 || p >= mission.Progress);
             results.Add(new KnowledgeCompleterStatus(mission.Mission, mission.Mission, KnowledgeCompleterKind.Mission,
                 mission.Progress, progress, complete, $"{Display(progress)} / {mission.Progress}", null, mission.Data));
         }
@@ -662,13 +801,15 @@ internal static partial class CatalogueCompletionLogic
     }
 
     /// <summary>Applies a single story completer row.</summary>
-    internal static bool ApplyKnowledgeCompleter(JsonObject playerState, KnowledgeCompleterStatus status, CatalogueDatabase.StoryCompleterPack pack)
+    internal static bool ApplyKnowledgeCompleter(
+        JsonObject playerState, KnowledgeCompleterStatus status,
+        CatalogueDatabase.StoryCompleterPack pack, CatalogueDatabase? catalogue = null)
     {
         return status.Kind switch
         {
             KnowledgeCompleterKind.Global => SetGlobalStatAtLeast(playerState, status.Id, status.Target),
-            KnowledgeCompleterKind.BaseComputer => ApplyBaseComputer(playerState, pack),
-            KnowledgeCompleterKind.DevNotes => ApplyDevNotes(playerState),
+            KnowledgeCompleterKind.BaseComputer => ApplyBaseComputer(playerState, pack, catalogue),
+            KnowledgeCompleterKind.DevNotes => ApplyDevNotes(playerState, catalogue),
             KnowledgeCompleterKind.SiiPatch => status.Patch != null && ApplySiiRacesAtLeast(playerState, status.Patch.Index, status.Patch.Races, status.Patch.Looped),
             KnowledgeCompleterKind.Flag => SetFlag(playerState, status.Id, true),
             KnowledgeCompleterKind.Mission => EnsureMissionProgress(playerState, status.Id, status.Target, status.Data),
@@ -677,15 +818,19 @@ internal static partial class CatalogueCompletionLogic
     }
 
     /// <summary>Reverses a single story completer row.</summary>
-    internal static bool ClearKnowledgeCompleter(JsonObject playerState, KnowledgeCompleterStatus status)
+    internal static bool ClearKnowledgeCompleter(
+        JsonObject playerState, KnowledgeCompleterStatus status,
+        CatalogueDatabase? catalogue = null)
     {
+        var baseCompPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_basecomp"), catalogue);
+        var devNotesPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), catalogue);
         return status.Kind switch
         {
             KnowledgeCompleterKind.Global => ClearGlobalStat(playerState, status.Id),
             KnowledgeCompleterKind.BaseComputer =>
-                RemoveLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex)
+                RemoveLastSeen(playerState, baseCompPage.Slot, baseCompPage.PageIndex)
                 | ClearGlobalStat(playerState, "BASECOMP_LORE"),
-            KnowledgeCompleterKind.DevNotes => DevNotesLogic.Clear(playerState),
+            KnowledgeCompleterKind.DevNotes => DevNotesLogic.Clear(playerState, devNotesPage.Slot, devNotesPage.PageIndex),
             KnowledgeCompleterKind.SiiPatch => status.Patch != null && ClearSiiEntry(playerState, status.Patch.Index),
             KnowledgeCompleterKind.Flag => SetFlag(playerState, status.Id, false),
             KnowledgeCompleterKind.Mission => ClearMissionProgress(playerState, status.Id),
@@ -705,8 +850,12 @@ internal static partial class CatalogueCompletionLogic
     /// and flag rows are not editable this way.
     /// </summary>
     /// <returns>True when anything changed.</returns>
-    internal static bool ApplyKnowledgeCompleterProgress(JsonObject playerState, KnowledgeCompleterStatus status, int value)
+    internal static bool ApplyKnowledgeCompleterProgress(
+        JsonObject playerState, KnowledgeCompleterStatus status, int value,
+        CatalogueDatabase? catalogue = null)
     {
+        var baseCompPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_basecomp"), catalogue);
+        var devNotesPage = ResolvePage(KnowledgeCatalogue.Pages.First(p => p.Id == "jr_devnotes"), catalogue);
         switch (status.Kind)
         {
             case KnowledgeCompleterKind.Global:
@@ -717,16 +866,16 @@ internal static partial class CatalogueCompletionLogic
             case KnowledgeCompleterKind.BaseComputer:
                 if (value <= 0)
                 {
-                    return RemoveLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex)
+                    return RemoveLastSeen(playerState, baseCompPage.Slot, baseCompPage.PageIndex)
                         | ClearGlobalStat(playerState, "BASECOMP_LORE");
                 }
-                return UpsertLastSeen(playerState, KnowledgeCatalogue.BaseCompPageSlot, KnowledgeCatalogue.BaseCompPageIndex, value)
+                return UpsertLastSeen(playerState, baseCompPage.Slot, baseCompPage.PageIndex, value)
                     | SetGlobalStatValue(playerState, "BASECOMP_LORE", value);
 
             case KnowledgeCompleterKind.DevNotes:
                 return value <= 0
-                    ? DevNotesLogic.Clear(playerState)
-                    : DevNotesLogic.SetUnlockedCount(playerState, value);
+                    ? DevNotesLogic.Clear(playerState, devNotesPage.Slot, devNotesPage.PageIndex)
+                    : DevNotesLogic.SetUnlockedCount(playerState, value, devNotesPage.Slot, devNotesPage.PageIndex);
 
             case KnowledgeCompleterKind.Mission:
                 return value <= 0

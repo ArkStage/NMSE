@@ -2312,7 +2312,7 @@ public partial class CompanionPanel : UserControl
         _genusSeedField.Text = SeedHelper.FormatSeed(dialog.GenusSeed);
         if (dialog.HasScale)
         {
-            _scaleField.SetValueWithText(dialog.Scale, dialog.Scale.ToString(CultureInfo.InvariantCulture));
+            _scaleField.SetValueWithText(dialog.SelectedScale, dialog.SelectedScale.ToString(CultureInfo.InvariantCulture));
             WriteScale();
         }
         WriteSpeciesSeed();
