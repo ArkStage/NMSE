@@ -40,6 +40,7 @@ internal static class MultitoolLogic
         ("Voltaic Staff", "MODELS/COMMON/WEAPONS/MULTITOOL/STAFFMULTITOOLATLAS.SCENE.MBIN"),
         ("Direwasp Disintegrator", "MODELS/COMMON/WEAPONS/MULTITOOL/SWARMMULTITOOL.SCENE.MBIN"),
         ("Starbound", "MODELS/COMMON/WEAPONS/MULTITOOL/RETROMULTITOOL.SCENE.MBIN"),
+        ("Larva Cannon", "MODELS/COMMON/WEAPONS/MULTITOOL/GRUBCANNONMULTITOOL.SCENE.MBIN"),
     };
 
     internal static readonly Dictionary<string, string> ToolTypeLocKeys = new(StringComparer.OrdinalIgnoreCase)
@@ -61,6 +62,7 @@ internal static class MultitoolLogic
         ["Voltaic Staff"] = "multitool.type_voltaic_staff",
 		["Direwasp Disintegrator"] = "multitool.type_direwasp",
 		["Starbound"] = "multitool.type_starbound",
+		["Larva Cannon"] = "multitool.type_larva_cannon",
 	};
 
     internal static string GetLocalisedToolTypeName(string internalName)
@@ -592,6 +594,8 @@ internal static class MultitoolLogic
             return "Rifle";
         if (filename.Contains("RETROMULTITOOL", StringComparison.OrdinalIgnoreCase))
             return "Pistol";
+        if (filename.Contains("GRUBCANNONMULTITOOL", StringComparison.OrdinalIgnoreCase))
+            return "Alien";
 
         // Shared procedural model: the game derives the class from the base stats.
         var data = LoadToolData(tool);
