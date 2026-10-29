@@ -23849,6 +23849,20 @@
       ]
     },
     {
+      "Group": "^EXP_MANNER",
+      "Races": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^EXP_MANY",
       "Races": [
         false,
@@ -27153,6 +27167,20 @@
       ]
     },
     {
+      "Group": "^EXP_SOUL",
+      "Races": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^EXP_SOUNDS",
       "Races": [
         false,
@@ -28049,6 +28077,20 @@
       ]
     },
     {
+      "Group": "^EXP_TIRE",
+      "Races": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^EXP_TISSUE",
       "Races": [
         false,
@@ -28876,6 +28918,20 @@
     },
     {
       "Group": "^EXP_WARP",
+      "Races": [
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "Group": "^EXP_WASTE",
       "Races": [
         false,
         false,
@@ -36253,6 +36309,20 @@
       ]
     },
     {
+      "Group": "^TRA_MANNER",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^TRA_MANUFACTURE",
       "Races": [
         true,
@@ -36338,6 +36408,20 @@
     },
     {
       "Group": "^TRA_MATTER",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "Group": "^TRA_MAY",
       "Races": [
         true,
         false,
@@ -40845,6 +40929,20 @@
       ]
     },
     {
+      "Group": "^TRA_TIRE",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^TRA_TIRED",
       "Races": [
         true,
@@ -41433,6 +41531,20 @@
       ]
     },
     {
+      "Group": "^TRA_USE",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^TRA_USEFUL",
       "Races": [
         true,
@@ -41728,6 +41840,20 @@
     },
     {
       "Group": "^TRA_WARP",
+      "Races": [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "Group": "^TRA_WASTE",
       "Races": [
         true,
         false,
@@ -49217,6 +49343,20 @@
       ]
     },
     {
+      "Group": "^WAR_MANNER",
+      "Races": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^WAR_MANY",
       "Races": [
         false,
@@ -52843,6 +52983,20 @@
       ]
     },
     {
+      "Group": "^WAR_SOUL",
+      "Races": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^WAR_SOUND",
       "Races": [
         false,
@@ -53865,6 +54019,20 @@
       ]
     },
     {
+      "Group": "^WAR_TIRE",
+      "Races": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
       "Group": "^WAR_TO",
       "Races": [
         false,
@@ -54818,6 +54986,20 @@
     },
     {
       "Group": "^WAR_WARRIOR",
+      "Races": [
+        false,
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ]
+    },
+    {
+      "Group": "^WAR_WASTE",
       "Races": [
         false,
         true,
@@ -57032,7 +57214,106 @@
     "BLD_RUINS_09",
     "BLD_RUINS_10",
     "BLD_RUINS_11",
-    "BLD_RUINS_12"
+    "BLD_RUINS_12",
+    "STA_SMALLSIGN",
+    "STA_HOLOMED",
+    "STA_HOLOSMALL",
+    "STA_HOLO3D",
+    "STA_STATUEMED",
+    "STA_STATUESMALL",
+    "STA_DRAPE",
+    "STA_REFUEL",
+    "STA_BUILDINGL",
+    "STA_HOLOBUI",
+    "STA_HOLOAST",
+    "STA_HOLOGEK",
+    "STA_HOLOKORV",
+    "STA_HOLOVYK",
+    "STA_SMALLBUI",
+    "STA_SMALLAST",
+    "STA_SMALLGEK",
+    "STA_SMALLKOR",
+    "STA_SMALLVYK",
+    "STA_00",
+    "STA_01",
+    "STA_02",
+    "STA_03",
+    "STA_04",
+    "STA_05",
+    "STA_06",
+    "STA_07",
+    "STA_08",
+    "STA_09",
+    "STA_10",
+    "STA_11",
+    "STA_12",
+    "STA_13",
+    "STA_14",
+    "STA_15",
+    "STA_16",
+    "STA_17",
+    "STA_18",
+    "STA_19",
+    "STA_20",
+    "STA_21",
+    "STA_22",
+    "STA_23",
+    "STA_24",
+    "STA_25",
+    "STA_26",
+    "STA_27",
+    "STA_28",
+    "STA_29",
+    "STA_30",
+    "STA_31",
+    "STA_32",
+    "STA_33",
+    "STA_34",
+    "STA_35",
+    "STA_36",
+    "STA_37",
+    "STA_38",
+    "STA_39",
+    "STA_40",
+    "STA_41",
+    "STA_42",
+    "STA_43",
+    "STA_44",
+    "STA_45",
+    "STA_46",
+    "STA_47",
+    "STA_48",
+    "STA_49",
+    "STA_50",
+    "STA_51",
+    "STA_52",
+    "STA_53",
+    "STA_54",
+    "STA_55",
+    "STA_56",
+    "STA_57",
+    "STA_58",
+    "STA_59",
+    "STA_60",
+    "STA_61",
+    "STA_62",
+    "STA_63",
+    "STA_64",
+    "STA_65",
+    "STA_66",
+    "STA_67",
+    "STA_68",
+    "STA_69",
+    "STA_70",
+    "STA_71",
+    "STA_72",
+    "STA_73",
+    "STA_74",
+    "STA_75",
+    "STA_76",
+    "STA_77",
+    "STA_78",
+    "STA_79"
   ],
   "CatalogueCrafting": [
     "ENERGY",

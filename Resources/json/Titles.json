@@ -3514,7 +3514,7 @@
 		"Name_LocStr": "UI_PLAYER_TITLE_TRUCKING8",
 		"UnlockDescription": "Acquire resources with an Excavation Blade",
 		"UnlockDescription_LocStr": "UI_PLAYER_TDESC_TRUCKING8",
-		"AlreadyUnlockedDescription": "Scoured a planet with an Exacavation Blade",
+		"AlreadyUnlockedDescription": "Scoured a planet with an Excavation Blade",
 		"AlreadyUnlockedDescription_LocStr": "UI_TITLE_OWNED_TRUCKING8",
 		"UnlockedByStat": "EXO_SMASH",
 		"UnlockedByStatValue": 500
@@ -3804,5 +3804,16 @@
 		"AlreadyUnlockedDescription_LocStr": "UI_TITLE_OWNED_WAKE_TITAN",
 		"UnlockedByStat": "WAKE_TITAN",
 		"UnlockedByStatValue": 1
+	},
+	{
+		"Id": "T_SPOOKPACKAGE",
+		"Name": "Mind Harvester {0}",
+		"Name_LocStr": "UI_PLAYER_TITLE_SPOOK_PACKAGES",
+		"UnlockDescription": "Gather haunting mementos",
+		"UnlockDescription_LocStr": "UI_PLAYER_TDESC_SPOOK_PACKAGES",
+		"AlreadyUnlockedDescription": "Gathered %NUM% haunting mementos",
+		"AlreadyUnlockedDescription_LocStr": "UI_TITLE_OWNED_SPOOK_PACKAGES",
+		"UnlockedByStat": "SPOOK_PACKAGES",
+		"UnlockedByStatValue": 20
 	}
 ]

@@ -1598,6 +1598,23 @@
 		"RidingPartModifiers": null
 	},
 	{
+		"Id": "SPACE_SQUID",
+		"ForceType": "LandSquid",
+		"RealType": "None",
+		"MoveArea": "Space",
+		"EcoSystemCreature": false,
+		"CanBeFemale": false,
+		"OnlySpawnWhenIdIsForced": false,
+		"MinScale": 1.0,
+		"MaxScale": 1.0,
+		"Rarity": "Rare",
+		"EggType": "DEFAULT",
+		"CanBeUsedInPetBattler": false,
+		"PetBattlerForcedAffinity": "Normal",
+		"PetAccessorySlots": null,
+		"RidingPartModifiers": null
+	},
+	{
 		"Id": "PURPLE_WEIRD",
 		"ForceType": "Weird",
 		"RealType": "ProtoFlyer",

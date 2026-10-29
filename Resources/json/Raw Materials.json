@@ -3716,7 +3716,7 @@
 		"NameLower_LocStr": "UI_ASTBELT1_NAME_L",
 		"Group": "Condensate Powder",
 		"Subtitle_LocStr": "UI_ASTBELT1_SUB",
-		"Description": "An incredibly fine powder derived from the blasted remains of comet fragments. No evidence of its original crystalline matrix remains.\n\nComet fragments are located within deep-space asteroid belts",
+		"Description": "An incredibly fine powder derived from the blasted remains of comet fragments. No evidence of its original crystalline matrix remains.\n\nComet fragments are located within deep-space asteroid belts.",
 		"Description_LocStr": "UI_ASTBELT1_DESC",
 		"BaseValueUnits": 190,
 		"CurrencyType": "Credits",
@@ -3751,7 +3751,7 @@
 			"BuyMarkupMod": 0.0
 		},
 		"PinObjectiveScannableType": "None",
-		"WikiMissionID": null,
+		"WikiMissionID": "WIKI_ASTBELT1",
 		"Symbol": "H4",
 		"SourceTable": "Substance",
 		"Slug": "raw/ASTBELT1"
@@ -3760,9 +3760,9 @@
 		"Id": "HULK1",
 		"Icon": "HULK1.png",
 		"IconPath": "textures/ui/frontend/icons/substances/substance.hulk.1.dds",
-		"Name": "Contaminated Metal",
+		"Name": "Isotopic Dust",
 		"Name_LocStr": "UI_HULK1_NAME",
-		"NameLower": "Contaminated Metal",
+		"NameLower": "Isotopic Dust",
 		"NameLower_LocStr": "UI_HULK1_NAME_L",
 		"Group": "Industrial Salvage",
 		"Subtitle_LocStr": "UI_HULK1_SUB",
@@ -3801,7 +3801,7 @@
 			"BuyMarkupMod": 0.0
 		},
 		"PinObjectiveScannableType": "None",
-		"WikiMissionID": null,
+		"WikiMissionID": "WIKI_HULK1",
 		"Symbol": "Fe(O)",
 		"SourceTable": "Substance",
 		"Slug": "raw/HULK1"
@@ -3851,7 +3851,7 @@
 			"BuyMarkupMod": 0.0
 		},
 		"PinObjectiveScannableType": "None",
-		"WikiMissionID": null,
+		"WikiMissionID": "WIKI_SLIMEPOST1",
 		"Symbol": "Be",
 		"SourceTable": "Substance",
 		"Slug": "raw/SLIMEPOST1"

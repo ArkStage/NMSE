@@ -10661,6 +10661,16 @@
 		}
 	},
 	{
+		"Id": "^MANNER",
+		"Text": "manner",
+		"Text_LocStr": "TRA_MANNER",
+		"Groups": {
+			"^TRA_MANNER": 0,
+			"^WAR_MANNER": 1,
+			"^EXP_MANNER": 2
+		}
+	},
+	{
 		"Id": "^MANUFACTURE",
 		"Text": "manufacture",
 		"Text_LocStr": "TRA_MANUFACTURE",
@@ -10764,8 +10774,9 @@
 	{
 		"Id": "^MAY",
 		"Text": "may",
-		"Text_LocStr": "WAR_MAY",
+		"Text_LocStr": "TRA_MAY",
 		"Groups": {
+			"^TRA_MAY": 0,
 			"^WAR_MAY": 1,
 			"^EXP_MAY": 2,
 			"^BUI_MAY": 8
@@ -16203,7 +16214,9 @@
 		"Text": "soul",
 		"Text_LocStr": "TRA_SOUL",
 		"Groups": {
-			"^TRA_SOUL": 0
+			"^TRA_SOUL": 0,
+			"^WAR_SOUL": 1,
+			"^EXP_SOUL": 2
 		}
 	},
 	{
@@ -17629,6 +17642,16 @@
 		}
 	},
 	{
+		"Id": "^TIRE",
+		"Text": "tire",
+		"Text_LocStr": "TRA_TIRE",
+		"Groups": {
+			"^TRA_TIRE": 0,
+			"^WAR_TIRE": 1,
+			"^EXP_TIRE": 2
+		}
+	},
+	{
 		"Id": "^TIRED",
 		"Text": "tired",
 		"Text_LocStr": "TRA_TIRED",
@@ -18711,8 +18734,9 @@
 	{
 		"Id": "^USE",
 		"Text": "use",
-		"Text_LocStr": "WAR_USE",
+		"Text_LocStr": "TRA_USE",
 		"Groups": {
+			"^TRA_USE": 0,
 			"^WAR_USE": 1,
 			"^EXP_USE": 2,
 			"^BUI_USE": 8
@@ -19214,6 +19238,16 @@
 			"^EXP_IS": 2,
 			"^ATLAS_IS": 4,
 			"^BUI_IS": 8
+		}
+	},
+	{
+		"Id": "^WASTE",
+		"Text": "waste",
+		"Text_LocStr": "TRA_WASTE",
+		"Groups": {
+			"^TRA_WASTE": 0,
+			"^WAR_WASTE": 1,
+			"^EXP_WASTE": 2
 		}
 	},
 	{
