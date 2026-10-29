@@ -2,39 +2,46 @@ using NMSE.Core;
 using NMSE.Data;
 using NMSE.Models;
 using NMSE.UI.Controls;
+using NMSE.UI.Dialogs;
 using NMSE.UI.Util;
 
 namespace NMSE.UI.Panels;
 
 public partial class MilestonePanel : UserControl
 {
-    /// <summary>
-    /// Maps a stat Id to all TextBoxes that display it. Most stats map to a single entry;
-    /// guild stats that also appear in the Kills/OtherStats columns have two entries so both
-    /// are kept in sync on load.
-    /// </summary>
-    private readonly Dictionary<string, List<InvariantNumericTextBox>> _fields = new();
-
-    private readonly List<(Label label, string locKey)> _localisedLabels = new();
-    private IconManager? _iconManager;
-
-    /// <summary>Raw (unclamped) milestone stat values read from JSON at load time, keyed by stat Id.</summary>
-    private readonly Dictionary<string, int> _rawMilestoneValues = new();
-
-    private readonly Dictionary<string, PictureBox> _sectionIcons = new();
-
-    /// Guild rank labels: maps (statId, labelKind) -> Label.
-    /// labelKind <see cref="GuildLabelKindRank"/> = rank progress ("3 / 11"), labelKind <see cref="GuildLabelKindPromo"/> = promotion-in label ("7").
     private const int GuildLabelKindRank = 0;
     private const int GuildLabelKindPromo = 1;
+    private const int SectionWidth = 440;
+    private const int SectionGap = 12;
+    private const int MaxGridWidth = (SectionWidth + SectionGap) * 2 + 8;
+
+    /// <summary>
+    /// Maps a stat Id to all controls that display it. Shared stats have one control in each
+    /// in-game menu location; edits are synchronised across them.
+    /// </summary>
+    private readonly Dictionary<string, List<InvariantNumericTextBox>> _fields =
+        new(StringComparer.Ordinal);
+
+    private readonly List<(Label Label, string LocKey)> _localisedLabels = new();
+    private readonly List<(Label Label, string LocKey)> _guildLocalisedLabels = new();
+    private readonly Dictionary<string, PictureBox> _sectionIcons = new(StringComparer.Ordinal);
     private readonly Dictionary<(string, int), Label> _guildRankLabels = new();
+    private readonly Dictionary<int, Control> _placementControls = new();
+    private readonly Dictionary<MilestoneTab, Panel> _tabScrollPanels = new();
+    private readonly Dictionary<string, Panel> _otherCategoryPanels = new(StringComparer.Ordinal);
 
-    /// <summary>Language keys that need updating for guild rank labels (locKey, labelRef).</summary>
-    private readonly List<(Label label, string locKey)> _guildLocalisedLabels = new();
+    private readonly Dictionary<string, int> _rawMilestoneValues = new(StringComparer.Ordinal);
 
-    private static readonly Dictionary<string, string> SectionIconMap = MilestoneLogic.SectionIconMap;
+    private readonly ToolTip _toolTip = new();
 
+    private ListBox? _otherCategoryList;
+
+    private readonly List<string> _otherCategoryKeys = new();
+    private string? _currentOtherSection;
+
+    private IconManager? _iconManager;
     private bool _loading;
+    private bool _syncingFields;
 
     /// <summary>Raised when the user modifies any milestone stat value.</summary>
     public event EventHandler? DataModified;
@@ -45,6 +52,7 @@ public partial class MilestonePanel : UserControl
     public MilestonePanel()
     {
         InitializeComponent();
+        BuildCatalogUi();
     }
 
     public void SetIconManager(IconManager? iconManager)
@@ -56,250 +64,590 @@ public partial class MilestonePanel : UserControl
     private void LoadSectionIcons()
     {
         if (_iconManager == null) return;
-        foreach (var kvp in _sectionIcons)
+
+        foreach (var pair in _sectionIcons)
         {
-            if (SectionIconMap.TryGetValue(kvp.Key, out string? filename))
-            {
-                var icon = _iconManager.GetIcon(filename);
-                if (icon != null)
-                    kvp.Value.Image = icon;
-            }
+            string? filename = MilestoneCatalog.IconForSection(pair.Key);
+            if (filename == null) continue;
+            var icon = _iconManager.GetIcon(filename);
+            if (icon != null)
+                pair.Value.Image = icon;
         }
     }
 
-    private static TableLayoutPanel CreateColumnSection(int columnCount)
+    private void BuildCatalogUi(
+        IReadOnlyDictionary<string, int>? preserveValues = null,
+        int selectedTab = 0,
+        string? otherSection = null)
     {
-        var section = new TableLayoutPanel
+        var values = preserveValues ?? _fields.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.Count > 0 ? (int)(pair.Value[0].NumericValue ?? 0) : 0,
+            StringComparer.Ordinal);
+
+        bool previousLoading = _loading;
+        _loading = true;
+        SuspendLayout();
+        _tabControl.SuspendLayout();
+        try
         {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowOnly,
+            foreach (TabPage oldPage in _tabControl.TabPages)
+                oldPage.Dispose();
+            _tabControl.TabPages.Clear();
+            _fields.Clear();
+            _localisedLabels.Clear();
+            _guildLocalisedLabels.Clear();
+            _guildRankLabels.Clear();
+            _placementControls.Clear();
+            _tabScrollPanels.Clear();
+            _sectionIcons.Clear();
+            _otherCategoryList = null;
+
+            _otherCategoryKeys.Clear();
+            _currentOtherSection = null;
+
+            foreach (MilestoneTab tab in MilestoneCatalog.TabOrder)
+            {
+                var page = new TabPage { Text = UiStrings.Get(MilestoneCatalog.TabLabelKey(tab)) };
+
+                if (tab == MilestoneTab.OtherStats)
+                    BuildOtherTab(page, otherSection);
+                else
+                    BuildMenuTab(page, tab);
+
+                _tabControl.TabPages.Add(page);
+            }
+
+            if (selectedTab >= 0 && selectedTab < _tabControl.TabPages.Count)
+                _tabControl.SelectedIndex = selectedTab;
+
+            foreach (var pair in values)
+            {
+                if (_fields.TryGetValue(pair.Key, out var list))
+                {
+                    foreach (var nud in list)
+                        nud.NumericValue = pair.Value;
+                }
+            }
+
+            UpdateAllGuildRanks(values);
+        }
+        finally
+        {
+            _tabControl.ResumeLayout();
+            ResumeLayout(true);
+            _loading = previousLoading;
+        }
+    }
+
+    private void BuildMenuTab(TabPage page, MilestoneTab tab)
+    {
+        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+        var grid = CreateSectionGrid();
+
+        foreach (string sectionKey in MilestoneCatalog.GetSections(tab))
+        {
+            var placements = MilestoneCatalog.GetSectionPlacements(tab, sectionKey).ToList();
+            AddGridControl(grid, BuildSectionBox(sectionKey, subcategoryKey: null, placements));
+        }
+
+        scroll.Controls.Add(grid);
+        scroll.SizeChanged += (_, _) => UpdateSectionGridWidth(grid, scroll);
+        UpdateSectionGridWidth(grid, scroll);
+        page.Controls.Add(scroll);
+        _tabScrollPanels[tab] = scroll;
+    }
+
+    private void BuildOtherTab(TabPage page, string? requestedSection)
+    {
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            SplitterWidth = 4,
+        };
+        bool splitInitialised = false;
+        split.SizeChanged += (_, _) =>
+        {
+            if (splitInitialised || split.Width < 600) return;
+            split.Panel1MinSize = 150;
+            split.Panel2MinSize = 350;
+            split.SplitterDistance = Math.Clamp(190, split.Panel1MinSize,
+                split.Width - split.Panel2MinSize - split.SplitterWidth);
+            splitInitialised = true;
+        };
+
+        var list = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            IntegralHeight = false,
+            Margin = new Padding(0),
+        };
+        split.Panel1.Controls.Add(list);
+
+        var content = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(4),
+        };
+        split.Panel2.Controls.Add(content);
+
+        page.Controls.Add(split);
+        _otherCategoryList = list;
+
+        foreach (string sectionKey in MilestoneCatalog.GetSections(MilestoneTab.OtherStats))
+        {
+            _otherCategoryKeys.Add(sectionKey);
+            list.Items.Add(UiStrings.Get(sectionKey));
+
+            Panel categoryPanel = BuildOtherCategoryPanel(sectionKey);
+            categoryPanel.Dock = DockStyle.Fill;
+            categoryPanel.Visible = false;
+            content.Controls.Add(categoryPanel);
+            _otherCategoryPanels[sectionKey] = categoryPanel;
+        }
+
+        list.SelectedIndexChanged += OnOtherCategorySelected;
+        int index = requestedSection != null ? _otherCategoryKeys.IndexOf(requestedSection) : 0;
+        if (index < 0) index = 0;
+        if (list.Items.Count > 0)
+        {
+            list.SelectedIndex = index;
+            ShowOtherCategory(_otherCategoryKeys[index]);
+        }
+    }
+
+    private void OnOtherCategorySelected(object? sender, EventArgs e)
+    {
+        int index = _otherCategoryList?.SelectedIndex ?? -1;
+        if (index < 0 || index >= _otherCategoryKeys.Count) return;
+        ShowOtherCategory(_otherCategoryKeys[index]);
+    }
+
+    private void ShowOtherCategory(string sectionKey)
+    {
+        foreach (var panel in _otherCategoryPanels.Values)
+            panel.Visible = false;
+
+        if (_otherCategoryPanels.TryGetValue(sectionKey, out var selected))
+        {
+            selected.Visible = true;
+            selected.BringToFront();
+            selected.AutoScrollPosition = new Point(0, 0);
+        }
+
+        _currentOtherSection = sectionKey;
+    }
+
+    private Panel BuildOtherCategoryPanel(string sectionKey)
+    {
+        var panel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            Padding = new Padding(4),
+        };
+
+        var placements = MilestoneCatalog
+            .GetSectionPlacements(MilestoneTab.OtherStats, sectionKey)
+            .ToList();
+
+        var host = new TableLayoutPanel
+        {
             Dock = DockStyle.Top,
-            ColumnCount = columnCount,
-            RowCount = 1,
-            Margin = new Padding(0, 0, 0, 8),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
             Padding = new Padding(0),
         };
-        for (int i = 0; i < columnCount; i++)
-            section.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        section.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        host.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        for (int i = 0; i < columnCount; i++)
+        var header = CreateCategoryHeader(sectionKey);
+        host.Controls.Add(header, 0, 0);
+
+        var grid = CreateSectionGrid();
+
+        var subcategories = MilestoneCatalog
+            .GetSubcategories(MilestoneTab.OtherStats, sectionKey)
+            .ToList();
+
+        if (subcategories.Count == 0)
         {
-            var col = new TableLayoutPanel
+            AddGridControl(grid, BuildSectionBox(sectionKey, subcategoryKey: null, placements, showHeader: false));
+        }
+        else
+        {
+            foreach (string subcategoryKey in subcategories)
             {
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowOnly,
-                Dock = DockStyle.Top,
-                ColumnCount = 2,
-                RowCount = 0,
-                Padding = new Padding(4),
-                Margin = new Padding(0),
-            };
-            col.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            col.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120));
-            section.Controls.Add(col, i, 0);
+                var subPlacements = placements
+                    .Where(p => p.SubcategoryKey == subcategoryKey)
+                    .OrderBy(p => UiStrings.Get(p.GameNameKey), StringComparer.CurrentCultureIgnoreCase)
+                    .ThenBy(p => p.Order)
+                    .ToList();
+                AddGridControl(grid, BuildSectionBox(sectionKey, subcategoryKey, subPlacements));
+            }
         }
 
-        return section;
+        host.Controls.Add(grid, 0, 1);
+        panel.Controls.Add(host);
+        panel.SizeChanged += (_, _) => UpdateSectionGridWidth(grid, panel);
+        UpdateSectionGridWidth(grid, panel);
+        return panel;
     }
-
-    private static TableLayoutPanel CreateThreeColumnSection() => CreateColumnSection(3);
-    private static TableLayoutPanel CreateFourColumnSection() => CreateColumnSection(4);
-
-    private static TableLayoutPanel GetColumnPanel(TableLayoutPanel section, int colIndex)
+    private static FlowLayoutPanel CreateSectionGrid()
     {
-        return (TableLayoutPanel)section.GetControlFromPosition(colIndex, 0)!;
-    }
-
-    private void AddSectionTitle(TableLayoutPanel panel, string title, string? locKey = null)
-    {
-        int row = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        var container = new FlowLayoutPanel
+        var grid = new FlowLayoutPanel
         {
+            Dock = DockStyle.Top,
+            AutoSize = false,
             FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            Padding = new Padding(4),
+            Margin = new Padding(0),
+            Height = 0,
+        };
+        return grid;
+    }
+
+    private static void AddGridControl(FlowLayoutPanel grid, Control control)
+    {
+        grid.Controls.Add(control);
+    }
+
+    private static void UpdateSectionGridWidth(FlowLayoutPanel grid, Control container)
+    {
+        int available = container.ClientSize.Width - container.Padding.Horizontal - 8;
+        int width = Math.Clamp(available, SectionWidth, MaxGridWidth);
+        grid.MaximumSize = new Size(width, 0);
+        grid.MinimumSize = new Size(Math.Min(width, SectionWidth), 0);
+        grid.Width = width;
+        grid.Height = grid.GetPreferredSize(new Size(width, 0)).Height;
+    }
+    private Control CreateCategoryHeader(string sectionKey)
+    {
+        var panel = new FlowLayoutPanel
+        {
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Margin = Padding.Empty,
-            Padding = Padding.Empty,
+            Margin = new Padding(0, 0, 0, 6),
+            Padding = new Padding(0),
         };
 
-        if (SectionIconMap.ContainsKey(title))
+        AddSectionIcon(panel, sectionKey);
+
+        var label = new Label
         {
-            var iconBox = new PictureBox
+            Text = UiStrings.Get(sectionKey),
+            AutoSize = true,
+            Padding = new Padding(0, 3, 0, 0),
+            Margin = new Padding(0),
+        };
+        FontManager.ApplyHeadingFont(label, 14);
+        _localisedLabels.Add((label, sectionKey));
+        panel.Controls.Add(label);
+        return panel;
+    }
+
+    private Control BuildSectionBox(
+        string sectionKey,
+        string? subcategoryKey,
+        IReadOnlyList<MilestonePlacement> placements,
+        bool showHeader = true)
+    {
+        bool hasGuildRank = placements.Any(p => p.ShowGuildRank);
+        int columnCount = hasGuildRank ? 3 : 2;
+
+        var box = new Panel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(SectionWidth, 0),
+            MaximumSize = new Size(SectionWidth, 0),
+            BorderStyle = BorderStyle.FixedSingle,
+            Margin = new Padding(0, 0, SectionGap, SectionGap),
+            Padding = new Padding(8),
+        };
+
+        var table = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = columnCount,
+            RowCount = 0,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 144));
+        if (hasGuildRank)
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
+
+        if (showHeader)
+            AddSectionHeader(table, sectionKey, subcategoryKey, columnCount);
+
+        foreach (var placement in placements)
+        {
+            AddPlacementRow(table, placement, columnCount);
+        }
+
+        box.Controls.Add(table);
+        return box;
+    }
+
+    private void AddSectionHeader(
+        TableLayoutPanel table,
+        string sectionKey,
+        string? subcategoryKey,
+        int columnCount)
+    {
+        int row = table.RowCount++;
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var header = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 0, 0, 4),
+            Padding = new Padding(0),
+        };
+
+        if (subcategoryKey == null)
+            AddSectionIcon(header, sectionKey);
+
+        var label = new Label
+        {
+            Text = UiStrings.Get(subcategoryKey ?? sectionKey),
+            AutoSize = true,
+            Padding = new Padding(0, 2, 0, 0),
+            Margin = new Padding(0),
+        };
+        FontManager.ApplyHeadingFont(label, subcategoryKey == null ? 12 : 10);
+        _localisedLabels.Add((label, subcategoryKey ?? sectionKey));
+        header.Controls.Add(label);
+
+        table.Controls.Add(header, 0, row);
+        table.SetColumnSpan(header, columnCount);
+    }
+
+    private void AddSectionIcon(FlowLayoutPanel header, string sectionKey)
+    {
+        if (!_sectionIcons.ContainsKey(sectionKey))
+        {
+            var picture = new PictureBox
             {
                 Size = new Size(20, 20),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                Margin = new Padding(0, 2, 4, 0),
+                Margin = new Padding(0, 2, 5, 0),
             };
-            _sectionIcons[title] = iconBox;
-            container.Controls.Add(iconBox);
+            _sectionIcons[sectionKey] = picture;
+
+            if (_iconManager != null)
+            {
+                string? filename = MilestoneCatalog.IconForSection(sectionKey);
+                if (filename != null)
+                {
+                    var icon = _iconManager.GetIcon(filename);
+                    if (icon != null) picture.Image = icon;
+                }
+            }
         }
 
-        var label = new Label
-        {
-            Text = locKey != null ? UiStrings.Get(locKey) : title,
-            AutoSize = true,
-            Padding = new Padding(0, 2, 0, 0),
-        };
-
-        FontManager.ApplyHeadingFont(label, 12);
-
-        if (locKey != null)
-            _localisedLabels.Add((label, locKey));
-
-        container.Controls.Add(label);
-
-        panel.Controls.Add(container, 0, row);
-        panel.SetColumnSpan(container, panel.ColumnCount);
+        header.Controls.Add(_sectionIcons[sectionKey]);
     }
 
-    /// <summary>Adds an empty spacer row for visual separation between sections within a column.</summary>
-    private static void AddVerticalSpacer(TableLayoutPanel panel, int height = 12)
+    private void AddPlacementRow(
+        TableLayoutPanel table,
+        MilestonePlacement placement,
+        int columnCount)
     {
-        int row = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
-    }
-
-    private void AddField(TableLayoutPanel panel, string locKey, string statId)
-    {
-        int row = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        int row = table.RowCount++;
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var label = new Label
         {
-            Text = UiStrings.Get(locKey),
+            Text = UiStrings.Get(placement.GameNameKey),
             AutoSize = true,
             TextAlign = ContentAlignment.MiddleLeft,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0),
-            Padding = new Padding(4, 2, 0, 2),
+            Padding = new Padding(4, 2, 8, 2),
         };
-        _localisedLabels.Add((label, locKey));
-        panel.Controls.Add(label, 0, row);
+        _localisedLabels.Add((label, placement.GameNameKey));
+        table.Controls.Add(label, 0, row);
 
         var nud = new InvariantNumericTextBox
         {
             Minimum = int.MinValue,
             Maximum = int.MaxValue,
-            Width = 110,
+            Width = 140,
             Anchor = AnchorStyles.Left,
             Margin = new Padding(0, 2, 0, 2),
         };
-        panel.Controls.Add(nud, 1, row);
-        RegisterField(statId, nud);
+        table.Controls.Add(nud, 1, row);
+        RegisterField(placement.StatId, nud);
+
+        int placementIndex = Array.IndexOf(MilestoneCatalog.Placements, placement);
+        if (placementIndex >= 0)
+            _placementControls[placementIndex] = nud;
+
+        string tooltip = BuildPlacementTooltip(placement);
+        _toolTip.SetToolTip(label, tooltip);
+        _toolTip.SetToolTip(nud, tooltip);
+
+        if (placement.ShowGuildRank)
+        {
+            int maxRank = MilestoneLogic.GetGuildMaxRank(placement.StatId);
+            var rankLabel = new Label
+            {
+                Text = $"0 / {maxRank}",
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(6, 2, 0, 2),
+            };
+            table.Controls.Add(rankLabel, 2, row);
+            _guildRankLabels[(placement.StatId, GuildLabelKindRank)] = rankLabel;
+
+            int promoRow = table.RowCount++;
+            table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var promoName = new Label
+            {
+                Text = UiStrings.Get("milestone.guild_promo_in"),
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = SystemColors.GrayText,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0),
+                Padding = new Padding(12, 1, 0, 1),
+            };
+            _guildLocalisedLabels.Add((promoName, "milestone.guild_promo_in"));
+            table.Controls.Add(promoName, 0, promoRow);
+
+            var promoValue = new Label
+            {
+                Text = "-",
+                AutoSize = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                ForeColor = SystemColors.GrayText,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0),
+                Padding = new Padding(0, 1, 0, 1),
+            };
+            table.Controls.Add(promoValue, 1, promoRow);
+            _guildRankLabels[(placement.StatId, GuildLabelKindPromo)] = promoValue;
+        }
     }
 
-    /// <summary>
-    /// Adds a guild stat row: editable value box (col 1), rank label "x / Y" (col 2).
-    /// A second row below shows a "Promotion In" read-only label.
-    /// The <paramref name="panel"/> must have at least 3 columns (label, value, rank).
-    /// </summary>
-    private void AddGuildField(TableLayoutPanel panel, string locKey, string statId)
+    private string BuildPlacementTooltip(MilestonePlacement placement)
     {
-        // Row: label | value | rank
-        int row = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        string tooltip = UiStrings.Format(
+            "milestone.stat_tooltip",
+            UiStrings.Get(placement.EditorNameKey),
+            placement.StatId);
 
-        var label = new Label
+        if (placement.NoteKey != null)
+            tooltip += "\n" + UiStrings.Get(placement.NoteKey);
+
+        if (MilestoneCatalog.Stats.TryGetValue(placement.StatId, out var stat) && stat.IsShared)
         {
-            Text = UiStrings.Get(locKey),
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0),
-            Padding = new Padding(4, 2, 0, 2),
-        };
-        _localisedLabels.Add((label, locKey));
-        panel.Controls.Add(label, 0, row);
+            var others = stat.Placements
+                .Where(p => !ReferenceEquals(p, placement) && p != placement)
+                .Select(FormatLocation)
+                .Distinct(StringComparer.CurrentCulture)
+                .ToList();
+            if (others.Count > 0)
+                tooltip += "\n" + UiStrings.Format("milestone.shared_with", string.Join("; ", others));
+        }
 
-        var nud = new InvariantNumericTextBox
-        {
-            Minimum = int.MinValue,
-            Maximum = int.MaxValue,
-            Width = 80,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0, 2, 0, 2),
-        };
-        panel.Controls.Add(nud, 1, row);
-        RegisterField(statId, nud);
+        if (placement.EditorOnly && placement.NoteKey != "milestone.note_editor_only")
+            tooltip += "\n" + UiStrings.Get("milestone.note_editor_only");
 
-        int maxRank = MilestoneLogic.GetGuildMaxRank(statId);
-        var rankLabel = new Label
-        {
-            Text = $"0 / {maxRank}",
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(4, 2, 0, 2),
-        };
-        panel.Controls.Add(rankLabel, 2, row);
-        _guildRankLabels[(statId, GuildLabelKindRank)] = rankLabel;
-
-        // Row: "Promotion In" label (col 0) | value (col 1 only, aligned with value box)
-        int promoRow = panel.RowCount++;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        var promoNameLabel = new Label
-        {
-            Text = UiStrings.Get("milestone.guild_promo_in"),
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = SystemColors.GrayText,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0),
-            Padding = new Padding(12, 1, 0, 1),
-        };
-        _guildLocalisedLabels.Add((promoNameLabel, "milestone.guild_promo_in"));
-        panel.Controls.Add(promoNameLabel, 0, promoRow);
-
-        var promoValLabel = new Label
-        {
-            Text = "-",
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            ForeColor = SystemColors.GrayText,
-            Anchor = AnchorStyles.Left,
-            Margin = new Padding(0),
-            Padding = new Padding(0, 1, 0, 1),
-        };
-        panel.Controls.Add(promoValLabel, 1, promoRow);
-        _guildRankLabels[(statId, GuildLabelKindPromo)] = promoValLabel;
-
-        // Update rank labels whenever the value changes
-        nud.NumericValueChanged += (_, _) => UpdateGuildRankLabels(statId, (int)(nud.NumericValue ?? 0));
+        return tooltip;
     }
 
-    /// <summary>Registers a TextBox for a stat ID, supporting multiple boxes per stat.</summary>
+    private string FormatLocation(MilestonePlacement placement)
+    {
+        string location = UiStrings.Get(MilestoneCatalog.TabLabelKey(placement.Tab))
+            + " > " + UiStrings.Get(placement.SectionKey);
+        if (placement.SubcategoryKey != null)
+            location += " > " + UiStrings.Get(placement.SubcategoryKey);
+        return location;
+    }
+
+    /// <summary>Registers a value control for a stat, including live shared-stat syncing.</summary>
     private void RegisterField(string statId, InvariantNumericTextBox nud)
     {
         if (!_fields.TryGetValue(statId, out var list))
         {
-            list = [];
+            list = new List<InvariantNumericTextBox>();
             _fields[statId] = list;
         }
         list.Add(nud);
+
         nud.NumericValueChanged += (_, _) =>
         {
-            if (!_loading)
-                DataModified?.Invoke(this, EventArgs.Empty);
+            if (_loading || _syncingFields) return;
+
+            int value = (int)(nud.NumericValue ?? 0);
+            _syncingFields = true;
+            try
+            {
+                foreach (var other in list)
+                {
+                    if (!ReferenceEquals(other, nud))
+                        other.NumericValue = value;
+                }
+
+                UpdateGuildRankLabels(statId, value);
+            }
+            finally
+            {
+                _syncingFields = false;
+            }
+
+            DataModified?.Invoke(this, EventArgs.Empty);
         };
     }
 
-    /// <summary>Updates the rank progress label and Promotion In label for a guild stat.</summary>
+    private void UpdateAllGuildRanks(IReadOnlyDictionary<string, int>? values)
+    {
+        foreach (var stat in MilestoneCatalog.Stats.Values)
+        {
+            if (!stat.Placements.Any(p => p.ShowGuildRank)) continue;
+            int value = values != null && values.TryGetValue(stat.StatId, out int v)
+                ? v
+                : 0;
+            UpdateGuildRankLabels(stat.StatId, value);
+        }
+    }
+
     private void UpdateGuildRankLabels(string statId, int value)
     {
-        if (_guildRankLabels.TryGetValue((statId, GuildLabelKindRank), out var rankLbl))
+        if (_guildRankLabels.TryGetValue((statId, GuildLabelKindRank), out var rankLabel))
         {
             int rank = MilestoneLogic.GetGuildRank(statId, value);
             int maxRank = MilestoneLogic.GetGuildMaxRank(statId);
-            rankLbl.Text = string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} / {1}", rank, maxRank);
+            rankLabel.Text = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{0} / {1}",
+                rank,
+                maxRank);
         }
-        if (_guildRankLabels.TryGetValue((statId, GuildLabelKindPromo), out var promoLbl))
+
+        if (_guildRankLabels.TryGetValue((statId, GuildLabelKindPromo), out var promoLabel))
         {
             int nextIn = MilestoneLogic.GetGuildNextRankIn(statId, value);
-            promoLbl.Text = nextIn < 0 ? UiStrings.Get("milestone.guild_rank_max") : nextIn.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            promoLabel.Text = nextIn < 0
+                ? UiStrings.Get("milestone.guild_rank_max")
+                : nextIn.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 
@@ -311,36 +659,40 @@ public partial class MilestonePanel : UserControl
         SuspendLayout();
         try
         {
-        foreach (var list in _fields.Values)
-            foreach (var nud in list)
-                nud.NumericValue = 0;
+            foreach (var list in _fields.Values)
+            {
+                foreach (var nud in list)
+                    nud.NumericValue = 0;
+            }
 
-        _rawMilestoneValues.Clear();
+            _rawMilestoneValues.Clear();
 
-        var entries = FindGlobalStats(saveData);
-        if (entries == null) return;
+            var entries = FindGlobalStats(saveData);
+            if (entries == null) return;
 
-        for (int i = 0; i < entries.Length; i++)
-        {
-            var entry = entries.GetObject(i);
-            if (entry == null) continue;
-            string? id = entry.GetString("Id");
-            if (id == null || !_fields.TryGetValue(id, out var list)) continue;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries.GetObject(i);
+                if (entry == null) continue;
+                string? id = entry.GetString("Id");
+                if (id == null || !_fields.TryGetValue(id, out var list)) continue;
 
-            int val = MilestoneLogic.ReadStatEntryValue(entry);
-            _rawMilestoneValues[id] = val;
-            foreach (var nud in list)
-                nud.NumericValue = Math.Max((int)(nud.Minimum ?? int.MinValue), Math.Min((int)(nud.Maximum ?? int.MaxValue), val));
-        }
+                int value = MilestoneLogic.ReadStatEntryValue(entry);
+                _rawMilestoneValues[id] = value;
+                foreach (var nud in list)
+                {
+                    nud.NumericValue = Math.Max(
+                        (int)(nud.Minimum ?? int.MinValue),
+                        Math.Min((int)(nud.Maximum ?? int.MaxValue), value));
+                }
+            }
 
-        // Update all guild rank displays after loading
-        foreach (var kvp in _guildRankLabels)
-        {
-            if (kvp.Key.Item2 != GuildLabelKindRank) continue; // only trigger once per stat
-            string statId = kvp.Key.Item1;
-            int val = _rawMilestoneValues.TryGetValue(statId, out int v) ? v : 0;
-            UpdateGuildRankLabels(statId, val);
-        }
+            foreach (var stat in MilestoneCatalog.Stats.Values)
+            {
+                if (!stat.Placements.Any(p => p.ShowGuildRank)) continue;
+                int value = _rawMilestoneValues.TryGetValue(stat.StatId, out int v) ? v : 0;
+                UpdateGuildRankLabels(stat.StatId, value);
+            }
         }
         finally
         {
@@ -364,14 +716,15 @@ public partial class MilestonePanel : UserControl
             var valueObj = entry.GetObject("Value");
             if (valueObj == null) continue;
 
-            // Use the value from whichever field was actually changed (any non-clamped value wins)
             int? writtenValue = null;
             foreach (var nud in list)
             {
                 int value = (int)(nud.NumericValue ?? 0);
                 if (_rawMilestoneValues.TryGetValue(id, out int raw))
                 {
-                    int clamped = (int)Math.Max((int)(nud.Minimum ?? int.MinValue), Math.Min((int)(nud.Maximum ?? int.MaxValue), raw));
+                    int clamped = (int)Math.Max(
+                        (int)(nud.Minimum ?? int.MinValue),
+                        Math.Min((int)(nud.Maximum ?? int.MaxValue), raw));
                     if (value != clamped)
                     {
                         writtenValue = value;
@@ -392,19 +745,83 @@ public partial class MilestonePanel : UserControl
 
     public void ApplyUiLocalisation()
     {
-        if (_tabControl.TabPages.Count >= 2)
+        _findStatBtn.Text = UiStrings.Get("milestone.find_stat");
+        _toolTip.SetToolTip(_gotoJsonBtn, UiStrings.Get("goto_json.tooltip"));
+
+        var values = _fields.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.Count > 0 ? (int)(pair.Value[0].NumericValue ?? 0) : 0,
+            StringComparer.Ordinal);
+        int selectedTab = _tabControl.SelectedIndex;
+        string? otherSection = _currentOtherSection;
+
+        BuildCatalogUi(values, selectedTab, otherSection);
+    }
+
+    private void OnFindStatClicked(object? sender, EventArgs e)
+    {
+        using var dialog = new MilestoneStatReferenceDialog(
+            MilestoneCatalog.Placements,
+            FormatLocation,
+            key => UiStrings.Get(key));
+        if (dialog.ShowDialog(FindForm()) != DialogResult.OK || dialog.SelectedPlacement == null)
+            return;
+
+        NavigateToPlacement(dialog.SelectedPlacement);
+    }
+
+    private void NavigateToPlacement(MilestonePlacement placement)
+    {
+        int tabIndex = Array.IndexOf(MilestoneCatalog.TabOrder, placement.Tab);
+        if (tabIndex >= 0 && tabIndex < _tabControl.TabPages.Count)
+            _tabControl.SelectedIndex = tabIndex;
+
+        if (placement.Tab == MilestoneTab.OtherStats && _otherCategoryList != null)
         {
-            _tabControl.TabPages[0].Text = UiStrings.Get("milestone.tab_main");
-            _tabControl.TabPages[1].Text = UiStrings.Get("milestone.tab_other");
+            int categoryIndex = _otherCategoryKeys.IndexOf(placement.SectionKey);
+            if (categoryIndex >= 0)
+                _otherCategoryList.SelectedIndex = categoryIndex;
         }
 
-        foreach (var (label, locKey) in _localisedLabels)
-            label.Text = UiStrings.Get(locKey);
+        Application.DoEvents();
 
-        foreach (var (label, locKey) in _guildLocalisedLabels)
-            label.Text = UiStrings.Get(locKey);
-        foreach (var btn in _gotoJsonBtns)
-            new ToolTip().SetToolTip(btn, UiStrings.Get("goto_json.tooltip"));
+        int placementIndex = Array.IndexOf(MilestoneCatalog.Placements, placement);
+        if (placementIndex < 0 || !_placementControls.TryGetValue(placementIndex, out var control))
+            return;
+
+        Control? scrollParent = _tabScrollPanels.TryGetValue(placement.Tab, out var scroll)
+            ? scroll
+            : null;
+        if (placement.Tab == MilestoneTab.OtherStats
+            && _otherCategoryPanels.TryGetValue(placement.SectionKey, out var categoryPanel))
+        {
+            scrollParent = categoryPanel;
+        }
+
+        if (scrollParent is ScrollableControl scrollable)
+            scrollable.ScrollControlIntoView(control);
+        control.Focus();
+        if (control is TextBox textBox)
+            textBox.SelectAll();
+        HighlightControl(control);
+    }
+
+    private static void HighlightControl(Control control)
+    {
+        Color original = control.BackColor;
+        control.BackColor = ThemeManager.Effective == AppTheme.Dark
+            ? Color.FromArgb(80, 75, 40)
+            : Color.FromArgb(255, 245, 190);
+
+        var timer = new System.Windows.Forms.Timer { Interval = 1500 };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            timer.Dispose();
+            if (!control.IsDisposed)
+                control.BackColor = original;
+        };
+        timer.Start();
     }
 
     private void OnGoToJsonClicked(object? sender, EventArgs e)
