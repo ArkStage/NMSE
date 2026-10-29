@@ -48,6 +48,14 @@ on:
 
   # Allow manual triggering from the Actions tab
   workflow_dispatch:
+    inputs:
+      smoke_only:
+        description: "Build and test without creating a release"
+        type: choice
+        options:
+          - "false"
+          - "true"
+        default: "false"
 
 jobs:
   build-win:
@@ -103,7 +111,7 @@ jobs:
           if-no-files-found: warn
 
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: build-win
     steps:
       - name: Checkout repository
@@ -123,7 +131,7 @@ jobs:
         run: |
           sudo mkdir -pm755 /etc/apt/keyrings
           wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key -
-          sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/questing/winehq-questing.sources
+          sudo wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/jammy/winehq-jammy.sources
           sudo apt update
           sudo apt install winehq-stable --no-install-recommends -y
 
@@ -187,7 +195,7 @@ jobs:
     runs-on: windows-latest
     needs: [build-linux, build-macos]
     # Only require build-linux (which implies build-win) to succeed.
-    if: always() && needs.build-linux.result == 'success' && github.repository == 'vectorcmdr/NMSE'
+    if: always() && needs.build-linux.result == 'success' && github.repository == 'vectorcmdr/NMSE' && (github.event_name != 'workflow_dispatch' || inputs.smoke_only != 'true')
 
     steps:
       - name: Checkout repository

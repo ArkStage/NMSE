@@ -56,6 +56,36 @@ if [[ ! -f "$NMSE_PUBLISH_DIR/NMSE.exe" ]]; then
     exit 1
 fi
 
+ICON_SOURCE="$SCRIPT_DIR/nmse.png"
+APPSTREAM_SOURCE="$SCRIPT_DIR/io.github.vectorcmdr.nmse.metainfo.xml"
+
+if [[ ! -f "$ICON_SOURCE" ]]; then
+    echo "ERROR: $ICON_SOURCE is missing."
+    exit 1
+fi
+
+if ! file "$ICON_SOURCE" | grep -q "PNG image data, 256 x 256"; then
+    echo "ERROR: $ICON_SOURCE is not a 256x256 PNG."
+    file "$ICON_SOURCE" || true
+    exit 1
+fi
+
+if [[ ! -f "$APPSTREAM_SOURCE" ]]; then
+    echo "ERROR: $APPSTREAM_SOURCE is missing."
+    exit 1
+fi
+
+read_version_field() {
+    sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p" \
+        "$REPO_ROOT/version.json" | head -n 1
+}
+
+NMSE_MAJOR="$(read_version_field major)"
+NMSE_MINOR="$(read_version_field minor)"
+NMSE_PATCH="$(read_version_field patch)"
+NMSE_VERSION="${NMSE_MAJOR:-0}.${NMSE_MINOR:-0}.${NMSE_PATCH:-0}"
+NMSE_DATE="$(date -u +%F)"
+
 # Verify Wine is available
 # On Ubuntu 24.04 the 'wine64' package installs to /usr/lib/wine/wine64
 # (NOT /usr/bin/wine64).  The 'wine' meta-package provides /usr/bin/wine.
@@ -83,7 +113,7 @@ BUILD_DIR="$(mktemp -d)"
 APPDIR="$BUILD_DIR/NMSE.AppDir"
 echo "[BUILD] Working directory: $BUILD_DIR"
 
-mkdir -p "$APPDIR"/{app,wine,usr/share/icons/hicolor/256x256/apps}
+mkdir -p "$APPDIR"/{app,wine,usr/share/icons/hicolor/256x256/apps,usr/share/applications,usr/share/metainfo}
 
 # Copy NMSE application
 echo "[BUILD] Copying NMSE application ..."
@@ -193,36 +223,26 @@ echo "[BUILD] Adding desktop integration files ..."
 
 # Desktop entry
 cp "$SCRIPT_DIR/nmse.desktop" "$APPDIR/nmse.desktop"
+cp "$SCRIPT_DIR/nmse.desktop" "$APPDIR/usr/share/applications/nmse.desktop"
 
 # AppRun entry point
 cp "$SCRIPT_DIR/AppRun" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 
-# Icon - use NMSE icon if available, otherwise create a placeholder
-if [[ -f "$REPO_ROOT/Resources/app/NMSE.ico" ]]; then
-    # Extract PNG from ICO if possible (ImageMagick), otherwise use a placeholder
-    if command -v convert >/dev/null 2>&1; then
-        convert "$REPO_ROOT/Resources/app/NMSE.ico[0]" "$APPDIR/nmse.png" 2>/dev/null || \
-        cp "$REPO_ROOT/Resources/app/NMSE.ico" "$APPDIR/nmse.png" 2>/dev/null || true
-    else
-        # Just copy the ico - not ideal but AppImage tools can sometimes handle it
-        cp "$REPO_ROOT/Resources/app/NMSE.ico" "$APPDIR/nmse.png" 2>/dev/null || true
-    fi
-else
-    # Create a simple placeholder SVG icon
-    cat > "$APPDIR/nmse.svg" <<'SVGEOF'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="32" fill="#1a1a2e"/>
-  <text x="128" y="150" font-family="sans-serif" font-size="72" font-weight="bold"
-        fill="#e94560" text-anchor="middle">NMSE</text>
-</svg>
-SVGEOF
-fi
+# The desktop file Exec points at nmse.sh; use the AppRun logic so the
+# launcher also works when started from an installed desktop entry.
+cp "$SCRIPT_DIR/AppRun" "$APPDIR/nmse.sh"
+chmod +x "$APPDIR/nmse.sh"
 
-# Copy icon to hicolor location for desktop integration
-if [[ -f "$APPDIR/nmse.png" ]]; then
-    cp "$APPDIR/nmse.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/nmse.png"
-fi
+# Icon - a committed, real 256x256 PNG (no ImageMagick conversion at build time)
+cp "$ICON_SOURCE" "$APPDIR/nmse.png"
+cp "$ICON_SOURCE" "$APPDIR/.DirIcon"
+cp "$ICON_SOURCE" "$APPDIR/usr/share/icons/hicolor/256x256/apps/nmse.png"
+
+# AppStream metadata for portal/software-centre integration and the AppImage catalog
+sed -e "s/@VERSION@/${NMSE_VERSION}/g" \
+    -e "s/@DATE@/${NMSE_DATE}/g" \
+    "$APPSTREAM_SOURCE" > "$APPDIR/usr/share/metainfo/io.github.vectorcmdr.nmse.metainfo.xml"
 
 # Download appimagetool
 APPIMAGETOOL="$BUILD_DIR/appimagetool"

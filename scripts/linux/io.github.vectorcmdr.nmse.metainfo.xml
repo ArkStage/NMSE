@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.vectorcmdr.nmse</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+  <name>NMSE</name>
+  <summary>Open-source save editor for No Man's Sky</summary>
+  <description>
+    <p>
+      NMSE is an open-source save editor for No Man's Sky. It provides editing for player,
+      exosuit, starship, fleet, exocraft, companion, base, catalogue and milestone data.
+    </p>
+    <p>
+      The Linux AppImage bundles the Windows build and Wine so the editor can run on Linux
+      without installing .NET or a separate Wine installation.
+    </p>
+  </description>
+  <launchable type="desktop-id">nmse.desktop</launchable>
+  <url type="homepage">https://github.com/vectorcmdr/NMSE</url>
+  <url type="bugtracker">https://github.com/vectorcmdr/NMSE/issues</url>
+  <developer id="io.github.vectorcmdr">
+    <name>vectorcmdr</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <releases>
+    <release version="@VERSION@" date="@DATE@"/>
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <image type="source">https://raw.githubusercontent.com/vectorcmdr/NMSE/main/docs/img/milestones-main.png</image>
+      <caption>Milestones and global statistics</caption>
+    </screenshot>
+    <screenshot>
+      <image type="source">https://raw.githubusercontent.com/vectorcmdr/NMSE/main/docs/img/milestones-other.png</image>
+      <caption>Other statistics and milestones</caption>
+    </screenshot>
+  </screenshots>
+</component>
