@@ -27,10 +27,11 @@ internal sealed class HotkeysPanel : UserControl
         "hotkeys.context_in_exocraft"
     ];
 
+    // Quick menu slots run 0-9 in slot order; the game labels them 0 through 9.
     private static readonly string[] SlotKeys =
     [
-        "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4", "Ctrl+5",
-        "Ctrl+6", "Ctrl+7", "Ctrl+8", "Ctrl+9", "Ctrl+0"
+        "Ctrl+0", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4",
+        "Ctrl+5", "Ctrl+6", "Ctrl+7", "Ctrl+8", "Ctrl+9"
     ];
 
     private readonly Label[] _contextLabels = new Label[HotActionsLogic.ContextCount];
