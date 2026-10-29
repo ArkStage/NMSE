@@ -19,6 +19,7 @@ partial class RawJsonPanel
         {
             _isolateApplyTimer?.Dispose();
             _isolateApplyTimer = null;
+            _bookmarksToolTip?.Dispose();
         }
         base.Dispose(disposing);
     }
@@ -43,12 +44,13 @@ partial class RawJsonPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Padding = new Padding(5)
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // title
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // toolbar row 1 (file / search / export)
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // toolbar row 2 (view buttons)
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // bookmarks
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // breadcrumb
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // content
 
@@ -248,14 +250,15 @@ partial class RawJsonPanel
         layout.Controls.Add(_titleLabel, 0, 0);
         layout.Controls.Add(toolbarRow1, 0, 1);
         layout.Controls.Add(toolbarRow2, 0, 2);
-        layout.Controls.Add(_breadcrumbPanel, 0, 3);
+        layout.Controls.Add(CreateBookmarksRow(), 0, 3);
+        layout.Controls.Add(_breadcrumbPanel, 0, 4);
 
         // Content panel hosts all three view panels; we show/hide + BringToFront
         var contentPanel = new Panel { Dock = DockStyle.Fill };
         contentPanel.Controls.Add(_splitPanel);
         contentPanel.Controls.Add(_textPanel);
         contentPanel.Controls.Add(_treePanel);
-        layout.Controls.Add(contentPanel, 0, 4);
+        layout.Controls.Add(contentPanel, 0, 5);
 
         Controls.Add(layout);
         ResumeLayout(false);

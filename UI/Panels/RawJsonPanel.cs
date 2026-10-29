@@ -400,6 +400,8 @@ public partial class RawJsonPanel : UserControl
         _statusLabel.ForeColor = StatusColor(ThemeManager.Effective, Color.Gray, ThemeColors.Dark.SecondaryText);
         ResetSearchState();
         UpdateTextBreadcrumb();
+        RefreshBookmarks();
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>
@@ -410,6 +412,7 @@ public partial class RawJsonPanel : UserControl
         _accountData = accountData;
         _accountFilePath = accountFilePath;
         UpdateFileSelector();
+        RefreshBookmarks();
     }
 
     /// <summary>
@@ -420,6 +423,7 @@ public partial class RawJsonPanel : UserControl
     {
         _saveFilePath = filePath;
         UpdateFileSelector();
+        RefreshBookmarks();
     }
 
     /// <summary>
@@ -500,6 +504,9 @@ public partial class RawJsonPanel : UserControl
             ResetSearchState();
             UpdateTextBreadcrumb();
         }
+
+        RefreshBookmarks();
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>
@@ -612,6 +619,7 @@ public partial class RawJsonPanel : UserControl
 
         // Node isolation applies to the split text pane only.
         _isolateNodeCheck.Visible = mode == ViewMode.Split;
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>Parses a persisted view mode name, defaulting to tree view.</summary>
@@ -635,6 +643,7 @@ public partial class RawJsonPanel : UserControl
         if (_viewMode == ViewMode.Tree) _treePanel.BringToFront();
         else if (_viewMode == ViewMode.Text) _textPanel.BringToFront();
         else _splitPanel.BringToFront();
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>Persists the current view mode so it is restored on the next start.</summary>
@@ -864,6 +873,7 @@ public partial class RawJsonPanel : UserControl
     private void OnSplitTreeNodeSelected(object? sender, TreeViewEventArgs e)
     {
         UpdateBreadcrumb(_splitTreeView, e.Node);
+        UpdateBookmarkAddButtonState();
 
         if (_suppressIsolateReload) return;
 
@@ -956,6 +966,7 @@ public partial class RawJsonPanel : UserControl
             if (data != null)
                 _splitSyntaxTextBox.JsonText = GetDisplayString(data);
             PersistIsolatePreference(false);
+            UpdateBookmarkAddButtonState();
             return;
         }
 
@@ -971,6 +982,7 @@ public partial class RawJsonPanel : UserControl
         var node = _splitTreeView.SelectedNode ?? (_splitTreeView.Nodes.Count > 0 ? _splitTreeView.Nodes[0] : null);
         LoadIsolatedNode(node);
         PersistIsolatePreference(true);
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>
@@ -2348,14 +2360,28 @@ public partial class RawJsonPanel : UserControl
     /// <param name="pathSegments">The JSON path segments (e.g. "PlayerStateData", "ShipOwnership", "[3]").</param>
     public void NavigateToPath(string[] pathSegments)
     {
-        if (pathSegments == null || pathSegments.Length == 0) return;
+        TryNavigateToPath(pathSegments);
+    }
+
+    /// <summary>
+    /// Navigates to a raw JSON path and reports whether the target was found.
+    /// Used by bookmarks to show a clear message when a stored path no longer exists.
+    /// </summary>
+    /// <param name="pathSegments">The raw or virtual path segments to navigate to.</param>
+    /// <returns>True when the path resolved to a visible node.</returns>
+    private bool TryNavigateToPath(string[] pathSegments)
+    {
+        if (pathSegments == null || pathSegments.Length == 0)
+            return false;
 
         // Resolve transforms so virtual keys like "PlayerStateData" are
         // mapped to their actual tree location (e.g. "BaseContext.PlayerStateData").
         var data = _isShowingAccount ? _accountData : _saveData;
-        if (data == null) return;
+        if (data == null)
+            return false;
         pathSegments = ResolveTransformedPath(pathSegments, data);
-        if (pathSegments.Length == 0) return;
+        if (pathSegments.Length == 0)
+            return false;
 
         // Text view cannot display a single node: use tree view for this navigation only,
         // without changing the persisted view preference.
@@ -2375,26 +2401,41 @@ public partial class RawJsonPanel : UserControl
 
             LoadSplitView(data);
 
-            if (!_isolateNode)
+            if (_isolateNode)
             {
-                var node = NavigateTreeToPath(_splitTreeView, [.. pathSegments]);
-                if (node != null)
-                {
-                    _splitTreeView.SelectedNode = node;
-                    node.EnsureVisible();
-                }
+                if (_isolatedNode == null)
+                    return false;
+                return PathsEqual(GetNodePath(_isolatedNode), pathSegments);
             }
-            return;
+
+            var splitNode = NavigateTreeToPath(_splitTreeView, [.. pathSegments]);
+            if (splitNode == null)
+                return false;
+            _splitTreeView.SelectedNode = splitNode;
+            splitNode.EnsureVisible();
+            return true;
         }
 
         // Tree view: rebuild the tree from current data so navigation uses a fresh tree.
         BuildTree(data);
         var target = NavigateTreeToPath(_treeView, [.. pathSegments]);
-        if (target != null)
+        if (target == null)
+            return false;
+        _treeView.SelectedNode = target;
+        target.EnsureVisible();
+        return true;
+    }
+
+    private static bool PathsEqual(IReadOnlyList<string> first, IReadOnlyList<string> second)
+    {
+        if (first.Count != second.Count)
+            return false;
+        for (int i = 0; i < first.Count; i++)
         {
-            _treeView.SelectedNode = target;
-            target.EnsureVisible();
+            if (!string.Equals(first[i], second[i], StringComparison.Ordinal))
+                return false;
         }
+        return true;
     }
 
     /// <summary>
@@ -2527,6 +2568,7 @@ public partial class RawJsonPanel : UserControl
     {
         CancelInlineEdit();
         UpdateBreadcrumb(_treeView, e.Node);
+        UpdateBookmarkAddButtonState();
     }
 
     /// <summary>
@@ -3396,6 +3438,7 @@ public partial class RawJsonPanel : UserControl
         _exportButton.Text = UiStrings.Get("raw_json.export");
         _importButton.Text = UiStrings.Get("raw_json.import");
         _diffButton.Text = UiStrings.Get("raw_json.diff");
+        ApplyBookmarkLocalisation();
 
         // Context menu items (by position, skipping separators)
         if (_contextMenu.Items.Count >= 13)
