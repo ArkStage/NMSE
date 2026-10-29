@@ -91,10 +91,15 @@
     <Compile Include="..\Core\Utilities\MathHelper.cs" Link="Core\Utilities\MathHelper.cs" />
     <Compile Include="..\Core\FrigateLogic.cs" Link="Core\FrigateLogic.cs" />
     <Compile Include="..\Core\CompanionLogic.cs" Link="Core\CompanionLogic.cs" />
+    <Compile Include="..\Core\CompanionSortLogic.cs" Link="Core\CompanionSortLogic.cs" />
     <Compile Include="..\Core\PetBattleLogic.cs" Link="Core\PetBattleLogic.cs" />
     <Compile Include="..\Core\MilestoneLogic.cs" Link="Core\MilestoneLogic.cs" />
+    <Compile Include="..\Core\MilestoneCatalog.cs" Link="Core\MilestoneCatalog.cs" />
     <Compile Include="..\Core\CatalogueLogic.cs" Link="Core\CatalogueLogic.cs" />
     <Compile Include="..\Core\BaseLogic.cs" Link="Core\BaseLogic.cs" />
+    <Compile Include="..\Core\BaseListLogic.cs" Link="Core\BaseListLogic.cs" />
+    <Compile Include="..\Core\BaseExportLogic.cs" Link="Core\BaseExportLogic.cs" />
+    <Compile Include="..\Core\RawJsonBookmarksLogic.cs" Link="Core\RawJsonBookmarksLogic.cs" />
     <Compile Include="..\Core\SettlementLogic.cs" Link="Core\SettlementLogic.cs" />
     <Compile Include="..\Core\SquadronLogic.cs" Link="Core\SquadronLogic.cs" />
     <Compile Include="..\Core\ExocraftLogic.cs" Link="Core\ExocraftLogic.cs" />
@@ -145,4 +150,9 @@
     <Compile Include="..\Config\AppConfig.cs" Link="Config\AppConfig.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestData\MilestoneCatalogExpected.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

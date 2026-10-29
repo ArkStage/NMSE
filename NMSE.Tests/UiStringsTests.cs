@@ -831,4 +831,51 @@ public class UiStringsTests : IDisposable
             Assert.NotEqual("companion.no_accessories", value);
         }
     }
+
+    [Fact]
+    public void UiStrings_BaseImportAndBookmarkKeys_ExistInAllLanguages()
+    {
+        var langDir = FindRealLangDir();
+        if (langDir == null) return;
+
+        string[] requiredKeys =
+        [
+            "base.import_new",
+            "base.import_new_confirm",
+            "base.import_terrain_invalid",
+            "base.import_type_mismatch",
+            "base.import_metadata_warning",
+            "base.import_terrain_warning",
+            "base.import_invalid_file",
+            "raw_json.bookmarks",
+            "raw_json.bookmark_add",
+            "raw_json.bookmark_manage",
+            "raw_json.bookmark_empty",
+            "raw_json.bookmark_add_title",
+            "raw_json.bookmark_rename",
+            "raw_json.bookmark_rename_title",
+            "raw_json.bookmark_name_label",
+            "raw_json.bookmark_name_empty",
+            "raw_json.bookmark_name_duplicate",
+            "raw_json.bookmark_added",
+            "raw_json.bookmark_renamed",
+            "raw_json.bookmark_deleted",
+            "raw_json.bookmark_delete_confirm",
+            "raw_json.bookmark_not_found",
+            "raw_json.bookmark_manage_title",
+            "raw_json.bookmark_tooltip"
+        ];
+
+        foreach (var lang in AllLanguages)
+        {
+            UiStrings.SetDirectory(langDir);
+            UiStrings.Load(lang);
+
+            foreach (var key in requiredKeys)
+            {
+                string value = UiStrings.Get(key);
+                Assert.NotEqual(key, value);
+            }
+        }
+    }
 }

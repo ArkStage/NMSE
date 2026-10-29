@@ -1242,6 +1242,35 @@ public class LogicTests
         Assert.Equal(expected, data.TypeIndex);
     }
 
+    [Fact]
+    public void MultitoolLogic_ToolTypes_IncludesLarvaCannonModel()
+    {
+        // Forsaken update reward "Larva Cannon" uses the unique
+        // GRUBCANNONMULTITOOL.SCENE.MBIN model.
+        Assert.Contains(MultitoolLogic.ToolTypes,
+            t => t.Name == "Larva Cannon"
+                && t.Filename.EndsWith("GRUBCANNONMULTITOOL.SCENE.MBIN", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void MultitoolLogic_LoadToolData_DetectsLarvaCannonModel()
+    {
+        // Detection must map the grub cannon resource to the Larva Cannon type so
+        // that saving does not rewrite the resource to the shared MULTITOOL model.
+        var tool = new JsonObject();
+        var resource = new JsonObject();
+        resource.Add("Filename", "MODELS/COMMON/WEAPONS/MULTITOOL/GRUBCANNONMULTITOOL.SCENE.MBIN");
+        tool.Add("Resource", resource);
+        tool.Add("Store", new JsonObject());
+        tool.Add("Store_TechOnly", new JsonObject());
+
+        var data = MultitoolLogic.LoadToolData(tool);
+
+        int expected = Array.FindIndex(MultitoolLogic.ToolTypes, t => t.Name == "Larva Cannon");
+        Assert.True(expected >= 0, "Larva Cannon type must exist in ToolTypes");
+        Assert.Equal(expected, data.TypeIndex);
+    }
+
     [Theory]
     [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/SENTINELMULTITOOL.SCENE.MBIN",   "Robot")]
     [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/SENTINELMULTITOOLB.SCENE.MBIN",  "Robot")]
@@ -1255,11 +1284,12 @@ public class LogicTests
     [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/ATLASMULTITOOL.SCENE.MBIN",      "Atlas")]
     [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/SWARMMULTITOOL.SCENE.MBIN",      "Rifle")]
     [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/RETROMULTITOOL.SCENE.MBIN",      "Pistol")]
+    [InlineData("MODELS/COMMON/WEAPONS/MULTITOOL/GRUBCANNONMULTITOOL.SCENE.MBIN", "Alien")]
     public void MultitoolLogic_GetArchivedWeaponClass_UniqueModels(string filename, string expected)
     {
         // Values mirror the game's GcWeaponClasses enum.  Robot, Atlas, Rifle (Switch/Swarm),
-        // Staff (all staff variants) and the retro Pistol class were confirmed against the
-        // game's own reward table and in-game archived multitools.
+        // Staff (all staff variants), the retro Pistol class and the grub cannon's Alien class
+        // were confirmed against the game's own reward table and in-game archived multitools.
         var tool = BuildArchiveClassTool(filename);
 
         Assert.Equal(expected, MultitoolLogic.GetArchivedWeaponClass(tool));

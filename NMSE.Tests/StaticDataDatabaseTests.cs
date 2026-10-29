@@ -912,7 +912,7 @@ public class StaticDataDatabaseTests
     public void WordDatabase_LoadFromFile_ReturnsExpectedWordCount()
     {
         var db = LoadWordDbFromJson();
-        Assert.Equal(2151, db.Count);
+        Assert.Equal(2154, db.Count);
     }
 
     [Fact]

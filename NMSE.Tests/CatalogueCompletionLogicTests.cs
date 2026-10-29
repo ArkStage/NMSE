@@ -458,12 +458,12 @@ public class CatalogueCompletionLogicTests
         var pack = new CatalogueDatabase(jsonDir);
 
         Assert.True(pack.IsAvailable);
-        Assert.Equal(3582, pack.KnownProducts.Count);
+        Assert.Equal(3679, pack.KnownProducts.Count);
         Assert.Equal(392, pack.KnownTech.Count);
         Assert.DoesNotContain("OBSOLETE", pack.KnownTech);
         Assert.Equal(276, pack.KnownSpecials.Count);
         Assert.Equal(1684, pack.KnownRefinerRecipes.Count);
-        Assert.Equal(3831, pack.KnownWordGroups.Count);
+        Assert.Equal(3844, pack.KnownWordGroups.Count);
         Assert.Equal(220, pack.Fishing.Count);
         Assert.Equal(65535, pack.KnownPortalRunes);
     }
@@ -510,7 +510,7 @@ public class CatalogueCompletionLogicTests
 
         var completion = pack.KnownProductsForCompletion(db);
 
-        Assert.Equal(3511, completion.Count);
+        Assert.Equal(3608, completion.Count);
         Assert.DoesNotContain("FUEL1", completion);      // substance
         Assert.DoesNotContain("ASTBELT1", completion);   // substance
         Assert.Contains("BASE_AQUARIUM", completion);    // building product

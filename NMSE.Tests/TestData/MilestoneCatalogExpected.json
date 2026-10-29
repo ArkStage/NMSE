@@ -1,0 +1,1450 @@
+{
+ "placements": [
+  {
+   "id": "^ALIENS_MET",
+   "tab": "Milestones",
+   "section": "milestone.section_exploration_milestones",
+   "sub": null
+  },
+  {
+   "id": "^WORDS_LEARNT",
+   "tab": "Milestones",
+   "section": "milestone.section_exploration_milestones",
+   "sub": null
+  },
+  {
+   "id": "^DIST_WARP",
+   "tab": "Milestones",
+   "section": "milestone.section_exploration_milestones",
+   "sub": null
+  },
+  {
+   "id": "^DISC_ALL_CREATU",
+   "tab": "Milestones",
+   "section": "milestone.section_exploration_milestones",
+   "sub": null
+  },
+  {
+   "id": "^DIST_WALKED",
+   "tab": "Milestones",
+   "section": "milestone.section_survival_milestones",
+   "sub": null
+  },
+  {
+   "id": "^LONGEST_LIFE_EX",
+   "tab": "Milestones",
+   "section": "milestone.section_survival_milestones",
+   "sub": null
+  },
+  {
+   "id": "^SENTINEL_KILLS",
+   "tab": "Milestones",
+   "section": "milestone.section_survival_milestones",
+   "sub": null
+  },
+  {
+   "id": "^MONEY",
+   "tab": "Milestones",
+   "section": "milestone.section_survival_milestones",
+   "sub": null
+  },
+  {
+   "id": "^ENEMIES_KILLED",
+   "tab": "Milestones",
+   "section": "milestone.section_survival_milestones",
+   "sub": null
+  },
+  {
+   "id": "^TRA_STANDING",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_gek",
+   "sub": null
+  },
+  {
+   "id": "^TDONE_MISSIONS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_gek",
+   "sub": null
+  },
+  {
+   "id": "^TSEEN_SYSTEMS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_gek",
+   "sub": null
+  },
+  {
+   "id": "^SMUGGLE_VALUE",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_gek",
+   "sub": null
+  },
+  {
+   "id": "^WAR_STANDING",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_vykeen",
+   "sub": null
+  },
+  {
+   "id": "^WDONE_MISSIONS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_vykeen",
+   "sub": null
+  },
+  {
+   "id": "^WSEEN_SYSTEMS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_vykeen",
+   "sub": null
+  },
+  {
+   "id": "^WALKERS_KILLED",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_vykeen",
+   "sub": null
+  },
+  {
+   "id": "^EXP_STANDING",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_korvax",
+   "sub": null
+  },
+  {
+   "id": "^EDONE_MISSIONS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_korvax",
+   "sub": null
+  },
+  {
+   "id": "^ESEEN_SYSTEMS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_korvax",
+   "sub": null
+  },
+  {
+   "id": "^NANITES_EVER",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_korvax",
+   "sub": null
+  },
+  {
+   "id": "^BUI_STANDING",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_autophage",
+   "sub": null
+  },
+  {
+   "id": "^BDONE_MISSIONS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_autophage",
+   "sub": null
+  },
+  {
+   "id": "^DRONE_SHARDS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_autophage",
+   "sub": null
+  },
+  {
+   "id": "^HEAD_REPAIRS",
+   "tab": "Lifeforms",
+   "section": "milestone.section_the_autophage",
+   "sub": null
+  },
+  {
+   "id": "^TGUILD_STAND",
+   "tab": "Factions",
+   "section": "milestone.merchants_guild",
+   "sub": null
+  },
+  {
+   "id": "^TGDONE_MISSIONS",
+   "tab": "Factions",
+   "section": "milestone.merchants_guild",
+   "sub": null
+  },
+  {
+   "id": "^MONEY",
+   "tab": "Factions",
+   "section": "milestone.merchants_guild",
+   "sub": null
+  },
+  {
+   "id": "^PLANTS_PLANTED",
+   "tab": "Factions",
+   "section": "milestone.merchants_guild",
+   "sub": null
+  },
+  {
+   "id": "^PROC_PRODS",
+   "tab": "Factions",
+   "section": "milestone.merchants_guild",
+   "sub": null
+  },
+  {
+   "id": "^WGUILD_STAND",
+   "tab": "Factions",
+   "section": "milestone.mercenaries_guild",
+   "sub": null
+  },
+  {
+   "id": "^WGDONE_MISSIONS",
+   "tab": "Factions",
+   "section": "milestone.mercenaries_guild",
+   "sub": null
+  },
+  {
+   "id": "^SENTINEL_KILLS",
+   "tab": "Factions",
+   "section": "milestone.mercenaries_guild",
+   "sub": null
+  },
+  {
+   "id": "^PIRATES_KILLED",
+   "tab": "Factions",
+   "section": "milestone.mercenaries_guild",
+   "sub": null
+  },
+  {
+   "id": "^FIENDS_KILLED",
+   "tab": "Factions",
+   "section": "milestone.mercenaries_guild",
+   "sub": null
+  },
+  {
+   "id": "^EGUILD_STAND",
+   "tab": "Factions",
+   "section": "milestone.explorers_guild",
+   "sub": null
+  },
+  {
+   "id": "^EGDONE_MISSIONS",
+   "tab": "Factions",
+   "section": "milestone.explorers_guild",
+   "sub": null
+  },
+  {
+   "id": "^RARE_SCANNED",
+   "tab": "Factions",
+   "section": "milestone.explorers_guild",
+   "sub": null
+  },
+  {
+   "id": "^DIST_WARP",
+   "tab": "Factions",
+   "section": "milestone.explorers_guild",
+   "sub": null
+  },
+  {
+   "id": "^DISC_FLORA",
+   "tab": "Factions",
+   "section": "milestone.explorers_guild",
+   "sub": null
+  },
+  {
+   "id": "^PB_BOSS_WINS",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PB_WINS",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PB_PETS_MAXED",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PB_D_NEXUS",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^EGGS_HATCHED",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PB_CHALL_WINS",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PB_LOSSES",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PETS_OWNED",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PET_LEVEL_SPENT",
+   "tab": "Factions",
+   "section": "milestone.section_arena_league",
+   "sub": null
+  },
+  {
+   "id": "^PIRATE_STAND",
+   "tab": "Factions",
+   "section": "milestone.outlaws",
+   "sub": null
+  },
+  {
+   "id": "^PIRATE_MISSIONS",
+   "tab": "Factions",
+   "section": "milestone.outlaws",
+   "sub": null
+  },
+  {
+   "id": "^SMUGGLE_VALUE",
+   "tab": "Factions",
+   "section": "milestone.outlaws",
+   "sub": null
+  },
+  {
+   "id": "^BOUNTIES",
+   "tab": "Factions",
+   "section": "milestone.outlaws",
+   "sub": null
+  },
+  {
+   "id": "^FPODS_BROKEN",
+   "tab": "Factions",
+   "section": "milestone.outlaws",
+   "sub": null
+  },
+  {
+   "id": "^EXTREME_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_survival"
+  },
+  {
+   "id": "^LONGEST_LIFE",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_survival"
+  },
+  {
+   "id": "^STORM_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_survival"
+  },
+  {
+   "id": "^DEATHS",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_survival"
+  },
+  {
+   "id": "^PLAY_SESSIONS",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_time"
+  },
+  {
+   "id": "^APP_SESSIONS",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_time"
+  },
+  {
+   "id": "^SPACE_TIME",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_time"
+  },
+  {
+   "id": "^TIMES_IN_SPACE",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_time"
+  },
+  {
+   "id": "^TIME",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_time"
+  },
+  {
+   "id": "^PHOTO_MODE_USED",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_modes"
+  },
+  {
+   "id": "^VR_GRABS",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_modes"
+  },
+  {
+   "id": "^VR_INIT",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_modes"
+  },
+  {
+   "id": "^VR_SNAPTURNS",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_modes"
+  },
+  {
+   "id": "^DICE_GAME_LOST",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_activities"
+  },
+  {
+   "id": "^DICE_GAME_WON",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_activities"
+  },
+  {
+   "id": "^MEDITATION",
+   "tab": "OtherStats",
+   "section": "milestone.section_general",
+   "sub": "milestone.subcat_activities"
+  },
+  {
+   "id": "^CREATURES_KILL",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^FISH_KILLS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^FLORA_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^GRUBS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^JELLYBOSS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^S20_JELLYBOSS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^MINIWORM_KILL",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^PREDS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^QUEENS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^ROAD_KILL",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^SPIDERS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^SPOOKBOSS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^SPOOK_JUICE",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^SPOOK_KILLS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_creatures"
+  },
+  {
+   "id": "^MECHS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_sentinels"
+  },
+  {
+   "id": "^DRONES_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_sentinels"
+  },
+  {
+   "id": "^SENTFREI_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_sentinels"
+  },
+  {
+   "id": "^QUADS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_sentinels"
+  },
+  {
+   "id": "^STONE_KILLS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_sentinels"
+  },
+  {
+   "id": "^ASTEROIDS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_space"
+  },
+  {
+   "id": "^CIV_FREI_KILLS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_space"
+  },
+  {
+   "id": "^PIR_FREI_WINS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_space"
+  },
+  {
+   "id": "^SPACE_BATTLES",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_space"
+  },
+  {
+   "id": "^PIR_FREI_SEEN",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^MISSION_PIRATES",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^PDONE_MISSIONS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^PIRATE_MYSTERY",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^PIRATE_SYSTEMS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^POLICE_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^POLICE_SUMMON",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^TRADERS_KILLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_piracy"
+  },
+  {
+   "id": "^AMMO_FIRED",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_weaponry"
+  },
+  {
+   "id": "^KILLS_IN_MECH",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_weaponry"
+  },
+  {
+   "id": "^GUNSLOTREPAIRS",
+   "tab": "OtherStats",
+   "section": "milestone.section_combat",
+   "sub": "milestone.subcat_weaponry"
+  },
+  {
+   "id": "^DIST_EXO",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^DIST_FLY",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^DIST_SPACE",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^DIST_JETPACK",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^DIST_PULSE",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^DIST_SUB",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^TUNNELLED",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_distance"
+  },
+  {
+   "id": "^SPACE_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_walking"
+  },
+  {
+   "id": "^EX_TOX_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_walking"
+  },
+  {
+   "id": "^ACROBAT",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_flight"
+  },
+  {
+   "id": "^BLACKHOLE_WALKS",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_warp"
+  },
+  {
+   "id": "^BLACKHOLE_WARPS",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_warp"
+  },
+  {
+   "id": "^EARLY_WARPS",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_warp"
+  },
+  {
+   "id": "^ITEMS_TELEPRT",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_warp"
+  },
+  {
+   "id": "^PORTAL_WARPS",
+   "tab": "OtherStats",
+   "section": "milestone.section_movement",
+   "sub": "milestone.subcat_warp"
+  },
+  {
+   "id": "^ABAND_FREIGHTER",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^ARTIFACT_HINTS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^ATLAS_LOOPS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^BASECOMP_LORE",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^CAVE_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^DISC_CREATURES",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^DISC_MINERALS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^DISC_PLANETS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^VISIT_PLANETS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^ANALYSE_PROP",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^SPACE_POI",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^DISC_SYSTEMS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^DISC_WAYPOINTS",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_discovery"
+  },
+  {
+   "id": "^BONES_FOUND",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^EXCAVATED",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^FOS_MADE",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^RUINS_LOOTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^SALVAGE_LOOTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^TREASURE_FOUND",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_excavation"
+  },
+  {
+   "id": "^BUI_MET",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^TRA_MET",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^GIFTS_GIVEN",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^EXP_MET",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^NPCS_RESCUED",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^WAR_MET",
+   "tab": "OtherStats",
+   "section": "milestone.section_exploration",
+   "sub": "milestone.subcat_encounters"
+  },
+  {
+   "id": "^JM",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_gathering"
+  },
+  {
+   "id": "^JM_BANKED",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_gathering"
+  },
+  {
+   "id": "^PLANTS_GATHERED",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_gathering"
+  },
+  {
+   "id": "^RES_EXTRACTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_gathering"
+  },
+  {
+   "id": "^STORM_CRYSTALS",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_gathering"
+  },
+  {
+   "id": "^NANITES",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_economy"
+  },
+  {
+   "id": "^QS_SPENT",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_economy"
+  },
+  {
+   "id": "^MONEY_EVER",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_economy"
+  },
+  {
+   "id": "^FISH_BOOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^FISH_CASH",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^FISH_CAUGHT",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^FISH_RELEASED",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^FISH_TRAPPED",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^FISH_LEGEND",
+   "tab": "OtherStats",
+   "section": "milestone.section_resources",
+   "sub": "milestone.subcat_fishing"
+  },
+  {
+   "id": "^EGG_PODS",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_eggs"
+  },
+  {
+   "id": "^EGGS_MODDED",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_eggs"
+  },
+  {
+   "id": "^EGGS_GOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_eggs"
+  },
+  {
+   "id": "^FIEND_EGG",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_eggs"
+  },
+  {
+   "id": "^CREATURES_FED",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_husbandry"
+  },
+  {
+   "id": "^PETS_ADOPTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_husbandry"
+  },
+  {
+   "id": "^POOP_COLLECTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_companions",
+   "sub": "milestone.subcat_husbandry"
+  },
+  {
+   "id": "^BASEPARTS_GOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_bases"
+  },
+  {
+   "id": "^PARTS_PLACED",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_bases"
+  },
+  {
+   "id": "^JUDGEMENTS",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_bases"
+  },
+  {
+   "id": "^BIGGS_PART_GOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_fleet"
+  },
+  {
+   "id": "^FRIGATES",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_fleet"
+  },
+  {
+   "id": "^SHIPS_BOUGHT",
+   "tab": "OtherStats",
+   "section": "milestone.section_construction",
+   "sub": "milestone.subcat_fleet"
+  },
+  {
+   "id": "^GRAV_THROW",
+   "tab": "OtherStats",
+   "section": "milestone.section_equipment",
+   "sub": "milestone.subcat_gravity"
+  },
+  {
+   "id": "^GRAVBALLS",
+   "tab": "OtherStats",
+   "section": "milestone.section_equipment",
+   "sub": "milestone.subcat_gravity"
+  },
+  {
+   "id": "^GRAV_GRAB",
+   "tab": "OtherStats",
+   "section": "milestone.section_equipment",
+   "sub": "milestone.subcat_gravity"
+  },
+  {
+   "id": "^GRAV_PUSH",
+   "tab": "OtherStats",
+   "section": "milestone.section_equipment",
+   "sub": "milestone.subcat_gravity"
+  },
+  {
+   "id": "^DISC_ABAND",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_COLD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_DEAD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_DUST",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_GAS",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_HOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_LAVA",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_LUSH",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_RAD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_RGB",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_SWAMP",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_TOX",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_WATER",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_P_WEIRD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_RARE_SYS",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_COLD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_DEAD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_DUST",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_GAS",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_HOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_LAVA",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_LUSH",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_RAD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_RGB",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_SWAMP",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_TOX",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_WATER",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^VISIT_WEIRD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_planets",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_AGGRO",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_AIR",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_CAVE",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_DISS",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_LAND",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_ROBOT",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_WATER",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_CRE_WEIRD",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^DISC_STRIDERGLO",
+   "tab": "OtherStats",
+   "section": "milestone.section_disc_creatures",
+   "sub": null
+  },
+  {
+   "id": "^MP_DEPOT_DONE",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_DEPOT_HACK",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_EVENT_COUNT",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_FISH_COUNT",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_FULL_COUNT",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_FULL_TIME",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_MIS_ACCESS",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_MIS_STARTED",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_ORB_COUNT",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_ORB_TIME",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_PIRATES_WAVE",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_PQ_RMARKER",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_PQ_WSTONES",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_REP_FAILS",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^MP_SESSIONS",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^NEXUS_MISSIONS",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^NEXUS_MISS_PQ",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^NEXUS_MISS_QS",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^NEXUS_STAND",
+   "tab": "OtherStats",
+   "section": "milestone.section_multiplayer",
+   "sub": null
+  },
+  {
+   "id": "^DIST_BIGGS",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_CRE_RIDE",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_MY_BIGGS",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_OTH_BIGGS",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_PET_FLY",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_PET_RIDE",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^DIST_SWAM",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^EX_COLD_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^EX_HOT_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  },
+  {
+   "id": "^EX_RAD_WALK",
+   "tab": "OtherStats",
+   "section": "milestone.section_travel",
+   "sub": null
+  }
+ ]
+}
