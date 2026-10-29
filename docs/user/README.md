@@ -694,7 +694,7 @@ It supports all base types (planetary, space, station, freighter, corvette).
 
 Base types are marked in the list with a prefix: `[F]` freighter, `[S]` space station, `[C]` corvette and `[A]` asteroid/space base. Planetary bases have no prefix.
 
-Export / Import via the <kbd>Export</kbd> and <kbd>Import</kbd> buttons.
+Use <kbd>Export</kbd> to save the selected base to a raw `.nmsbase` file. If the base has matching terrain edits, NMSE also writes a sidecar named `<base file>.terrain.json` beside it; keep both files together when moving or backing up the base. <kbd>Import</kbd> reads the base and applies the sidecar terrain automatically, then replaces the selected base only when it is the same type (Home to Home, Freighter to Freighter, and so on). <kbd>Import as New</kbd> adds the imported base as an additional entry of the same type, which is useful when moving bases between saves. Older NMSE versions can still import the raw base file, but will ignore the sidecar and therefore not restore position or terrain.
 
 Other base actions:
 
@@ -916,12 +916,17 @@ View and edit the discovery statistics tracked for your save, with <kbd>Complete
 ## Milestones
 
 The **Milestones** tab lets you view and edit your journey milestones and game statistics.
+It follows the in-game menus: **Milestones**, **Lifeforms**, **Factions** and **Other Stats**.
 
-| Main Milestones | Other Milestones |
-|------------|-------------|
-| <img src="../img/milestones-main.png"> | <img src="../img/milestones-other.png"> |
+| Milestones | Lifeforms |
+|------------|-----------|
+| <img src="../img/milestones-main.png"> | <img src="../img/milestones-lifeforms.png"> |
 
-You can edit milestone progress values and global statistics tracked by the game. Each section has a GOTO button for the JSON data.
+| Factions | Other Stats |
+|----------|-------------|
+| <img src="../img/milestones-factions.png"> | <img src="../img/milestones-other.png"> |
+
+You can edit milestone progress values and global statistics tracked by the game. Guild rows also show rank progress and promotion values. Use the **Find Stat** button to open a searchable reference table with the in-game name, editor name, internal stat ID and location of every stat. Select a result to jump to it. Stats that appear in more than one menu are marked as shared and stay in sync. The GOTO button opens the JSON data.
 
 ---
 
@@ -1115,6 +1120,8 @@ You can also right-click a node for Add Property / Add Array Item, Delete, Copy 
 Use the <kbd>Tree View</kbd>, <kbd>Text View</kbd> or <kbd>Split View</kbd> buttons to switch between the different view modes. In split view, tick <kbd>Isolate Node</kbd> to edit just the selected node, and in the text views use <kbd>Format</kbd> and <kbd>Validate</kbd> to tidy or check the JSON.
 
 A breadcrumb row under the toolbar always shows where the selected node is in the document, so you can see the full path while editing text or in split view.
+
+The <kbd>Bookmarks</kbd> row stores named paths for the current save or account file. Select a node and use <kbd>Add</kbd> to name it, then pick it from the dropdown to jump straight back. <kbd>Manage</kbd> lets you rename or delete bookmarks. Bookmarks created while <kbd>Isolate Node</kbd> is active reopen in Split view with that node isolated; unresolved paths are reported without deleting the bookmark.
 
 Use the <kbd>Expand All</kbd> and <kbd>Collapse All</kbd> buttons to fold/unfold all.
 

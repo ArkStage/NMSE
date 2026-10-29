@@ -50,7 +50,7 @@ MainForm uses a `DoubleBufferedTabControl` with 16 tabs:
 | 6 | CompanionPanel | Companion management, genes, accessories and pet battles |
 | 7 | BasePanel | Bases, chests, storage and the Systems (space station) tab |
 | 8 | CataloguePanel | Known technologies, products, specials, words, glyphs, locations, fish, recipes, wonders, knowledge, fossils, raw materials and discovery stats |
-| 9 | MilestonePanel | Milestones and global statistics |
+| 9 | MilestonePanel | Milestones in game-menu layout, global statistics and searchable stat reference |
 | 10 | SettlementPanel | Settlement stats, production, building states and building editor |
 | 11 | ByteBeatPanel | ByteBeat music editor |
 | 12 | AccountPanel | Season, Twitch and platform rewards |
@@ -341,7 +341,7 @@ methods to read/write fields.
 
 | Panel | File | Description |
 |---|---|---|
-| **BasePanel** | `UI/Panels/BasePanel.cs` | Four inner tabs. **Bases**: base selection (planetary, freighter, space station, corvette and asteroid/space kinds, marked with `[F]`/`[S]`/`[C]`/`[A]` prefixes), position editing, NPC workers, terrain-edit actions, an Info / Objects right-hand editor, freighter room editing and move base computer. **Chests**: 10 standard chest inventories. **Storage**: 8 special storage container tabs plus a freighter refund tab. **Systems**: hosts `SpaceStationSubPanel` (see Space Station Panels). Uses `BaseLogic` for position swapping and storage key definitions. |
+| **BasePanel** | `UI/Panels/BasePanel.cs` | Four inner tabs. **Bases**: base selection (planetary, freighter, space station, corvette and asteroid/space kinds, marked with `[F]`/`[S]`/`[C]`/`[A]` prefixes), position editing, NPC workers, terrain-edit actions, an Info / Objects right-hand editor, freighter room editing and move base computer. Raw base export/import is handled by `BaseExportLogic`: the `.nmsbase` file stays a raw base for older NMSE builds, with matching terrain written to a `.nmsbase.terrain.json` sidecar; replace is type-for-type and Import as New supports all recognised base kinds. **Chests**: 10 standard chest inventories. **Storage**: 8 special storage container tabs plus a freighter refund tab. **Systems**: hosts `SpaceStationSubPanel` (see Space Station Panels). Uses `BaseLogic` for position swapping and storage key definitions. |
 | **SettlementPanel** | `UI/Panels/SettlementPanel.cs` | Four tabs: **Stats & Perks**, **Production**, **Building States** and **Building Editor**. The stats page edits 8 settlement stats with min/max sliders and a perk list with beneficial/detrimental indicators; production edits output items; the building pages edit placed building states and per-building fields. Uses `SettlementLogic` and `SettlementPerkDatabase`. `RefreshPerkCombos()` repopulates perk dropdowns after JSON databases load and after language changes. |
 
 #### Catalogue and Knowledge Panels
@@ -370,7 +370,7 @@ methods to read/write fields.
 | Panel | File | Description |
 |---|---|---|
 | **ExportConfigPanel** | `UI/Panels/ExportConfigPanel.cs` | File Extensions, Naming Templates and Help tabs for the `ExportConfig` singleton: file extension preferences, naming templates with variable substitution. No `SaveData` method (config is saved separately). |
-| **RawJsonPanel** | `UI/Panels/RawJsonPanel.cs` | Raw JSON editor with Tree, Text and Split views. The text and split views use `JsonSyntaxTextBox`. Supports isolated-node editing in the split view, inline tree editing, Show Changes diffing against a captured baseline via `RawJsonLogic.DiffLine`, undo/redo, and a read-only account data view. `RefreshTree()`, `NavigateToPath()`, `CaptureBaseline()` and `NotifyDataChanged()` are called by MainForm and the GOTO JSON handler. |
+| **RawJsonPanel** | `UI/Panels/RawJsonPanel.cs` | Raw JSON editor with Tree, Text and Split views. The text and split views use `JsonSyntaxTextBox`. Supports isolated-node editing in the split view, inline tree editing, Show Changes diffing against a captured baseline via `RawJsonLogic.DiffLine`, undo/redo, a read-only account data view, and named per-save/account bookmarks (`RawJsonPanel.Bookmarks.cs`, `RawJsonBookmarksLogic`). `RefreshTree()`, `NavigateToPath()`, `CaptureBaseline()` and `NotifyDataChanged()` are called by MainForm and the GOTO JSON handler. |
 
 #### Space Station Panels
 
