@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using NMSE.Config;
 using NMSE.Core;
 using NMSE.Core.Utilities;
 using NMSE.Data;
@@ -178,7 +179,11 @@ internal class BasesSubPanel : UserControl
     private readonly Button _generateNpcSeedBtn;
 
     // Base list (left column)
-    private readonly ListBox _baseList;
+    private readonly ListView _baseList;
+    private readonly TextBox _baseFilterBox;
+    private readonly Button _baseFilterClearBtn;
+    private readonly CheckBox _showHiddenBasesCheck;
+    private readonly Label _baseListHint;
     private readonly Button _toTopBtn;
     private readonly Button _moveUpBtn;
     private readonly Button _moveDownBtn;
@@ -197,6 +202,7 @@ internal class BasesSubPanel : UserControl
     // Buttons
     private readonly Button _exportBtn;
     private readonly Button _importBtn;
+    private readonly Button _importNewBtn;
     private readonly Button _moveBaseComputerBtn;
     private readonly Button _deleteBaseBtn;
     private readonly Button _sortAlphaAscBtn;
@@ -223,6 +229,7 @@ internal class BasesSubPanel : UserControl
 
     // State
     private bool _loading;
+    private bool _refreshingBaseList;
     private JsonObject? _playerState;
     private readonly List<NpcWorkerItem> _npcWorkers = new();
     private readonly List<BaseInfoItem> _baseInfoItems = new();
@@ -331,32 +338,48 @@ internal class BasesSubPanel : UserControl
         outerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         outerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var outerContent = new TableLayoutPanel
+        var contentSplit = new SplitContainer
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1,
-            Padding = new Padding(0)
+            Orientation = Orientation.Vertical,
+            SplitterWidth = 4
         };
-        outerContent.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));       // left: base list
-        outerContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));   // right: NPC + info
-        outerContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
         outerLayout.Controls.Add(basesHeaderStrip, 0, 0);
+        outerLayout.Controls.Add(contentSplit, 0, 1);
 
-        // --- Left column: base list + reorder arrows ---
+        // Restore the user's base-list width once the split container is wide enough
+        // for both panes. Setting the minimum sizes earlier throws because the
+        // design-time width is smaller than Panel1MinSize + Panel2MinSize.
+        bool splitInitialised = false;
+        contentSplit.SizeChanged += (_, _) =>
+        {
+            if (splitInitialised || contentSplit.Width < 900)
+                return;
+            splitInitialised = true;
+            contentSplit.Panel1MinSize = 380;
+            contentSplit.Panel2MinSize = 420;
+            ApplyBaseListWidth(contentSplit);
+        };
+        contentSplit.SplitterMoved += (_, _) =>
+        {
+            AppConfig.Instance.BaseListWidth = contentSplit.SplitterDistance;
+        };
+
+        // --- Left column: filter, base list + reorder arrows ---
         var leftLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 2,
-            Padding = new Padding(0, 0, 12, 0),
-            MinimumSize = new Size(417, 0)
+            RowCount = 5,
+            Padding = new Padding(0, 0, 12, 0)
         };
         leftLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));    // list
         leftLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));        // arrows
         leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));              // title
+        leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));              // filter
+        leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));              // show hidden
         leftLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));          // list + arrows
+        leftLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));              // hint
 
         _baseListTitle = new Label
         {
@@ -368,14 +391,70 @@ internal class BasesSubPanel : UserControl
         leftLayout.Controls.Add(_baseListTitle, 0, 0);
         leftLayout.SetColumnSpan(_baseListTitle, 2);
 
-        _baseList = new ListBox
+        var baseFilterPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            SelectionMode = SelectionMode.One,
-            IntegralHeight = false
+            ColumnCount = 2,
+            RowCount = 1,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(0, 0, 0, 4),
+            Margin = Padding.Empty
         };
+        baseFilterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        baseFilterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        baseFilterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _baseFilterBox = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            PlaceholderText = UiStrings.Get("base.filter_placeholder")
+        };
+        _baseFilterBox.TextChanged += OnBaseFilterChanged;
+        _baseFilterClearBtn = new Button
+        {
+            Text = "X",
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(28, 25)
+        };
+        _baseFilterClearBtn.Click += (_, _) => _baseFilterBox.Text = "";
+        baseFilterPanel.Controls.Add(_baseFilterBox, 0, 0);
+        baseFilterPanel.Controls.Add(_baseFilterClearBtn, 1, 0);
+        leftLayout.Controls.Add(baseFilterPanel, 0, 1);
+        leftLayout.SetColumnSpan(baseFilterPanel, 2);
+
+        _showHiddenBasesCheck = new CheckBox
+        {
+            Text = UiStrings.Get("base.filter_show_hidden"),
+            AutoSize = true,
+            Checked = AppConfig.Instance.BaseListShowHidden,
+            Padding = new Padding(0, 0, 0, 4)
+        };
+        _showHiddenBasesCheck.CheckedChanged += OnShowHiddenBasesChanged;
+        leftLayout.Controls.Add(_showHiddenBasesCheck, 0, 2);
+        leftLayout.SetColumnSpan(_showHiddenBasesCheck, 2);
+
+        _baseList = new ListView
+        {
+            Dock = DockStyle.Fill,
+            View = View.Details,
+            FullRowSelect = true,
+            MultiSelect = true,
+            HideSelection = false,
+            ShowItemToolTips = true,
+            AllowDrop = true,
+            HeaderStyle = ColumnHeaderStyle.Nonclickable
+        };
+        _baseList.Columns.Add(UiStrings.Get("base.col_name"), 210);
+        _baseList.Columns.Add(UiStrings.Get("base.col_type"), 110);
+        _baseList.Columns.Add(UiStrings.Get("base.col_objects"), 60, HorizontalAlignment.Right);
         _baseList.SelectedIndexChanged += OnBaseSelected;
-        leftLayout.Controls.Add(_baseList, 0, 1);
+        _baseList.ItemDrag += OnBaseItemDrag;
+        _baseList.DragEnter += OnBaseDragEnter;
+        _baseList.DragOver += OnBaseDragOver;
+        _baseList.DragDrop += OnBaseDragDrop;
+        _baseList.DragLeave += OnBaseDragLeave;
+        leftLayout.Controls.Add(_baseList, 0, 3);
 
         var arrowPanel = new FlowLayoutPanel
         {
@@ -446,9 +525,18 @@ internal class BasesSubPanel : UserControl
         arrowPanel.Controls.Add(_toBottomBtn);
         arrowPanel.Controls.Add(_sortAlphaAscBtn);
         arrowPanel.Controls.Add(_sortAlphaDescBtn);
-        leftLayout.Controls.Add(arrowPanel, 1, 1);
+        leftLayout.Controls.Add(arrowPanel, 1, 3);
 
-        outerContent.Controls.Add(leftLayout, 0, 0);
+        _baseListHint = new Label
+        {
+            AutoSize = true,
+            Padding = new Padding(0, 4, 0, 0),
+            Visible = false
+        };
+        leftLayout.Controls.Add(_baseListHint, 0, 4);
+        leftLayout.SetColumnSpan(_baseListHint, 2);
+
+        contentSplit.Panel1.Controls.Add(leftLayout);
 
         // --- Right column: Tabbed Info + Objects ---
         _rightTabs = new DoubleBufferedTabControl { Dock = DockStyle.Fill };
@@ -585,12 +673,15 @@ internal class BasesSubPanel : UserControl
         _exportBtn.Click += OnExport;
         _importBtn = new Button { Text = UiStrings.Get("base.import"), AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(80, 0), Enabled = false };
         _importBtn.Click += OnImport;
+        _importNewBtn = new Button { Text = UiStrings.Get("base.import_new"), AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(100, 0), Enabled = false };
+        _importNewBtn.Click += OnImportNew;
         _moveBaseComputerBtn = new Button { Text = UiStrings.Get("base.move_basecomp"), AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(140, 0), Enabled = false };
         _moveBaseComputerBtn.Click += OnMoveBaseComputer;
         _deleteBaseBtn = new Button { Text = UiStrings.Get("base.delete_base"), AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(90, 0), Enabled = false };
         _deleteBaseBtn.Click += OnDeleteBase;
         buttonPanel.Controls.Add(_exportBtn);
         buttonPanel.Controls.Add(_importBtn);
+        buttonPanel.Controls.Add(_importNewBtn);
         buttonPanel.Controls.Add(_moveBaseComputerBtn);
         buttonPanel.Controls.Add(_deleteBaseBtn);
 		_gotoBasesListBtn = new Button
@@ -605,7 +696,7 @@ internal class BasesSubPanel : UserControl
 		};
         _gotoBasesListBtn.Click += (_, _) =>
         {
-            if (_baseList.SelectedItem is BaseInfoItem baseItem)
+            if (FocusedBase is BaseInfoItem baseItem)
                 GoToJsonRequested?.Invoke(this, new GoToJsonEventArgs("PlayerStateData", "PersistentPlayerBases", $"[{baseItem.DataIndex}]"));
         };
         basesGotoPanel.Controls.Add(_gotoBasesListBtn);
@@ -656,13 +747,26 @@ internal class BasesSubPanel : UserControl
         _infoTab.Controls.Add(infoScrollPanel);
         _rightTabs.TabPages.Add(_infoTab);
         _rightTabs.TabPages.Add(_objectsTab);
-        outerContent.Controls.Add(_rightTabs, 1, 0);
-
-        outerLayout.Controls.Add(outerContent, 0, 1);
+        contentSplit.Panel2.Controls.Add(_rightTabs);
 
         Controls.Add(outerLayout);
         ResumeLayout(false);
         PerformLayout();
+    }
+
+    /// <summary>Applies the persisted base-list pane width to the split container.</summary>
+    private static void ApplyBaseListWidth(SplitContainer split)
+    {
+        int max = Math.Max(split.Panel1MinSize,
+            split.Width - split.Panel2MinSize - split.SplitterWidth);
+        int width = Math.Clamp(AppConfig.Instance.BaseListWidth, split.Panel1MinSize, max);
+        try
+        {
+            split.SplitterDistance = width;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+        }
     }
 
     public void LoadData(JsonObject saveData)
@@ -682,6 +786,7 @@ internal class BasesSubPanel : UserControl
         _baseItems.Text = "";
         _exportBtn.Enabled = false;
         _importBtn.Enabled = false;
+        _importNewBtn.Enabled = false;
         _moveBaseComputerBtn.Enabled = false;
         _deleteBaseBtn.Enabled = false;
         _sortAlphaAscBtn.Enabled = false;
@@ -698,6 +803,7 @@ internal class BasesSubPanel : UserControl
 
             _clearAllTerrainEditsBtn.Enabled = true;
             _clearAllTerrainExceptBasesBtn.Enabled = true;
+            _importNewBtn.Enabled = true;
 
             // Load NPCWorkers (up to 5: Armorer, Farmer, Overseer, Technician, Scientist)
             var npcWorkers = _playerState.GetArray("NPCWorkers");
@@ -722,58 +828,12 @@ internal class BasesSubPanel : UserControl
                 }
             }
 
-            // Load PersistentPlayerBases (HomePlanetBase, FreighterBase, PlayerSpaceStationBase,
-            // PlayerShipBase corvette bases and PlayerSpaceBase asteroid bases with BaseVersion >= 3)
-            var bases = _playerState.GetArray("PersistentPlayerBases");
-            if (bases != null)
-            {
-                for (int i = 0; i < bases.Length; i++)
-                {
-                    try
-                    {
-                        var baseObj = bases.GetObject(i);
-                        var kind = SpaceStationLogic.GetBaseKind(baseObj);
-                        bool isHome = kind == SpaceStationLogic.BaseKind.Home;
-                        bool isFreighter = kind == SpaceStationLogic.BaseKind.Freighter;
-                        bool isStation = kind == SpaceStationLogic.BaseKind.SpaceStation;
-                        bool isCorvette = kind == SpaceStationLogic.BaseKind.Corvette;
-                        bool isSpace = kind == SpaceStationLogic.BaseKind.SpaceBase;
-
-                        int baseVersion = 0;
-                        try { baseVersion = baseObj.GetInt("BaseVersion"); } catch { }
-
-                        if ((isHome || isFreighter || isStation || isCorvette || isSpace) && baseVersion >= 3)
-                        {
-                            string name;
-                            if (isFreighter)
-                                name = _playerState.GetString("PlayerFreighterName") ?? UiStrings.Format("base.fallback_base_name", i + 1);
-                            else if (isCorvette)
-                                name = SpaceStationLogic.ResolveCorvetteBaseName(_playerState, baseObj)
-                                       ?? baseObj.GetString("Name")
-                                       ?? UiStrings.Format("base.fallback_base_name", i + 1);
-                            else
-                                name = baseObj.GetString("Name") ?? UiStrings.Format("base.fallback_base_name", i + 1);
-                            int objectCount = 0;
-                            try
-                            {
-                                var objects = baseObj.GetArray("Objects");
-                                if (objects != null) objectCount = objects.Length;
-                            }
-                            catch { }
-
-                            var item = new BaseInfoItem(name, baseObj, i, objectCount, isFreighter, isStation, isCorvette, isSpace);
-                            _baseInfoItems.Add(item);
-                            _baseList.Items.Add(item);
-                        }
-                    }
-                    catch { }
-                }
-            }
+            // Load every PersistentPlayerBases entry. Temporary ship bases and legacy
+            // entries are included (and labelled) rather than silently skipped.
+            RebuildBaseRows(selectFirst: true);
 
             if (_npcSelector.Items.Count > 0)
                 _npcSelector.SelectedIndex = 0;
-            if (_baseList.Items.Count > 0)
-                _baseList.SelectedIndex = 0;
         }
         catch { }
         }
@@ -825,7 +885,7 @@ internal class BasesSubPanel : UserControl
         try
         {
             // Apply pending base name change
-            if (_baseList.SelectedItem is BaseInfoItem item && !string.IsNullOrEmpty(_pendingBaseName))
+            if (FocusedBase is BaseInfoItem item && !string.IsNullOrEmpty(_pendingBaseName))
             {
                 string currentName = item.Data.GetString("Name") ?? "";
                 if (_pendingBaseName != currentName)
@@ -833,12 +893,7 @@ internal class BasesSubPanel : UserControl
                     item.Data.Set("Name", _pendingBaseName);
                     item.DisplayName = _pendingBaseName;
                     // Refresh list display
-                    int idx = _baseList.SelectedIndex;
-                    _baseList.SelectedIndexChanged -= OnBaseSelected;
-                    _baseList.Items.RemoveAt(idx);
-                    _baseList.Items.Insert(idx, item);
-                    _baseList.SelectedIndex = idx;
-                    _baseList.SelectedIndexChanged += OnBaseSelected;
+                    UpdateBaseListItem(item);
                 }
             }
         }
@@ -928,7 +983,7 @@ internal class BasesSubPanel : UserControl
     private void OnSummonWorkerToBase(object? sender, EventArgs e)
     {
         if (_npcSelector.SelectedItem is not NpcWorkerItem npcItem) return;
-        if (_baseList.SelectedItem is not BaseInfoItem baseItem) return;
+        if (FocusedBase is not BaseInfoItem baseItem) return;
 
         var result = MessageBox.Show(this, 
             UiStrings.Format("base.summon_worker_confirm", npcItem.ToString(), baseItem.DisplayName),
@@ -988,35 +1043,34 @@ internal class BasesSubPanel : UserControl
 
     private void OnBaseSelected(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item)
+        if (_refreshingBaseList)
+            return;
+
+        UpdateBaseListHint();
+
+        if (FocusedBase is not BaseInfoItem item)
         {
-            _baseName.Text = "";
-            _baseName.Enabled = false;
-            _baseItems.Text = "";
-            _exportBtn.Enabled = false;
-            _importBtn.Enabled = false;
-            _moveBaseComputerBtn.Enabled = false;
-            _deleteBaseBtn.Enabled = false;
-            _clearTerrainEditsBtn.Enabled = false;
-            _clearAllTerrainEditsBtn.Enabled = true;
-            _clearAllTerrainExceptBasesBtn.Enabled = true;
-            _pendingBaseName = null;
-            UpdateSummonButtonState();
-            UpdateMoveButtonStates();
-            UpdateFreighterBaseControls(false);
-            ClearObjectFields();
+            ClearBaseDetails();
             return;
         }
 
-        bool isFreighter = item.IsFreighterBase;
-        bool isStation = item.IsStationBase;
-        bool isCorvette = item.IsCorvetteBase;
-        bool isSpace = item.IsSpaceBase;
+        if (!item.IsReadable)
+        {
+            ClearBaseDetails();
+            UpdateBaseListHint();
+            return;
+        }
+
+        bool isFreighter = item.Kind == BaseListLogic.BaseListKind.Freighter;
+        bool isStation = item.Kind == BaseListLogic.BaseListKind.SpaceStation;
+        bool isCorvette = item.Kind == BaseListLogic.BaseListKind.Corvette;
+        bool isSpace = item.Kind == BaseListLogic.BaseListKind.SpaceBase;
+        bool isTemporary = item.Kind == BaseListLogic.BaseListKind.TemporaryShip;
+        bool isLegacy = item.Kind is BaseListLogic.BaseListKind.Legacy or BaseListLogic.BaseListKind.Other;
 
         // For freighter bases, show the freighter name (read from PlayerFreighterName,
         // not the base entry which is always empty). Corvette bases show the resolved
-        // ship name. For planetary, space station and space bases, show the base's own
-        // Name field.
+        // ship name. Other bases show the base's own Name field.
         if (isFreighter || isCorvette)
         {
             _baseName.Text = item.DisplayName;
@@ -1026,21 +1080,14 @@ internal class BasesSubPanel : UserControl
         else
         {
             _baseName.Text = item.Data.GetString("Name") ?? "";
-            _baseName.Enabled = true;
+            _baseName.Enabled = item.NameEditable;
             _pendingBaseName = _baseName.Text;
         }
 
-        int objectCount = 0;
-        try
-        {
-            var objects = item.Data.GetArray("Objects");
-            if (objects != null) objectCount = objects.Length;
-        }
-        catch { }
-        _baseItems.Text = objectCount.ToString(CultureInfo.CurrentCulture);
+        _baseItems.Text = item.ObjectCount.ToString(CultureInfo.CurrentCulture);
         _exportBtn.Enabled = true;
         _importBtn.Enabled = true;
-        bool isShipBase = isFreighter || isStation || isCorvette || isSpace;
+        bool isShipBase = isFreighter || isStation || isCorvette || isSpace || isTemporary || isLegacy;
         _moveBaseComputerBtn.Enabled = !isShipBase;
         _deleteBaseBtn.Enabled = true;
         _clearTerrainEditsBtn.Enabled = !isShipBase;
@@ -1061,6 +1108,28 @@ internal class BasesSubPanel : UserControl
         UpdateSummonButtonState();
         UpdateMoveButtonStates();
         LoadObjectFields();
+        UpdateBaseListHint();
+    }
+
+    /// <summary>Clears the base detail pane when no readable base is selected.</summary>
+    private void ClearBaseDetails()
+    {
+        _baseName.Text = "";
+        _baseName.Enabled = false;
+        _baseItems.Text = "";
+        _exportBtn.Enabled = false;
+        _importBtn.Enabled = false;
+        _importNewBtn.Enabled = _playerState != null;
+        _moveBaseComputerBtn.Enabled = false;
+        _deleteBaseBtn.Enabled = false;
+        _clearTerrainEditsBtn.Enabled = false;
+        _clearAllTerrainEditsBtn.Enabled = true;
+        _clearAllTerrainExceptBasesBtn.Enabled = true;
+        _pendingBaseName = null;
+        UpdateSummonButtonState();
+        UpdateMoveButtonStates();
+        UpdateFreighterBaseControls(false);
+        ClearObjectFields();
     }
 
     /// <summary>
@@ -1077,7 +1146,7 @@ internal class BasesSubPanel : UserControl
     private void UpdateSummonButtonState()
     {
         _summonWorkerBtn.Enabled = _npcSelector.SelectedItem is NpcWorkerItem
-                                   && _baseList.SelectedItem is BaseInfoItem;
+                                   && FocusedBase is { IsReadable: true };
     }
 
     private void SelectRaceByInternalName(string raceName)
@@ -1106,7 +1175,7 @@ internal class BasesSubPanel : UserControl
     private void OnBaseNameChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         string newName = _baseName.Text.Trim();
         if (newName == _pendingBaseName) return;
         _pendingBaseName = newName;
@@ -1115,22 +1184,17 @@ internal class BasesSubPanel : UserControl
         {
             item.Data.Set("Name", _pendingBaseName);
             item.DisplayName = _pendingBaseName;
-            int idx = _baseList.SelectedIndex;
-            _baseList.SelectedIndexChanged -= OnBaseSelected;
-            _baseList.Items.RemoveAt(idx);
-            _baseList.Items.Insert(idx, item);
-            _baseList.SelectedIndex = idx;
-            _baseList.SelectedIndexChanged += OnBaseSelected;
+            UpdateBaseListItem(item);
         }
         DataModified?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnExport(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         try
         {
-            string defaultName = item.Data.GetString("Name") ?? "Base";
+            string defaultName = BaseExportLogic.GetDisplayName(item.Data);
             var config = ExportConfig.Instance;
             var vars = new Dictionary<string, string>
             {
@@ -1147,7 +1211,7 @@ internal class BasesSubPanel : UserControl
 
             if (dialog.ShowDialog(FindForm()) == DialogResult.OK)
             {
-                item.Data.ExportToFile(dialog.FileName);
+                BaseExportLogic.WriteExport(_playerState, item.Data, dialog.FileName);
                 MessageBox.Show(this, UiStrings.Get("base.export_success"), UiStrings.Get("base.export_title"),
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -1159,9 +1223,22 @@ internal class BasesSubPanel : UserControl
         }
     }
 
-    private void OnImport(object? sender, EventArgs e)
+    private void OnImport(object? sender, EventArgs e) => ImportBase(asNew: false);
+
+    private void OnImportNew(object? sender, EventArgs e) => ImportBase(asNew: true);
+
+    /// <summary>
+    /// Imports a base file, either replacing the selected base of the same type or
+    /// appending it as a new base, and applies its matching terrain edits.
+    /// </summary>
+    /// <param name="asNew">True to append a new base; false to replace the selected base.</param>
+    private void ImportBase(bool asNew)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (_playerState == null) return;
+
+        BaseInfoItem? target = FocusedBase;
+        if (!asNew && (target == null || !target.IsReadable)) return;
+
         try
         {
             var config = ExportConfig.Instance;
@@ -1173,30 +1250,96 @@ internal class BasesSubPanel : UserControl
 
             if (dialog.ShowDialog(FindForm()) != DialogResult.OK) return;
 
-            var result = MessageBox.Show(this, 
-                UiStrings.Get("base.import_confirm"),
-                UiStrings.Get("base.confirm_import_title"),
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (result != DialogResult.Yes) return;
-
-            var imported = JsonObject.ImportFromFile(dialog.FileName);
-
-            // Copy imported base data: primarily the Objects array
-            if (imported.Contains("Objects"))
+            string basePath = BaseExportLogic.ResolveBaseFilePath(dialog.FileName);
+            var read = BaseExportLogic.ReadExport(JsonObject.ImportFromFile(basePath));
+            if (read.Status != BaseExportLogic.ReadStatus.Ok || read.Payload == null)
             {
-                item.Data.Set("Objects", imported.Get("Objects"));
-            }
-            if (imported.Contains("BaseVersion"))
-            {
-                item.Data.Set("BaseVersion", imported.Get("BaseVersion"));
-            }
-            if (imported.Contains("UserData"))
-            {
-                item.Data.Set("UserData", imported.Get("UserData"));
+                MessageBox.Show(this, UiStrings.Get("base.import_invalid_file"),
+                    UiStrings.Get("base.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
 
-            // Refresh display
-            OnBaseSelected(this, EventArgs.Empty);
+            var payload = read.Payload;
+            var sidecar = BaseExportLogic.ReadTerrainSidecar(basePath, payload.Base);
+            if (sidecar.Status == BaseExportLogic.TerrainSidecarStatus.Invalid)
+            {
+                MessageBox.Show(this, UiStrings.Get("base.import_terrain_invalid"),
+                    UiStrings.Get("base.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (sidecar.Status == BaseExportLogic.TerrainSidecarStatus.Ok)
+                payload = new BaseExportLogic.ExportPayload(payload.Base, sidecar.TerrainEditData);
+
+            var importedKind = BaseListLogic.Classify(payload.Base);
+            if (!BaseExportLogic.IsSupportedKind(payload.Base))
+            {
+                MessageBox.Show(this, UiStrings.Get("base.import_invalid_file"),
+                    UiStrings.Get("base.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            string importedKindLabel = KindLabel(importedKind);
+            string importedName = BaseExportLogic.GetDisplayName(payload.Base);
+
+            if (asNew)
+            {
+                if (MessageBox.Show(this,
+                        UiStrings.Format("base.import_new_confirm", importedKindLabel, importedName),
+                        UiStrings.Get("base.confirm_import_title"),
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+            else
+            {
+                if (target == null) return;
+                if (!BaseExportLogic.IsSameType(payload.Base, target.Data))
+                {
+                    MessageBox.Show(this,
+                        UiStrings.Format("base.import_type_mismatch", importedKindLabel, KindLabel(target.Kind)),
+                        UiStrings.Get("base.import_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (MessageBox.Show(this,
+                        UiStrings.Get("base.import_confirm"),
+                        UiStrings.Get("base.confirm_import_title"),
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            int targetIndex = asNew ? -1 : target!.DataIndex;
+            if (BaseExportLogic.HasMetadataMismatch(_playerState, payload.Base, targetIndex))
+            {
+                if (MessageBox.Show(this,
+                        UiStrings.Get("base.import_metadata_warning"),
+                        UiStrings.Get("base.confirm_import_title"),
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            if (BaseExportLogic.HasTerrainConflict(_playerState, payload, targetIndex))
+            {
+                if (MessageBox.Show(this,
+                        UiStrings.Get("base.import_terrain_warning"),
+                        UiStrings.Get("base.confirm_import_title"),
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            var result = asNew
+                ? BaseExportLogic.ImportAsNew(_playerState, payload)
+                : BaseExportLogic.ReplaceBase(_playerState, targetIndex, payload);
+
+            RebuildBaseRows(selectIndices: [result.BaseIndex]);
+            SelectBase(result.BaseIndex);
             DataModified?.Invoke(this, EventArgs.Empty);
             MessageBox.Show(this, UiStrings.Get("base.import_success"), UiStrings.Get("base.import_title"),
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1216,7 +1359,7 @@ internal class BasesSubPanel : UserControl
     /// </summary>
     private void OnMoveBaseComputer(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         try
         {
             var objects = item.Data.GetArray("Objects");
@@ -1316,7 +1459,7 @@ internal class BasesSubPanel : UserControl
 
     private void OnClearTerrainEdits(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         if (_playerState == null) return;
 
         var result = MessageBox.Show(this,
@@ -1911,7 +2054,7 @@ internal class BasesSubPanel : UserControl
 
     private void LoadObjectFields()
     {
-        if (_baseList.SelectedItem is not BaseInfoItem item)
+        if (FocusedBase is not BaseInfoItem item)
         {
             ClearObjectFields();
             return;
@@ -2103,7 +2246,7 @@ internal class BasesSubPanel : UserControl
     private void OnBaseFieldNumericChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         if (sender is not InvariantNumericTextBox nud) return;
 
         var baseObj = item.Data;
@@ -2147,7 +2290,7 @@ internal class BasesSubPanel : UserControl
     private void OnBaseFieldTextChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
         if (sender == null) return;
 
         var baseObj = item.Data;
@@ -2171,7 +2314,7 @@ internal class BasesSubPanel : UserControl
     private void OnBaseFieldCheckedChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
-        if (_baseList.SelectedItem is not BaseInfoItem item) return;
+        if (FocusedBase is not BaseInfoItem item) return;
 
         var baseObj = item.Data;
 
@@ -2293,6 +2436,16 @@ internal class BasesSubPanel : UserControl
         _baseTitle.Text = UiStrings.Get("base.base_header");
         _freighterRoomsTitle.Text = UiStrings.Get("base.freighter_rooms_header");
         _baseListTitle.Text = UiStrings.Get("base.base_list_title");
+        _baseFilterBox.PlaceholderText = UiStrings.Get("base.filter_placeholder");
+        _showHiddenBasesCheck.Text = UiStrings.Get("base.filter_show_hidden");
+        new ToolTip().SetToolTip(_baseFilterClearBtn, UiStrings.Get("common.clear_filter"));
+        if (_baseList.Columns.Count >= 3)
+        {
+            _baseList.Columns[0].Text = UiStrings.Get("base.col_name");
+            _baseList.Columns[1].Text = UiStrings.Get("base.col_type");
+            _baseList.Columns[2].Text = UiStrings.Get("base.col_objects");
+        }
+        UpdateBaseListHint();
         if (_npcLabel != null) _npcLabel.Text = UiStrings.Get("base.npc_label");
         if (_raceLabel != null) _raceLabel.Text = UiStrings.Get("base.npc_race_label");
         if (_seedLabel != null) _seedLabel.Text = UiStrings.Get("base.npc_seed_label");
@@ -2302,6 +2455,7 @@ internal class BasesSubPanel : UserControl
         _summonWorkerBtn.Text = UiStrings.Get("base.summon_npc");
         _exportBtn.Text = UiStrings.Get("base.export");
         _importBtn.Text = UiStrings.Get("base.import");
+        _importNewBtn.Text = UiStrings.Get("base.import_new");
         _moveBaseComputerBtn.Text = UiStrings.Get("base.move_basecomp");
         _deleteBaseBtn.Text = UiStrings.Get("base.delete_base");
         _sortAlphaAscBtn.Text = UiStrings.Get("base.sort_az");
@@ -2345,164 +2499,99 @@ internal class BasesSubPanel : UserControl
         _objectsTab.Text = UiStrings.Get("base.objects_tab");
     }
 
-    /// <summary>
-    /// Moves the selected player base one position up (toward lower array index),
-    /// swapping it with the nearest preceding HomePlanetBase in the list.
-    /// Other base types (ship bases, corvettes, etc.) are not disturbed.
-    /// </summary>
+    /// <summary>Moves the selected base block one position toward the top of the array.</summary>
     private void OnMoveBaseUp(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected) return;
-        if (_playerState == null) return;
-
-        var sorted = _baseInfoItems.OrderBy(x => x.DataIndex).ToList();
-        int pos = sorted.IndexOf(selected);
-        if (pos <= 0) return;
-
-        var previous = sorted[pos - 1];
-        var bases = _playerState.GetArray("PersistentPlayerBases");
-        if (bases == null) return;
-
-        BaseLogic.SwapPlayerBases(bases, selected.DataIndex, previous.DataIndex);
-
-        int oldSelected = selected.DataIndex;
-        selected.DataIndex = previous.DataIndex;
-        previous.DataIndex = oldSelected;
-
-        RefreshBaseList(selected);
-        DataModified?.Invoke(this, EventArgs.Empty);
+        int[] selected = SelectedDataIndices;
+        if (selected.Length == 0) return;
+        MoveSelection(selected.Min() - 1);
     }
 
-    /// <summary>
-    /// Moves the selected player base one position down (toward higher array index),
-    /// swapping it with the nearest following HomePlanetBase in the list.
-    /// Other base types (ship bases, corvettes, etc.) are not disturbed.
-    /// </summary>
+    /// <summary>Moves the selected base block one position toward the bottom of the array.</summary>
     private void OnMoveBaseDown(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected) return;
-        if (_playerState == null) return;
-
-        var sorted = _baseInfoItems.OrderBy(x => x.DataIndex).ToList();
-        int pos = sorted.IndexOf(selected);
-        if (pos >= sorted.Count - 1) return;
-
-        var next = sorted[pos + 1];
-        var bases = _playerState.GetArray("PersistentPlayerBases");
+        int[] selected = SelectedDataIndices;
+        if (selected.Length == 0) return;
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
         if (bases == null) return;
-
-        BaseLogic.SwapPlayerBases(bases, selected.DataIndex, next.DataIndex);
-
-        int oldSelected = selected.DataIndex;
-        selected.DataIndex = next.DataIndex;
-        next.DataIndex = oldSelected;
-
-        RefreshBaseList(selected);
-        DataModified?.Invoke(this, EventArgs.Empty);
+        MoveSelection(selected.Max() + 2);
     }
 
-    /// <summary>
-    /// Moves the selected player base to the topmost array slot among all HomePlanetBases.
-    /// </summary>
+    /// <summary>Moves the selected base block to the top of the array.</summary>
     private void OnMoveBaseToTop(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected) return;
-        if (_playerState == null) return;
+        if (SelectedDataIndices.Length == 0) return;
+        MoveSelection(0);
+    }
 
-        var sorted = _baseInfoItems.OrderBy(x => x.DataIndex).ToList();
-        int pos = sorted.IndexOf(selected);
-        if (pos <= 0) return;
-
-        var bases = _playerState.GetArray("PersistentPlayerBases");
-        if (bases == null) return;
-
-        while (pos > 0)
-        {
-            var previous = sorted[pos - 1];
-            BaseLogic.SwapPlayerBases(bases, selected.DataIndex, previous.DataIndex);
-            int oldIdx = selected.DataIndex;
-            selected.DataIndex = previous.DataIndex;
-            previous.DataIndex = oldIdx;
-            sorted.RemoveAt(pos);
-            sorted.Insert(pos - 1, selected);
-            pos--;
-        }
-
-        RefreshBaseList(selected);
-        DataModified?.Invoke(this, EventArgs.Empty);
+    /// <summary>Moves the selected base block to the end of the array.</summary>
+    private void OnMoveBaseToBottom(object? sender, EventArgs e)
+    {
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
+        if (bases == null || SelectedDataIndices.Length == 0) return;
+        MoveSelection(bases.Length);
     }
 
     /// <summary>
-    /// Moves the selected player base to the bottommost array slot among all HomePlanetBases.
+    /// Moves the selected entries as one block to the given insertion position in the
+    /// PersistentPlayerBases array and restores the selection afterwards.
     /// </summary>
-    private void OnMoveBaseToBottom(object? sender, EventArgs e)
+    private void MoveSelection(int targetIndex)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected) return;
-        if (_playerState == null) return;
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
+        int[] selected = SelectedDataIndices;
+        if (bases == null || selected.Length == 0) return;
 
-        var sorted = _baseInfoItems.OrderBy(x => x.DataIndex).ToList();
-        int pos = sorted.IndexOf(selected);
-        if (pos >= sorted.Count - 1) return;
-
-        var bases = _playerState.GetArray("PersistentPlayerBases");
-        if (bases == null) return;
-
-        while (pos < sorted.Count - 1)
+        try
         {
-            var next = sorted[pos + 1];
-            BaseLogic.SwapPlayerBases(bases, selected.DataIndex, next.DataIndex);
-            int oldIdx = selected.DataIndex;
-            selected.DataIndex = next.DataIndex;
-            next.DataIndex = oldIdx;
-            sorted.RemoveAt(pos);
-            sorted.Insert(pos + 1, selected);
-            pos++;
+            int[] moved = BaseListLogic.MoveBlock(bases, selected, targetIndex);
+            RebuildBaseRows(selectIndices: moved);
+            DataModified?.Invoke(this, EventArgs.Empty);
         }
-
-        RefreshBaseList(selected);
-        DataModified?.Invoke(this, EventArgs.Empty);
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                UiStrings.Format("base.move_base_failed", ex.Message),
+                UiStrings.Get("common.error"),
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     private void OnDeleteBase(object? sender, EventArgs e)
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected) return;
-        if (_playerState == null) return;
+        List<BaseInfoItem> selected = SelectedBases;
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
+        if (bases == null || selected.Count == 0) return;
 
-        string confirmKey = selected.IsFreighterBase
-            ? "base.delete_freighter_base_confirm"
-            : "base.delete_base_confirm";
-        var result = MessageBox.Show(this,
-            UiStrings.Format(confirmKey, selected.DisplayName),
+        string confirm;
+        if (selected.Count == 1)
+        {
+            string key = selected[0].IsFreighterBase
+                ? "base.delete_freighter_base_confirm"
+                : "base.delete_base_confirm";
+            confirm = UiStrings.Format(key, selected[0].DisplayName);
+        }
+        else
+        {
+            confirm = UiStrings.Format("base.delete_selected_confirm", selected.Count);
+        }
+
+        var result = MessageBox.Show(this, confirm,
             UiStrings.Get("base.delete_base_title"),
             MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
         if (result != DialogResult.Yes) return;
 
         try
         {
-            var bases = _playerState.GetArray("PersistentPlayerBases");
-            if (bases == null) return;
-
-            bases.RemoveAt(selected.DataIndex);
-            _baseInfoItems.Remove(selected);
-
-            // Update DataIndex for items after the removed one
-            foreach (var item in _baseInfoItems)
+            var indices = selected.Select(x => x.DataIndex).Distinct().OrderByDescending(i => i).ToList();
+            foreach (int index in indices)
             {
-                if (item.DataIndex > selected.DataIndex)
-                    item.DataIndex--;
+                if (index >= 0 && index < bases.Length)
+                    bases.RemoveAt(index);
             }
 
-            _baseList.SelectedIndexChanged -= OnBaseSelected;
-            _baseList.BeginUpdate();
-            _baseList.Items.Remove(selected);
-            _baseList.EndUpdate();
-            _baseList.SelectedIndexChanged += OnBaseSelected;
-
-            if (_baseInfoItems.Count > 0)
-                _baseList.SelectedIndex = 0;
-
+            RebuildBaseRows(selectFirst: true);
             DataModified?.Invoke(this, EventArgs.Empty);
-            UpdateMoveButtonStates();
         }
         catch (Exception ex)
         {
@@ -2527,65 +2616,349 @@ internal class BasesSubPanel : UserControl
 
     private void SortAlphaList(bool ascending)
     {
-        if (_baseInfoItems.Count < 2) return;
-
         var bases = _playerState?.GetArray("PersistentPlayerBases");
-        if (bases == null) return;
+        if (bases == null || bases.Length < 2) return;
 
-        var sorted = ascending
-            ? _baseInfoItems.OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToList()
-            : _baseInfoItems.OrderByDescending(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
-
-        // Reorder the JSON array to match the sorted display list
-        for (int i = 0; i < sorted.Count; i++)
-        {
-            var item = sorted[i];
-            int currentIdx = item.DataIndex;
-            if (currentIdx != i)
-            {
-                BaseLogic.SwapPlayerBases(bases, currentIdx, i);
-                item.DataIndex = i;
-                // Update other items whose indices shifted
-                foreach (var other in _baseInfoItems)
-                {
-                    if (other != item && other.DataIndex == i)
-                        other.DataIndex = currentIdx;
-                }
-            }
-        }
-
-        // Refresh the list and keep the same selected item
-        var selected = _baseList.SelectedItem as BaseInfoItem;
-        RefreshBaseList(selected);
+        var keepSelected = SelectedBases.Select(x => x.Data).ToHashSet();
+        BaseListLogic.SortByName(_playerState!, bases, descending: !ascending);
+        RebuildBaseRows(selectData: keepSelected);
         DataModified?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Repopulates the base list box, sorted by array index, and re-selects the given item.
-    /// Also updates the enabled state of the reorder buttons.
-    /// </summary>
-    private void RefreshBaseList(BaseInfoItem? keepSelected = null)
+    /// <summary>Gets the currently focused base list row.</summary>
+    private BaseInfoItem? FocusedBase
     {
-        _baseList.SelectedIndexChanged -= OnBaseSelected;
-        _baseList.BeginUpdate();
+        get
+        {
+            if (_baseList.FocusedItem?.Tag is BaseInfoItem focused)
+                return focused;
+            return SelectedBase;
+        }
+    }
+
+    /// <summary>Gets the first selected base list row.</summary>
+    private BaseInfoItem? SelectedBase =>
+        _baseList.SelectedItems.Count > 0 ? _baseList.SelectedItems[0].Tag as BaseInfoItem : null;
+
+    /// <summary>Gets the selected rows ordered by their array index.</summary>
+    private List<BaseInfoItem> SelectedBases =>
+        _baseList.SelectedItems.Cast<ListViewItem>()
+            .Select(x => x.Tag as BaseInfoItem)
+            .Where(x => x != null)
+            .OrderBy(x => x!.DataIndex)
+            .ToList()!;
+
+    /// <summary>Gets the PersistentPlayerBases indices of the selected rows.</summary>
+    private int[] SelectedDataIndices => SelectedBases.Select(x => x.DataIndex).ToArray();
+
+    /// <summary>Gets the localised label for a base kind.</summary>
+    private static string KindLabel(BaseListLogic.BaseListKind kind) => kind switch
+    {
+        BaseListLogic.BaseListKind.Home => UiStrings.Get("base.kind_home"),
+        BaseListLogic.BaseListKind.Freighter => UiStrings.Get("base.kind_freighter"),
+        BaseListLogic.BaseListKind.SpaceStation => UiStrings.Get("base.kind_station"),
+        BaseListLogic.BaseListKind.Corvette => UiStrings.Get("base.kind_corvette"),
+        BaseListLogic.BaseListKind.SpaceBase => UiStrings.Get("base.kind_space"),
+        BaseListLogic.BaseListKind.TemporaryShip => UiStrings.Get("base.kind_temporary"),
+        BaseListLogic.BaseListKind.Legacy => UiStrings.Get("base.kind_legacy"),
+        _ => UiStrings.Get("base.kind_other"),
+    };
+
+    /// <summary>Builds the row tooltip with the full name, kind, version and object count.</summary>
+    private static string BuildBaseTooltip(BaseInfoItem item) =>
+        $"{item.DisplayName}\n{KindLabel(item.Kind)} (v{item.Version})\n" +
+        $"{UiStrings.Get("base.items_label")} {item.ObjectCount}";
+
+    /// <summary>
+    /// Rebuilds the base rows from the live array using the current filter and the
+    /// show-hidden preference, then refreshes the list.
+    /// </summary>
+    private void RebuildBaseRows(bool selectFirst = false, int[]? selectIndices = null,
+        IReadOnlyCollection<JsonObject>? selectData = null)
+    {
+        int[] previousIndices = selectIndices ?? SelectedDataIndices;
+        var previousData = selectData ?? SelectedBases.Select(x => x.Data).ToHashSet();
+
+        _baseInfoItems.Clear();
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
+        if (bases != null && _playerState != null)
+        {
+            var rows = BaseListLogic.BuildRows(
+                _playerState, bases, _baseFilterBox.Text,
+                _showHiddenBasesCheck.Checked, KindLabel);
+            foreach (var row in rows)
+            {
+                string display = row.Name.Length > 0
+                    ? row.Name
+                    : UiStrings.Format("base.fallback_base_name", row.DataIndex + 1);
+                _baseInfoItems.Add(new BaseInfoItem(row, display));
+            }
+        }
+
+        RefreshBaseListView(selectFirst, previousIndices, previousData);
+    }
+
+    /// <summary>Refreshes the ListView rows and restores the selection.</summary>
+    private void RefreshBaseListView(bool selectFirst, int[] selectIndices,
+        IReadOnlyCollection<JsonObject> selectData)
+    {
+        // Keep the list's scroll position across the rebuild so moving a base with the
+        // reorder buttons does not snap the view back to the top. The top row is
+        // remembered by its data reference because its index changes during a move.
+        JsonObject? previousTopData = (_baseList.TopItem?.Tag as BaseInfoItem)?.Data;
+
+        _refreshingBaseList = true;
         try
         {
-            _baseList.Items.Clear();
-            foreach (var item in _baseInfoItems.OrderBy(x => x.DataIndex))
-                _baseList.Items.Add(item);
-
-            if (keepSelected != null)
+            _baseList.BeginUpdate();
+            try
             {
-                int idx = _baseList.Items.IndexOf(keepSelected);
-                if (idx >= 0)
-                    _baseList.SelectedIndex = idx;
+                _baseList.Items.Clear();
+                foreach (var item in _baseInfoItems)
+                {
+                    var listItem = new ListViewItem(item.DisplayName)
+                    {
+                        Tag = item,
+                        ToolTipText = BuildBaseTooltip(item)
+                    };
+                    listItem.SubItems.Add(KindLabel(item.Kind));
+                    listItem.SubItems.Add(item.ObjectCount.ToString(CultureInfo.CurrentCulture));
+                    _baseList.Items.Add(listItem);
+                }
+            }
+            finally
+            {
+                _baseList.EndUpdate();
+            }
+
+            if (previousTopData != null)
+            {
+                var topItem = _baseList.Items.Cast<ListViewItem>().FirstOrDefault(x =>
+                    x.Tag is BaseInfoItem item && ReferenceEquals(item.Data, previousTopData));
+                if (topItem != null)
+                {
+                    try
+                    {
+                        _baseList.TopItem = topItem;
+                    }
+                    catch (InvalidOperationException)
+                    {
+                    }
+                }
+            }
+
+            var wanted = new HashSet<int>(selectIndices);
+            ListViewItem? first = null;
+            foreach (ListViewItem listItem in _baseList.Items)
+            {
+                if (listItem.Tag is not BaseInfoItem item)
+                    continue;
+
+                bool match = wanted.Contains(item.DataIndex) || selectData.Contains(item.Data);
+                if (match)
+                {
+                    listItem.Selected = true;
+                    first ??= listItem;
+                }
+            }
+
+            if (first == null && selectFirst && _baseList.Items.Count > 0)
+                first = _baseList.Items[0];
+
+            if (first != null)
+            {
+                _baseList.FocusedItem = first;
+                if (!first.Selected)
+                    first.Selected = true;
+
+                // Scroll after the list has finished laying out the new rows.
+                if (_baseList.IsHandleCreated)
+                {
+                    var target = first;
+                    _baseList.BeginInvoke(new Action(() =>
+                    {
+                        if (!_baseList.IsDisposed)
+                            target.EnsureVisible();
+                    }));
+                }
             }
         }
         finally
         {
-            _baseList.EndUpdate();
-            _baseList.SelectedIndexChanged += OnBaseSelected;
-            UpdateMoveButtonStates();
+            _refreshingBaseList = false;
+        }
+
+        UpdateMoveButtonStates();
+        UpdateBaseListHint();
+        OnBaseSelected(this, EventArgs.Empty);
+    }
+
+    /// <summary>Updates the hint line under the base list.</summary>
+    private void UpdateBaseListHint()
+    {
+        string? hint = null;
+        if (FocusedBase is { } item)
+        {
+            if (!item.IsReadable)
+                hint = UiStrings.Get("base.unreadable_entry");
+            else if (item.Kind is BaseListLogic.BaseListKind.Legacy
+                     or BaseListLogic.BaseListKind.TemporaryShip
+                     or BaseListLogic.BaseListKind.Other)
+                hint = UiStrings.Get("base.legacy_readonly");
+        }
+
+        if (hint == null && _baseList.SelectedItems.Count > 1)
+            hint = UiStrings.Format("base.selection_count",
+                _baseList.SelectedItems.Count.ToString(CultureInfo.CurrentCulture));
+
+        if (hint == null && _baseInfoItems.Count == 0
+            && !string.IsNullOrWhiteSpace(_baseFilterBox.Text))
+            hint = UiStrings.Get("db_search.no_results");
+
+        _baseListHint.Text = hint ?? "";
+        _baseListHint.Visible = hint != null;
+    }
+
+    /// <summary>Refreshes the list when the search filter changes.</summary>
+    private void OnBaseFilterChanged(object? sender, EventArgs e)
+    {
+        if (_loading)
+            return;
+
+        var focused = FocusedBase?.Data;
+        RebuildBaseRows(selectFirst: true, selectData: focused != null ? new[] { focused! } : null);
+    }
+
+    /// <summary>Refreshes the list when the show-hidden preference changes.</summary>
+    private void OnShowHiddenBasesChanged(object? sender, EventArgs e)
+    {
+        AppConfig.Instance.BaseListShowHidden = _showHiddenBasesCheck.Checked;
+        if (_loading)
+            return;
+
+        var focused = FocusedBase?.Data;
+        RebuildBaseRows(selectFirst: true, selectData: focused != null ? new[] { focused! } : null);
+    }
+
+    /// <summary>Finds the ListView row for a base list item.</summary>
+    private ListViewItem? FindBaseListItem(BaseInfoItem item) =>
+        _baseList.Items.Cast<ListViewItem>().FirstOrDefault(x => ReferenceEquals(x.Tag, item));
+
+    /// <summary>Updates a row's text and tooltip after an in-place rename.</summary>
+    private void UpdateBaseListItem(BaseInfoItem item)
+    {
+        var listItem = FindBaseListItem(item);
+        if (listItem == null)
+            return;
+        listItem.Text = item.DisplayName;
+        listItem.ToolTipText = BuildBaseTooltip(item);
+    }
+
+    /// <summary>Starts a drag of the selected base rows.</summary>
+    private void OnBaseItemDrag(object? sender, ItemDragEventArgs e)
+    {
+        if (_baseList.SelectedIndices.Count == 0)
+            return;
+        int[] itemIndices = _baseList.SelectedIndices.Cast<int>().ToArray();
+        _baseList.DoDragDrop(itemIndices, DragDropEffects.Move);
+    }
+
+    private void OnBaseDragEnter(object? sender, DragEventArgs e)
+    {
+        e.Effect = e.Data is not null && e.Data.GetDataPresent(typeof(int[]))
+            ? DragDropEffects.Move
+            : DragDropEffects.None;
+    }
+
+    private void OnBaseDragOver(object? sender, DragEventArgs e)
+    {
+        if (e.Data is null || !e.Data.GetDataPresent(typeof(int[])))
+        {
+            e.Effect = DragDropEffects.None;
+            return;
+        }
+
+        e.Effect = DragDropEffects.Move;
+        Point point = _baseList.PointToClient(new Point(e.X, e.Y));
+        ListViewItem? target = _baseList.GetItemAt(point.X, point.Y);
+        if (target == null)
+        {
+            if (_baseList.Items.Count == 0)
+            {
+                _baseList.InsertionMark.Index = -1;
+                return;
+            }
+            _baseList.InsertionMark.Index = _baseList.Items.Count - 1;
+            _baseList.InsertionMark.AppearsAfterItem = true;
+        }
+        else
+        {
+            _baseList.InsertionMark.Index = target.Index;
+            _baseList.InsertionMark.AppearsAfterItem = point.Y > target.Bounds.Top + target.Bounds.Height / 2;
+        }
+    }
+
+    private void OnBaseDragLeave(object? sender, EventArgs e)
+    {
+        _baseList.InsertionMark.Index = -1;
+    }
+
+    private void OnBaseDragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(typeof(int[])) is not int[] itemIndices)
+            return;
+
+        int insertion;
+        try
+        {
+            int mark = _baseList.InsertionMark.Index;
+            insertion = mark < 0
+                ? _baseList.Items.Count
+                : _baseList.InsertionMark.AppearsAfterItem ? mark + 1 : mark;
+        }
+        finally
+        {
+            _baseList.InsertionMark.Index = -1;
+        }
+
+        var dataIndices = new List<int>();
+        foreach (int itemIndex in itemIndices)
+        {
+            if (itemIndex >= 0 && itemIndex < _baseList.Items.Count
+                && _baseList.Items[itemIndex].Tag is BaseInfoItem item)
+                dataIndices.Add(item.DataIndex);
+        }
+        if (dataIndices.Count == 0)
+            return;
+
+        int targetDataIndex;
+        if (insertion >= _baseList.Items.Count)
+        {
+            var bases = _playerState?.GetArray("PersistentPlayerBases");
+            targetDataIndex = bases?.Length ?? _baseInfoItems.Count;
+        }
+        else
+        {
+            targetDataIndex = _baseList.Items[insertion].Tag is BaseInfoItem target
+                ? target.DataIndex
+                : _baseInfoItems.Count;
+        }
+
+        try
+        {
+            var bases = _playerState?.GetArray("PersistentPlayerBases");
+            if (bases == null)
+                return;
+            int[] moved = BaseListLogic.MoveBlock(bases, dataIndices, targetDataIndex);
+            RebuildBaseRows(selectIndices: moved);
+            DataModified?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                UiStrings.Format("base.move_base_failed", ex.Message),
+                UiStrings.Get("common.error"),
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -2595,33 +2968,57 @@ internal class BasesSubPanel : UserControl
     /// </summary>
     internal void SelectBase(int dataIndex)
     {
-        var item = _baseInfoItems.FirstOrDefault(x => x.DataIndex == dataIndex);
-        if (item == null) return;
+        var listItem = FindBaseListItemByIndex(dataIndex);
+        if (listItem == null)
+        {
+            // The entry may be filtered out or hidden: clear both and retry.
+            if (!string.IsNullOrEmpty(_baseFilterBox.Text))
+                _baseFilterBox.Text = "";
+            if (!_showHiddenBasesCheck.Checked)
+                _showHiddenBasesCheck.Checked = true;
+            RebuildBaseRows();
+            listItem = FindBaseListItemByIndex(dataIndex);
+        }
+        if (listItem == null)
+            return;
 
-        int idx = _baseList.Items.IndexOf(item);
-        if (idx >= 0)
-            _baseList.SelectedIndex = idx;
+        _refreshingBaseList = true;
+        try
+        {
+            _baseList.SelectedItems.Clear();
+            listItem.Selected = true;
+            _baseList.FocusedItem = listItem;
+            listItem.EnsureVisible();
+        }
+        finally
+        {
+            _refreshingBaseList = false;
+        }
+
+        UpdateMoveButtonStates();
+        UpdateBaseListHint();
+        OnBaseSelected(this, EventArgs.Empty);
     }
+
+    private ListViewItem? FindBaseListItemByIndex(int dataIndex) =>
+        _baseList.Items.Cast<ListViewItem>()
+            .FirstOrDefault(x => x.Tag is BaseInfoItem item && item.DataIndex == dataIndex);
 
     private void UpdateMoveButtonStates()
     {
-        if (_baseList.SelectedItem is not BaseInfoItem selected)
-        {
-            _toTopBtn.Enabled = false;
-            _moveUpBtn.Enabled = false;
-            _moveDownBtn.Enabled = false;
-            _toBottomBtn.Enabled = false;
-            return;
-        }
+        var bases = _playerState?.GetArray("PersistentPlayerBases");
+        int[] selected = SelectedDataIndices;
+        bool has = selected.Length > 0 && bases != null;
+        int min = has ? selected.Min() : 0;
+        int max = has ? selected.Max() : 0;
 
-        var sorted = _baseInfoItems.OrderBy(x => x.DataIndex).ToList();
-        int pos = sorted.IndexOf(selected);
-        _toTopBtn.Enabled = pos > 0;
-        _moveUpBtn.Enabled = pos > 0;
-        _moveDownBtn.Enabled = pos < sorted.Count - 1;
-        _toBottomBtn.Enabled = pos < sorted.Count - 1;
-        _sortAlphaAscBtn.Enabled = sorted.Count >= 2;
-        _sortAlphaDescBtn.Enabled = sorted.Count >= 2;
+        _toTopBtn.Enabled = has && min > 0;
+        _moveUpBtn.Enabled = has && min > 0;
+        _moveDownBtn.Enabled = has && bases != null && max < bases.Length - 1;
+        _toBottomBtn.Enabled = has && bases != null && max < bases.Length - 1;
+        _sortAlphaAscBtn.Enabled = _baseInfoItems.Count >= 2;
+        _sortAlphaDescBtn.Enabled = _baseInfoItems.Count >= 2;
+        _deleteBaseBtn.Enabled = has;
     }
 
     private sealed class NpcWorkerItem
@@ -2640,55 +3037,33 @@ internal class BasesSubPanel : UserControl
 
     private sealed class BaseInfoItem
     {
+        public BaseInfoItem(BaseListLogic.BaseRow row, string displayName)
+        {
+            DisplayName = displayName;
+            Data = row.Data ?? new JsonObject();
+            DataIndex = row.DataIndex;
+            ObjectCount = row.ObjectCount;
+            Kind = row.Kind;
+            Version = row.Version;
+            IsReadable = row.Data != null;
+            NameEditable = row.NameEditable && IsReadable;
+        }
+
         public string DisplayName { get; set; }
         public JsonObject Data { get; }
         public int ObjectCount { get; }
-        public bool IsFreighterBase { get; }
-        public bool IsStationBase { get; }
-        public bool IsCorvetteBase { get; }
-        public bool IsSpaceBase { get; }
+        public BaseListLogic.BaseListKind Kind { get; }
+        public int Version { get; }
+        public bool NameEditable { get; }
+        public bool IsReadable { get; }
+        public int DataIndex { get; }
 
-        // Tracks the entry's position in the PersistentPlayerBases array.
-        // Updated in tandem with SwapPlayerBases calls so the list always reflects
-        // the true array position. Only modified by BasesSubPanel's reorder methods.
-        private int _dataIndex;
-        public int DataIndex
-        {
-            get => _dataIndex;
-            set
-            {
-                if (value < 0) throw new ArgumentOutOfRangeException(nameof(value));
-                _dataIndex = value;
-            }
-        }
+        public bool IsFreighterBase => Kind == BaseListLogic.BaseListKind.Freighter;
+        public bool IsStationBase => Kind == BaseListLogic.BaseListKind.SpaceStation;
+        public bool IsCorvetteBase => Kind == BaseListLogic.BaseListKind.Corvette;
+        public bool IsSpaceBase => Kind == BaseListLogic.BaseListKind.SpaceBase;
 
-        public BaseInfoItem(string displayName, JsonObject data, int dataIndex, int objectCount,
-            bool isFreighterBase = false, bool isStationBase = false, bool isCorvetteBase = false,
-            bool isSpaceBase = false)
-        {
-            DisplayName = displayName;
-            Data = data;
-            DataIndex = dataIndex;
-            ObjectCount = objectCount;
-            IsFreighterBase = isFreighterBase;
-            IsStationBase = isStationBase;
-            IsCorvetteBase = isCorvetteBase;
-            IsSpaceBase = isSpaceBase;
-        }
-
-        // The display includes the raw array index (e.g. "[7] My Cool Base Name") so
-        // players can identify a base's position in PersistentPlayerBases while reordering.
-        // Freighter, space station, corvette and space bases are suffixed with [F], [S],
-        // [C] and [A] respectively to distinguish them.
-        public override string ToString()
-        {
-            string marker = IsFreighterBase ? "[F] "
-                : IsStationBase ? "[S] "
-                : IsCorvetteBase ? "[C] "
-                : IsSpaceBase ? "[A] "
-                : "";
-            return $"[{DataIndex}] {marker}{DisplayName}";
-        }
+        public override string ToString() => DisplayName;
     }
 
     private sealed class BaseObjectItem
