@@ -1,3 +1,4 @@
+using NMSE.Config;
 using NMSE.Core;
 using NMSE.Core.Utilities;
 using NMSE.Data;
@@ -12,10 +13,25 @@ namespace NMSE.UI.Panels;
 public partial class CompanionPanel : UserControl
 {
     private readonly Random _rng = new();
+    private readonly ToolTip _slotToolTip = new();
 
     private JsonObject? _playerState;
-    private readonly List<(JsonObject Companion, string Label, string Source, int OriginalIndex, bool IsEmpty)> _entries = new();
+    private readonly List<CompanionSlotEntry> _petEntries = new();
+    private readonly List<CompanionSlotEntry> _eggEntries = new();
+    private int _petFocusIndex = -1;
+    private int _eggFocusIndex = -1;
+    private bool _activeIsPet = true;
+    private bool _syncingSelection;
     private bool _loading;
+
+    /// <summary>One visible pet or egg slot row in the panel's two lists.</summary>
+    private readonly record struct CompanionSlotEntry(
+        JsonObject Companion,
+        string Label,
+        string Source,
+        int OriginalIndex,
+        bool IsEmpty,
+        bool IsLocked);
 
     /// <summary>
     /// Temporary entry added to the species combobox when the save contains a creature ID
@@ -113,6 +129,177 @@ public partial class CompanionPanel : UserControl
         return lbl;
     }
 
+    /// <summary>Builds the Pets list group with its own sort/move toolbar.</summary>
+    private GroupBox BuildPetListGroup()
+    {
+        var group = new GroupBox
+        {
+            Text = "Pets",
+            Dock = DockStyle.Fill,
+            Padding = new Padding(6, 4, 6, 6),
+        };
+        _petGroup = group;
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _petSummaryLabel = new Label
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            MaximumSize = new Size(190, 0),
+            Margin = new Padding(0, 0, 0, 3),
+        };
+        layout.Controls.Add(_petSummaryLabel, 0, 0);
+
+        var toolbar = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            WrapContents = true,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+
+        _petSortAzBtn = MakeListButton("A-Z", OnPetSortAz);
+        _petSortZaBtn = MakeListButton("Z-A", OnPetSortZa);
+        _petUpBtn = MakeListButton("Up", OnPetMoveUp);
+        _petDownBtn = MakeListButton("Down", OnPetMoveDown);
+        _showLockedCheck = new CheckBox
+        {
+            Text = "Show locked slots",
+            AutoSize = true,
+            Checked = true,
+            Margin = new Padding(4, 5, 0, 3),
+        };
+        _showLockedCheck.CheckedChanged += OnShowLockedChanged;
+        toolbar.Controls.Add(_petSortAzBtn);
+        toolbar.Controls.Add(_petSortZaBtn);
+        toolbar.Controls.Add(_petUpBtn);
+        toolbar.Controls.Add(_petDownBtn);
+        toolbar.Controls.Add(_showLockedCheck);
+        layout.Controls.Add(toolbar, 0, 1);
+
+        _petLockedHint = new Label
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            MaximumSize = new Size(190, 0),
+            Margin = new Padding(0, 2, 0, 4),
+            Visible = false,
+        };
+        layout.Controls.Add(_petLockedHint, 0, 2);
+
+        _petList = CreateCompanionList();
+        _petList.SelectedIndexChanged += OnPetListSelectedIndexChanged;
+        _petList.MouseDown += OnPetListMouseDown;
+        _petList.MouseUp += OnPetListMouseUp;
+        layout.Controls.Add(_petList, 0, 3);
+
+        group.Controls.Add(layout);
+        return group;
+    }
+
+    /// <summary>Builds the Eggs list group with its own sort/move toolbar.</summary>
+    private GroupBox BuildEggListGroup()
+    {
+        var group = new GroupBox
+        {
+            Text = "Eggs",
+            Dock = DockStyle.Fill,
+            Padding = new Padding(6, 4, 6, 6),
+        };
+        _eggGroup = group;
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        _eggSummaryLabel = new Label
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            MaximumSize = new Size(190, 0),
+            Margin = new Padding(0, 0, 0, 3),
+        };
+        layout.Controls.Add(_eggSummaryLabel, 0, 0);
+
+        var toolbar = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            WrapContents = true,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+
+        _eggSortAzBtn = MakeListButton("A-Z", OnEggSortAz);
+        _eggSortZaBtn = MakeListButton("Z-A", OnEggSortZa);
+        _eggUpBtn = MakeListButton("Up", OnEggMoveUp);
+        _eggDownBtn = MakeListButton("Down", OnEggMoveDown);
+        toolbar.Controls.Add(_eggSortAzBtn);
+        toolbar.Controls.Add(_eggSortZaBtn);
+        toolbar.Controls.Add(_eggUpBtn);
+        toolbar.Controls.Add(_eggDownBtn);
+        layout.Controls.Add(toolbar, 0, 1);
+
+        _eggList = CreateCompanionList();
+        _eggList.SelectedIndexChanged += OnEggListSelectedIndexChanged;
+        _eggList.MouseDown += OnEggListMouseDown;
+        _eggList.MouseUp += OnEggListMouseUp;
+        layout.Controls.Add(_eggList, 0, 2);
+
+        group.Controls.Add(layout);
+        return group;
+    }
+
+    private ListBox CreateCompanionList()
+    {
+        var list = new ListBox
+        {
+            Dock = DockStyle.Fill,
+            SelectionMode = SelectionMode.MultiExtended,
+            DrawMode = DrawMode.OwnerDrawFixed,
+            IntegralHeight = false,
+        };
+        list.DrawItem += OnCompanionListDrawItem;
+        return list;
+    }
+
+    private static Button MakeListButton(string text, EventHandler onClick)
+    {
+        var button = new Button
+        {
+            Text = text,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(34, 0),
+            Margin = new Padding(0, 0, 3, 3),
+        };
+        button.Click += onClick;
+        return button;
+    }
+
     private Label AddSeedRow(TableLayoutPanel layout, string label, TextBox seedField, int row, Action? onSeedChanged = null)
     {
         var lbl = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 5, 10, 0) };
@@ -166,98 +353,341 @@ public partial class CompanionPanel : UserControl
     {
         _loading = true;
         SuspendLayout();
-        _companionList.BeginUpdate();
         try
         {
-            _companionList.Items.Clear();
-            _entries.Clear();
+            _petEntries.Clear();
+            _eggEntries.Clear();
+            _petList.Items.Clear();
+            _eggList.Items.Clear();
             _detailPanel.Visible = false;
             _playerState = null;
 
-            try
+            var playerState = saveData.GetObject("PlayerStateData");
+            if (playerState == null)
             {
-                var playerState = saveData.GetObject("PlayerStateData");
-                if (playerState == null) return;
-                _playerState = playerState;
-
-                LoadAllSlots(playerState.GetArray("Pets"), "Pet");
-                LoadAllSlots(playerState.GetArray("Eggs"), "Egg");
-
-                _countLabel.Text = UiStrings.Format("companion.total_slots", _entries.Count);
-
-                LoadBattleTeam();
-
-                if (_entries.Count > 0 && _companionList.Items.Count > 0)
-                    _companionList.SelectedIndex = 0;
+                UpdateSummaries();
+                UpdateReorderButtons();
+                return;
             }
-            catch { }
+
+            _playerState = playerState;
+            _showLockedCheck.Checked = AppConfig.Instance.CompanionShowLockedSlots;
+
+            RebuildPetList();
+            RebuildEggList();
+            LoadBattleTeam();
+            SelectFirstAvailable();
         }
+        catch { }
         finally
         {
-            _companionList.EndUpdate();
             ResumeLayout(true);
             _loading = false;
         }
+
+        OnCompanionSelected(null, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Loads ALL slots from the array (including empty ones).
-    /// </summary>
-    private void LoadAllSlots(JsonArray? array, string prefix)
+    /// <summary>Rebuilds the pet list from the player state.</summary>
+    /// <param name="selected">Rows to reselect after the rebuild.</param>
+    /// <param name="focused">The row to treat as focused, if present.</param>
+    private void RebuildPetList(
+        IReadOnlyCollection<JsonObject>? selected = null,
+        JsonObject? focused = null)
     {
-        if (array == null) return;
-        for (int i = 0; i < array.Length; i++)
+        int top = _petList.TopIndex;
+        _syncingSelection = true;
+        _petList.BeginUpdate();
+        try
         {
+            _petList.Items.Clear();
+            _petEntries.Clear();
+            LoadPetSlots();
+        }
+        finally
+        {
+            _petList.EndUpdate();
+            _syncingSelection = false;
+        }
+
+        RestoreSelection(_petList, _petEntries, selected, focused, isPet: true);
+        if (_petList.Items.Count > 0)
+            _petList.TopIndex = Math.Clamp(top, 0, _petList.Items.Count - 1);
+
+        UpdateSummaries();
+        UpdateReorderButtons();
+    }
+
+    /// <summary>Rebuilds the egg list from the player state.</summary>
+    /// <param name="selected">Rows to reselect after the rebuild.</param>
+    /// <param name="focused">The row to treat as focused, if present.</param>
+    private void RebuildEggList(
+        IReadOnlyCollection<JsonObject>? selected = null,
+        JsonObject? focused = null)
+    {
+        int top = _eggList.TopIndex;
+        _syncingSelection = true;
+        _eggList.BeginUpdate();
+        try
+        {
+            _eggList.Items.Clear();
+            _eggEntries.Clear();
+            LoadEggSlots();
+        }
+        finally
+        {
+            _eggList.EndUpdate();
+            _syncingSelection = false;
+        }
+
+        RestoreSelection(_eggList, _eggEntries, selected, focused, isPet: false);
+        if (_eggList.Items.Count > 0)
+            _eggList.TopIndex = Math.Clamp(top, 0, _eggList.Items.Count - 1);
+
+        UpdateSummaries();
+        UpdateReorderButtons();
+    }
+
+    /// <summary>Loads every pet slot, hiding empty locked slots when requested.</summary>
+    private void LoadPetSlots()
+    {
+        var pets = _playerState?.GetArray("Pets");
+        if (pets == null) return;
+
+        bool showLocked = _showLockedCheck.Checked;
+        for (int i = 0; i < pets.Length; i++)
+        {
+            bool locked = IsPetSlotLocked(i);
             try
             {
-                var comp = array.GetObject(i);
+                var comp = pets.GetObject(i) ?? new JsonObject();
+                bool occupied = CompanionLogic.IsSlotOccupied(comp);
 
-                bool occupied = IsSlotOccupied(comp);
+                if (locked && !occupied && !showLocked)
+                    continue;
 
-                bool locked = false;
-                if (prefix == "Pet" && _playerState != null)
-                {
-                    var unlockedSlots = _playerState.GetArray("UnlockedPetSlots");
-                    locked = unlockedSlots == null || i >= unlockedSlots.Length || !unlockedSlots.GetBool(i);
-                }
-
-                string label = GetSlotLabel(comp, prefix, i, occupied, locked);
-                _entries.Add((comp, label, prefix, i, !occupied));
-                _companionList.Items.Add(label);
+                string label = GetSlotLabel(comp, "Pet", i, occupied, locked);
+                _petEntries.Add(new CompanionSlotEntry(comp, label, "Pet", i, !occupied, locked));
+                _petList.Items.Add(label);
             }
             catch
             {
-                string errLabel = UiStrings.Format("companion.error_format", prefix, i);
-                _entries.Add((new JsonObject(), errLabel, prefix, i, true));
-                _companionList.Items.Add(errLabel);
+                string errLabel = UiStrings.Format(
+                    "companion.error_format", UiStrings.Get("companion.slot_pet"), i);
+                _petEntries.Add(new CompanionSlotEntry(
+                    new JsonObject(), errLabel, "Pet", i, true, locked));
+                _petList.Items.Add(errLabel);
             }
         }
     }
 
-    private static bool IsSlotOccupied(JsonObject comp)
+    /// <summary>Loads every egg slot.</summary>
+    private void LoadEggSlots()
     {
+        var eggs = _playerState?.GetArray("Eggs");
+        if (eggs == null) return;
+
+        for (int i = 0; i < eggs.Length; i++)
+        {
+            try
+            {
+                var comp = eggs.GetObject(i) ?? new JsonObject();
+                bool occupied = CompanionLogic.IsSlotOccupied(comp);
+                string label = GetSlotLabel(comp, "Egg", i, occupied, locked: false);
+                _eggEntries.Add(new CompanionSlotEntry(comp, label, "Egg", i, !occupied, false));
+                _eggList.Items.Add(label);
+            }
+            catch
+            {
+                string errLabel = UiStrings.Format(
+                    "companion.error_format", UiStrings.Get("companion.slot_egg"), i);
+                _eggEntries.Add(new CompanionSlotEntry(
+                    new JsonObject(), errLabel, "Egg", i, true, false));
+                _eggList.Items.Add(errLabel);
+            }
+        }
+    }
+
+    /// <summary>Restores the selection and focused row after a rebuild.</summary>
+    private void RestoreSelection(
+        ListBox list,
+        List<CompanionSlotEntry> entries,
+        IReadOnlyCollection<JsonObject>? selected,
+        JsonObject? focused,
+        bool isPet)
+    {
+        _syncingSelection = true;
         try
         {
-            var seedArray = comp.GetArray("CreatureSeed");
-            if (seedArray != null && seedArray.Length >= 2)
-                return seedArray.GetBool(0);
+            list.ClearSelected();
+
+            if (selected != null)
+            {
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    if (selected.Contains(entries[i].Companion))
+                        list.SetSelected(i, true);
+                }
+            }
+
+            int focusIndex = -1;
+            if (focused != null)
+            {
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    if (ReferenceEquals(entries[i].Companion, focused))
+                    {
+                        focusIndex = i;
+                        list.SetSelected(i, true);
+                        break;
+                    }
+                }
+            }
+
+            if (isPet) _petFocusIndex = focusIndex;
+            else _eggFocusIndex = focusIndex;
         }
-        catch { }
-        return false;
+        finally
+        {
+            _syncingSelection = false;
+        }
+    }
+
+    /// <summary>Selects the first pet, or the first egg when there are no pets.</summary>
+    private void SelectFirstAvailable()
+    {
+        if (_petList.Items.Count > 0)
+        {
+            _activeIsPet = true;
+            _petList.SelectedIndex = 0;
+            _petFocusIndex = 0;
+        }
+        else if (_eggList.Items.Count > 0)
+        {
+            _activeIsPet = false;
+            _eggList.SelectedIndex = 0;
+            _eggFocusIndex = 0;
+        }
+    }
+
+    /// <summary>Updates the per-list capacity summaries and the locked-slot hint.</summary>
+    private void UpdateSummaries()
+    {
+        var pets = _playerState?.GetArray("Pets");
+        var unlockedSlots = _playerState?.GetArray("UnlockedPetSlots");
+        int petSlots = pets?.Length ?? 0;
+        int usedPets = 0;
+        for (int i = 0; i < petSlots; i++)
+        {
+            if (CompanionLogic.IsSlotOccupied(SafeObject(pets, i))) usedPets++;
+        }
+
+        int unlockedCount = 0;
+        if (unlockedSlots != null)
+        {
+            int count = Math.Min(petSlots, unlockedSlots.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (TryGetBool(unlockedSlots, i)) unlockedCount++;
+            }
+        }
+
+        _petSummaryLabel.Text = UiStrings.Format(
+            "companion.pets_summary", usedPets, unlockedCount, petSlots);
+        _petLockedHint.Text = UiStrings.Get("companion.locked_slots_hint");
+        _petLockedHint.Visible = petSlots > 0 && unlockedCount < petSlots;
+
+        var eggs = _playerState?.GetArray("Eggs");
+        int eggSlots = eggs?.Length ?? 0;
+        int usedEggs = 0;
+        for (int i = 0; i < eggSlots; i++)
+        {
+            if (CompanionLogic.IsSlotOccupied(SafeObject(eggs, i))) usedEggs++;
+        }
+
+        _eggSummaryLabel.Text = UiStrings.Format("companion.eggs_summary", usedEggs, eggSlots);
+    }
+
+    /// <summary>Returns whether the given pet slot is locked in the save.</summary>
+    private bool IsPetSlotLocked(int index)
+    {
+        var unlockedSlots = _playerState?.GetArray("UnlockedPetSlots");
+        return unlockedSlots == null
+            || index < 0
+            || index >= unlockedSlots.Length
+            || !TryGetBool(unlockedSlots, index);
+    }
+
+    private static JsonObject? SafeObject(JsonArray? array, int index)
+    {
+        if (array == null || index < 0 || index >= array.Length) return null;
+        try
+        {
+            return array.GetObject(index);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool TryGetBool(JsonArray? array, int index)
+    {
+        if (array == null || index < 0 || index >= array.Length) return false;
+        try
+        {
+            return array.GetBool(index);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string GetSlotLabel(JsonObject comp, string prefix, int index, bool occupied, bool locked)
     {
+        string slotPrefix = UiStrings.Get(prefix == "Pet" ? "companion.slot_pet" : "companion.slot_egg");
+
         if (!occupied)
         {
-            return locked ? $"{prefix} {index} (Locked)" : $"{prefix} {index} (Empty)";
+            string state = UiStrings.Get(locked ? "companion.slot_locked" : "companion.slot_empty");
+            return UiStrings.Format("companion.slot_label_state", slotPrefix, index, state);
         }
 
         string customName = "";
         try { customName = comp.GetString("CustomName") ?? ""; } catch { }
-        if (string.IsNullOrEmpty(customName) || customName == "^")
-            return $"{prefix} {index}";
-        return $"{prefix} {index} - {customName}";
+        bool named = !string.IsNullOrEmpty(customName) && customName != "^";
+
+        if (locked)
+        {
+            string lockedState = UiStrings.Get("companion.slot_locked");
+            return named
+                ? UiStrings.Format("companion.slot_label_locked_named", slotPrefix, index, customName, lockedState)
+                : UiStrings.Format("companion.slot_label_state", slotPrefix, index, lockedState);
+        }
+
+        return named
+            ? UiStrings.Format("companion.slot_label_named", slotPrefix, index, customName)
+            : UiStrings.Format("companion.slot_label_plain", slotPrefix, index);
+    }
+
+    /// <summary>The list that owns the current selection and detail panel.</summary>
+    private ListBox ActiveList => _activeIsPet ? _petList : _eggList;
+
+    /// <summary>The entries that match <see cref="ActiveList"/>.</summary>
+    private List<CompanionSlotEntry> ActiveEntries => _activeIsPet ? _petEntries : _eggEntries;
+
+    /// <summary>
+    /// Returns the index of the entry that should drive the detail panel. Multi-select uses the
+    /// last-clicked row when it is still selected, otherwise the first selected row.
+    /// </summary>
+    private int GetActiveIndex()
+    {
+        var list = ActiveList;
+        int focused = _activeIsPet ? _petFocusIndex : _eggFocusIndex;
+        if (focused >= 0 && focused < list.Items.Count && list.GetSelected(focused))
+            return focused;
+        return list.SelectedIndex;
     }
 
     /// <summary>
@@ -268,36 +698,97 @@ public partial class CompanionPanel : UserControl
     {
         get
         {
-            int idx = _companionList.SelectedIndex;
-            if (idx < 0 || idx >= _entries.Count) return null;
-            return _entries[idx].Companion;
+            int idx = GetActiveIndex();
+            var entries = ActiveEntries;
+            if (idx < 0 || idx >= entries.Count) return null;
+            return entries[idx].Companion;
         }
     }
 
     /// <summary>
     /// Returns the raw entry at the current list index (even for empty slots).
     /// </summary>
-    private (JsonObject Companion, string Label, string Source, int OriginalIndex, bool IsEmpty) SelectedEntry
+    private CompanionSlotEntry SelectedEntry
     {
         get
         {
-            int idx = _companionList.SelectedIndex;
-            if (idx < 0 || idx >= _entries.Count)
-                return (new JsonObject(), "", "", -1, true);
-            return _entries[idx];
+            int idx = GetActiveIndex();
+            var entries = ActiveEntries;
+            if (idx < 0 || idx >= entries.Count)
+                return new CompanionSlotEntry(
+                    new JsonObject(), "", _activeIsPet ? "Pet" : "Egg", -1, true, false);
+            return entries[idx];
+        }
+    }
+
+    private void OnPetListSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_loading || _syncingSelection) return;
+        _activeIsPet = true;
+        if (_petFocusIndex < 0 || !_petList.GetSelected(_petFocusIndex))
+            _petFocusIndex = _petList.SelectedIndex;
+        ClearSelection(_eggList);
+        OnCompanionSelected(sender, e);
+    }
+
+    private void OnEggListSelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_loading || _syncingSelection) return;
+        _activeIsPet = false;
+        if (_eggFocusIndex < 0 || !_eggList.GetSelected(_eggFocusIndex))
+            _eggFocusIndex = _eggList.SelectedIndex;
+        ClearSelection(_petList);
+        OnCompanionSelected(sender, e);
+    }
+
+    private void OnPetListMouseDown(object? sender, MouseEventArgs e)
+    {
+        if (_loading) return;
+        _activeIsPet = true;
+        int index = _petList.IndexFromPoint(e.Location);
+        if (index >= 0) _petFocusIndex = index;
+        ClearSelection(_eggList);
+    }
+
+    private void OnEggListMouseDown(object? sender, MouseEventArgs e)
+    {
+        if (_loading) return;
+        _activeIsPet = false;
+        int index = _eggList.IndexFromPoint(e.Location);
+        if (index >= 0) _eggFocusIndex = index;
+        ClearSelection(_petList);
+    }
+
+    private void OnPetListMouseUp(object? sender, MouseEventArgs e) => OnCompanionSelected(sender, e);
+
+    private void OnEggListMouseUp(object? sender, MouseEventArgs e) => OnCompanionSelected(sender, e);
+
+    private void ClearSelection(ListBox list)
+    {
+        if (list.SelectedIndices.Count == 0) return;
+        bool previous = _syncingSelection;
+        _syncingSelection = true;
+        try
+        {
+            list.ClearSelected();
+        }
+        finally
+        {
+            _syncingSelection = previous;
         }
     }
 
     private void OnCompanionSelected(object? sender, EventArgs e)
     {
-        int idx = _companionList.SelectedIndex;
-        if (idx < 0 || idx >= _entries.Count)
+        int idx = GetActiveIndex();
+        if (idx < 0 || idx >= ActiveEntries.Count)
         {
             _detailPanel.Visible = false;
+            UpdateReorderButtons();
             return;
         }
 
-        var entry = _entries[idx];
+        var entry = ActiveEntries[idx];
         _loading = true;
         try
         {
@@ -534,10 +1025,14 @@ public partial class CompanionPanel : UserControl
             _placeEggInExosuitBtn.Visible = isEgg && !entry.IsEmpty;
             _makeHatchableBtn.Visible = isEgg && !entry.IsEmpty;
         }
-        finally { _loading = false; }
+        finally
+        {
+            _loading = false;
+            UpdateReorderButtons();
+        }
     }
 
-    private void LoadUnlockStatus((JsonObject Companion, string Label, string Source, int OriginalIndex, bool IsEmpty) entry)
+    private void LoadUnlockStatus(CompanionSlotEntry entry)
     {
         try
         {
@@ -545,36 +1040,51 @@ public partial class CompanionPanel : UserControl
             {
                 var unlockedSlots = _playerState.GetArray("UnlockedPetSlots");
                 int origIdx = entry.OriginalIndex;
-                _unlockedCheck.Checked = unlockedSlots != null && origIdx < unlockedSlots.Length && unlockedSlots.GetBool(origIdx);
+                bool unlocked = unlockedSlots != null
+                    && origIdx >= 0
+                    && origIdx < unlockedSlots.Length
+                    && TryGetBool(unlockedSlots, origIdx);
+                _unlockedCheck.Checked = unlocked;
                 _unlockedCheck.Enabled = true;
+                _lockedUnlockHint.Visible = !unlocked;
+                _lockedUnlockHint.Text = UiStrings.Get(
+                    !unlocked && !entry.IsEmpty
+                        ? "companion.pet_locked_warning"
+                        : "companion.locked_unlock_hint");
             }
             else
             {
                 _unlockedCheck.Checked = false;
                 _unlockedCheck.Enabled = false;
+                _lockedUnlockHint.Visible = false;
             }
         }
-        catch { _unlockedCheck.Checked = false; _unlockedCheck.Enabled = false; }
+        catch
+        {
+            _unlockedCheck.Checked = false;
+            _unlockedCheck.Enabled = false;
+            _lockedUnlockHint.Visible = false;
+        }
     }
 
     private void RefreshListEntry()
     {
-        int idx = _companionList.SelectedIndex;
-        if (idx < 0 || idx >= _entries.Count) return;
-        var entry = _entries[idx];
-        var comp = entry.Companion;
-        bool occupied = !entry.IsEmpty;
+        int idx = GetActiveIndex();
+        var entries = ActiveEntries;
+        if (idx < 0 || idx >= entries.Count) return;
 
-        bool locked = false;
-        if (entry.Source == "Pet" && _playerState != null)
-        {
-            var unlockedSlots = _playerState.GetArray("UnlockedPetSlots");
-            locked = unlockedSlots == null || entry.OriginalIndex >= unlockedSlots.Length || !unlockedSlots.GetBool(entry.OriginalIndex);
-        }
+        var entry = entries[idx];
+        var comp = entry.Companion;
+        bool occupied = CompanionLogic.IsSlotOccupied(comp);
+        bool locked = entry.Source == "Pet" && IsPetSlotLocked(entry.OriginalIndex);
 
         string newLabel = GetSlotLabel(comp, entry.Source, entry.OriginalIndex, occupied, locked);
-        _entries[idx] = (comp, newLabel, entry.Source, entry.OriginalIndex, entry.IsEmpty);
-        _companionList.Items[idx] = newLabel;
+        entries[idx] = new CompanionSlotEntry(
+            comp, newLabel, entry.Source, entry.OriginalIndex, !occupied, locked);
+        ActiveList.Items[idx] = newLabel;
+
+        UpdateSummaries();
+        UpdateReorderButtons();
     }
 
     // Write-back helpers (all write directly to the underlying JsonObject)
@@ -650,9 +1160,10 @@ public partial class CompanionPanel : UserControl
     /// </summary>
     private void ActivateSlotIfEmpty(JsonObject comp)
     {
-        int idx = _companionList.SelectedIndex;
-        if (idx < 0 || idx >= _entries.Count) return;
-        var e = _entries[idx];
+        int idx = GetActiveIndex();
+        var entries = ActiveEntries;
+        if (idx < 0 || idx >= entries.Count) return;
+        var e = entries[idx];
         if (!e.IsEmpty) return;
 
         // Activate the seed flag
@@ -661,7 +1172,8 @@ public partial class CompanionPanel : UserControl
             seedArr.Set(0, true);
 
         // Mark entry as no longer empty
-        _entries[idx] = (e.Companion, e.Label, e.Source, e.OriginalIndex, false);
+        entries[idx] = new CompanionSlotEntry(
+            e.Companion, e.Label, e.Source, e.OriginalIndex, false, e.IsLocked);
         _deleteBtn.Enabled = true;
         RefreshListEntry();
     }
@@ -1181,7 +1693,7 @@ public partial class CompanionPanel : UserControl
     }
 
     /// <summary>Loads accessory data for the selected companion into the 3 slot controls.</summary>
-    private void LoadAccessories((JsonObject Companion, string Label, string Source, int OriginalIndex, bool IsEmpty) entry)
+    private void LoadAccessories(CompanionSlotEntry entry)
     {
         if (entry.Source != "Pet" || entry.IsEmpty)
         {
@@ -1655,7 +2167,7 @@ public partial class CompanionPanel : UserControl
     }
 
     /// <summary>Loads all battle data for the selected companion.</summary>
-    private void LoadBattleData(JsonObject comp, (JsonObject Companion, string Label, string Source, int OriginalIndex, bool IsEmpty) entry)
+    private void LoadBattleData(JsonObject comp, CompanionSlotEntry entry)
     {
         // Lazily initialise per-slot move data on first call (databases not loaded at construction time)
         if (!_moveSlotDataInitialised)
@@ -1790,15 +2302,16 @@ public partial class CompanionPanel : UserControl
             {
                 var pet = petsArray.GetObject(i);
                 if (pet == null) continue;
-                bool occupied = IsSlotOccupied(pet);
+                bool occupied = CompanionLogic.IsSlotOccupied(pet);
                 if (!occupied) continue;
                 bool locked = unlockedSlots == null || i >= unlockedSlots.Length || !unlockedSlots.GetBool(i);
                 if (locked) continue;
 
                 string name = pet.GetString("CustomName") ?? "";
+                string prefix = UiStrings.Get("companion.slot_pet");
                 string label = string.IsNullOrEmpty(name) || name == "^"
-                    ? $"Pet {i}"
-                    : $"Pet {i} - {name}";
+                    ? UiStrings.Format("companion.slot_label_plain", prefix, i)
+                    : UiStrings.Format("companion.slot_label_named", prefix, i, name);
                 available.Add((i, label));
             }
         }
@@ -2431,33 +2944,62 @@ public partial class CompanionPanel : UserControl
 
     private void OnDelete(object? sender, EventArgs e)
     {
-        var comp = SelectedCompanion;
-        if (comp == null) return;
+        var list = ActiveList;
+        var entries = ActiveEntries;
+        var selected = list.SelectedIndices
+            .Cast<int>()
+            .Where(i => i >= 0 && i < entries.Count && !entries[i].IsEmpty)
+            .Distinct()
+            .OrderBy(i => i)
+            .ToList();
+        if (selected.Count == 0) return;
 
-        var result = MessageBox.Show(this, UiStrings.Get("companion.delete_confirm"),
+        string message = selected.Count > 1
+            ? UiStrings.Format("companion.delete_multi_confirm", selected.Count)
+            : UiStrings.Get("companion.delete_confirm");
+        var result = MessageBox.Show(this, message,
             UiStrings.Get("companion.delete_title"), MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
         if (result != DialogResult.Yes) return;
 
-        CompanionLogic.DeleteCompanion(comp);
-
-        int idx = _companionList.SelectedIndex;
-        var entry = _entries[idx];
-
-        // Lock the slot when deleting a Pet companion
-        if (entry.Source == "Pet" && _playerState != null)
-            CompanionLogic.SetSlotUnlocked(_playerState, entry.OriginalIndex, false);
-
-        // Mark entry as empty and refresh
-        _entries[idx] = (entry.Companion, entry.Label, entry.Source, entry.OriginalIndex, true);
-
-        // Refresh the whole list to update labels
-        var saveData = FindSaveDataRoot();
-        if (saveData != null) LoadData(saveData);
-        else
+        int firstDeleted = selected[0];
+        foreach (int idx in selected)
         {
-            RefreshListEntry();
-            OnCompanionSelected(null, EventArgs.Empty);
+            var entry = entries[idx];
+            CompanionLogic.DeleteCompanion(entry.Companion);
+
+            // Lock the slot when deleting a Pet companion
+            if (entry.Source == "Pet" && _playerState != null)
+                CompanionLogic.SetSlotUnlocked(_playerState, entry.OriginalIndex, false);
         }
+
+        _loading = true;
+        try
+        {
+            if (_activeIsPet)
+            {
+                RebuildPetList();
+                LoadBattleTeam();
+            }
+            else
+            {
+                RebuildEggList();
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        var rows = ActiveEntries;
+        if (rows.Count > 0)
+        {
+            int target = Math.Clamp(firstDeleted, 0, rows.Count - 1);
+            ActiveList.SelectedIndex = target;
+            if (_activeIsPet) _petFocusIndex = target;
+            else _eggFocusIndex = target;
+        }
+
+        OnCompanionSelected(null, EventArgs.Empty);
         RaiseDataModified();
     }
 
@@ -2557,15 +3099,318 @@ public partial class CompanionPanel : UserControl
             if (importedToPets)
                 CompanionLogic.SetSlotUnlocked(_playerState, importedIdx, true);
 
-            // Refresh list
-            var saveData = FindSaveDataRoot();
-            if (saveData != null) LoadData(saveData);
+            _loading = true;
+            try
+            {
+                RebuildPetList();
+                RebuildEggList();
+                LoadBattleTeam();
+            }
+            finally
+            {
+                _loading = false;
+            }
+
+            _activeIsPet = importedToPets;
+            ClearSelection(importedToPets ? _eggList : _petList);
+            var list = importedToPets ? _petList : _eggList;
+            var entries = importedToPets ? _petEntries : _eggEntries;
+            int row = entries.FindIndex(e => e.OriginalIndex == importedIdx);
+            if (row >= 0)
+            {
+                list.SelectedIndex = row;
+                if (importedToPets) _petFocusIndex = row;
+                else _eggFocusIndex = row;
+            }
+
+            OnCompanionSelected(null, EventArgs.Empty);
             RaiseDataModified();
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, UiStrings.Format("companion.import_failed", ex.Message), UiStrings.Get("common.error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void OnPetSortAz(object? sender, EventArgs e) => SortPetList(descending: false);
+
+    private void OnPetSortZa(object? sender, EventArgs e) => SortPetList(descending: true);
+
+    private void OnPetMoveUp(object? sender, EventArgs e) => MovePetList(-1);
+
+    private void OnPetMoveDown(object? sender, EventArgs e) => MovePetList(1);
+
+    private void OnEggSortAz(object? sender, EventArgs e) => SortEggList(descending: false);
+
+    private void OnEggSortZa(object? sender, EventArgs e) => SortEggList(descending: true);
+
+    private void OnEggMoveUp(object? sender, EventArgs e) => MoveEggList(-1);
+
+    private void OnEggMoveDown(object? sender, EventArgs e) => MoveEggList(1);
+
+    private void SortPetList(bool descending)
+    {
+        if (_playerState == null) return;
+
+        var selected = GetSelectedCompanions(_petList, _petEntries);
+        var focused = GetFocusedCompanion(_petList, _petEntries, _petFocusIndex);
+        if (!CompanionSortLogic.SortPets(_playerState, descending)) return;
+
+        _loading = true;
+        try
+        {
+            RebuildPetList(selected, focused);
+            LoadBattleTeam();
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        _activeIsPet = true;
+        ClearSelection(_eggList);
+        OnCompanionSelected(null, EventArgs.Empty);
+        RaiseDataModified();
+    }
+
+    private void SortEggList(bool descending)
+    {
+        var eggs = _playerState?.GetArray("Eggs");
+        if (eggs == null) return;
+
+        var selected = GetSelectedCompanions(_eggList, _eggEntries);
+        var focused = GetFocusedCompanion(_eggList, _eggEntries, _eggFocusIndex);
+        if (!CompanionSortLogic.SortEggs(eggs, descending)) return;
+
+        _loading = true;
+        try
+        {
+            RebuildEggList(selected, focused);
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        _activeIsPet = false;
+        ClearSelection(_petList);
+        OnCompanionSelected(null, EventArgs.Empty);
+        RaiseDataModified();
+    }
+
+    private void MovePetList(int direction)
+    {
+        if (_playerState == null) return;
+
+        var slots = GetSelectedSlots(_petList, _petEntries);
+        var selected = GetSelectedCompanions(_petList, _petEntries);
+        var focused = GetFocusedCompanion(_petList, _petEntries, _petFocusIndex);
+        if (!CompanionSortLogic.MovePets(_playerState, slots, direction))
+        {
+            UpdateReorderButtons();
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            RebuildPetList(selected, focused);
+            LoadBattleTeam();
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        _activeIsPet = true;
+        ClearSelection(_eggList);
+        OnCompanionSelected(null, EventArgs.Empty);
+        RaiseDataModified();
+    }
+
+    private void MoveEggList(int direction)
+    {
+        var eggs = _playerState?.GetArray("Eggs");
+        if (eggs == null) return;
+
+        var slots = GetSelectedSlots(_eggList, _eggEntries);
+        var selected = GetSelectedCompanions(_eggList, _eggEntries);
+        var focused = GetFocusedCompanion(_eggList, _eggEntries, _eggFocusIndex);
+        if (!CompanionSortLogic.MoveEggs(eggs, slots, direction))
+        {
+            UpdateReorderButtons();
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            RebuildEggList(selected, focused);
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        _activeIsPet = false;
+        ClearSelection(_petList);
+        OnCompanionSelected(null, EventArgs.Empty);
+        RaiseDataModified();
+    }
+
+    private void OnShowLockedChanged(object? sender, EventArgs e)
+    {
+        if (_loading) return;
+
+        AppConfig.Instance.CompanionShowLockedSlots = _showLockedCheck.Checked;
+        if (_playerState == null) return;
+
+        var selected = GetSelectedCompanions(_petList, _petEntries);
+        var focused = GetFocusedCompanion(_petList, _petEntries, _petFocusIndex);
+        _loading = true;
+        try
+        {
+            RebuildPetList(selected, focused);
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        OnCompanionSelected(null, EventArgs.Empty);
+    }
+
+    private void OnSlotUnlockedChanged()
+    {
+        if (_loading || _playerState == null || !_activeIsPet) return;
+
+        int idx = GetActiveIndex();
+        if (idx < 0 || idx >= _petEntries.Count) return;
+
+        var entry = _petEntries[idx];
+        CompanionLogic.SetSlotUnlocked(_playerState, entry.OriginalIndex, _unlockedCheck.Checked);
+
+        var selected = GetSelectedCompanions(_petList, _petEntries);
+        var focused = entry.Companion;
+        _loading = true;
+        try
+        {
+            RebuildPetList(selected, focused);
+            LoadBattleTeam();
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        OnCompanionSelected(null, EventArgs.Empty);
+        RaiseDataModified();
+    }
+
+    private static List<JsonObject> GetSelectedCompanions(
+        ListBox list, List<CompanionSlotEntry> entries)
+    {
+        var result = new List<JsonObject>();
+        foreach (int index in list.SelectedIndices)
+        {
+            if (index >= 0 && index < entries.Count)
+                result.Add(entries[index].Companion);
+        }
+        return result;
+    }
+
+    private static JsonObject? GetFocusedCompanion(
+        ListBox list, List<CompanionSlotEntry> entries, int focusIndex)
+    {
+        if (focusIndex >= 0
+            && focusIndex < list.Items.Count
+            && focusIndex < entries.Count
+            && list.GetSelected(focusIndex))
+        {
+            return entries[focusIndex].Companion;
+        }
+
+        int selected = list.SelectedIndex;
+        return selected >= 0 && selected < entries.Count ? entries[selected].Companion : null;
+    }
+
+    private static List<int> GetSelectedSlots(ListBox list, List<CompanionSlotEntry> entries)
+    {
+        var result = new List<int>();
+        foreach (int index in list.SelectedIndices)
+        {
+            if (index >= 0 && index < entries.Count)
+                result.Add(entries[index].OriginalIndex);
+        }
+        return result;
+    }
+
+    private void UpdateReorderButtons()
+    {
+        bool canDelete = ActiveList.SelectedIndices
+            .Cast<int>()
+            .Any(i => i >= 0 && i < ActiveEntries.Count && !ActiveEntries[i].IsEmpty);
+        _deleteBtn.Enabled = canDelete;
+
+        var petSlots = GetSelectedSlots(_petList, _petEntries);
+        _petUpBtn.Enabled = _playerState != null
+            && CompanionSortLogic.CanMovePets(_playerState, petSlots, -1);
+        _petDownBtn.Enabled = _playerState != null
+            && CompanionSortLogic.CanMovePets(_playerState, petSlots, 1);
+        bool canSortPets = _petEntries.Count(e => !e.IsEmpty && !e.IsLocked) >= 2;
+        _petSortAzBtn.Enabled = canSortPets;
+        _petSortZaBtn.Enabled = canSortPets;
+
+        var eggs = _playerState?.GetArray("Eggs");
+        var eggSlots = GetSelectedSlots(_eggList, _eggEntries);
+        _eggUpBtn.Enabled = eggs != null && CompanionSortLogic.CanMoveEggs(eggs, eggSlots, -1);
+        _eggDownBtn.Enabled = eggs != null && CompanionSortLogic.CanMoveEggs(eggs, eggSlots, 1);
+        bool canSortEggs = _eggEntries.Count(e => !e.IsEmpty) >= 2;
+        _eggSortAzBtn.Enabled = canSortEggs;
+        _eggSortZaBtn.Enabled = canSortEggs;
+    }
+
+    private void OnCompanionListDrawItem(object? sender, DrawItemEventArgs e)
+    {
+        if (sender is not ListBox list || e.Index < 0) return;
+
+        var entries = ReferenceEquals(list, _petList) ? _petEntries : _eggEntries;
+        if (e.Index >= entries.Count) return;
+
+        var entry = entries[e.Index];
+        bool selected = (e.State & DrawItemState.Selected) != 0;
+
+        Color color;
+        if (selected)
+        {
+            color = SystemColors.HighlightText;
+        }
+        else if (entry.IsLocked && !entry.IsEmpty)
+        {
+            color = ThemeManager.Effective == AppTheme.Dark
+                ? Color.FromArgb(255, 180, 80)
+                : Color.FromArgb(170, 80, 0);
+        }
+        else if (entry.IsLocked || entry.IsEmpty)
+        {
+            color = ThemeManager.Effective == AppTheme.Dark
+                ? Color.FromArgb(150, 150, 150)
+                : SystemColors.GrayText;
+        }
+        else
+        {
+            color = list.ForeColor;
+        }
+
+        e.DrawBackground();
+        TextRenderer.DrawText(
+            e.Graphics,
+            entry.Label,
+            e.Font ?? list.Font,
+            e.Bounds,
+            color,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        e.DrawFocusRectangle();
     }
 
     /// <summary>
@@ -2583,12 +3428,6 @@ public partial class CompanionPanel : UserControl
             return displayValue != raw;
         }
         return true; // No raw value recorded - assume user set it
-    }
-
-    private JsonObject? FindSaveDataRoot()
-    {
-        if (_playerState?.Parent is JsonObject root) return root;
-        return null;
     }
 
     /// <summary>
@@ -2652,7 +3491,7 @@ public partial class CompanionPanel : UserControl
             try
             {
                 var eggObj = eggsArray.GetObject(i);
-                if (!IsSlotOccupied(eggObj))
+                if (!CompanionLogic.IsSlotOccupied(eggObj))
                 {
                     targetSlot = i;
                     break;
@@ -2672,9 +3511,17 @@ public partial class CompanionPanel : UserControl
                     var eggObj = eggsArray.GetObject(i);
                     string name = eggObj.GetString("CustomName") ?? "";
                     string species = CompanionLogic.LookupSpeciesName(eggObj.GetString("CreatureID") ?? "");
-                    slotNames[i] = $"Egg {i + 1}: {(!string.IsNullOrEmpty(name) ? name : species)}";
+                    string display = !string.IsNullOrEmpty(name) ? name : species;
+                    string prefix = UiStrings.Get("companion.slot_egg");
+                    slotNames[i] = string.IsNullOrEmpty(display)
+                        ? UiStrings.Format("companion.slot_label_plain", prefix, i)
+                        : UiStrings.Format("companion.slot_label_named", prefix, i, display);
                 }
-                catch { slotNames[i] = $"Egg {i + 1}"; }
+                catch
+                {
+                    slotNames[i] = UiStrings.Format(
+                        "companion.slot_label_plain", UiStrings.Get("companion.slot_egg"), i);
+                }
             }
 
             using var selectForm = new Form
@@ -2727,9 +3574,28 @@ public partial class CompanionPanel : UserControl
             return;
         }
 
-        // Refresh the companion list
-        var saveData = FindSaveDataRoot();
-        if (saveData != null) LoadData(saveData);
+        // Refresh both lists and select the new egg
+        _loading = true;
+        try
+        {
+            RebuildPetList();
+            RebuildEggList();
+            LoadBattleTeam();
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        _activeIsPet = false;
+        ClearSelection(_petList);
+        int row = _eggEntries.FindIndex(e => e.OriginalIndex == targetSlot);
+        if (row >= 0)
+        {
+            _eggList.SelectedIndex = row;
+            _eggFocusIndex = row;
+        }
+        OnCompanionSelected(null, EventArgs.Empty);
         RaiseDataModified();
 
         // Ask if user wants to place the egg in exosuit
@@ -3033,19 +3899,17 @@ public partial class CompanionPanel : UserControl
 
     private int GetSelectedPetDataIndex()
     {
-        int idx = _companionList.SelectedIndex;
-        if (idx < 0 || idx >= _entries.Count) return -1;
-        var entry = _entries[idx];
-        if (entry.Source != "Pet") return -1;
+        if (!_activeIsPet) return -1;
+        var entry = SelectedEntry;
+        if (entry.Source != "Pet" || entry.IsEmpty) return -1;
         return entry.OriginalIndex;
     }
 
     private int GetSelectedEggDataIndex()
     {
-        int idx = _companionList.SelectedIndex;
-        if (idx < 0 || idx >= _entries.Count) return -1;
-        var entry = _entries[idx];
-        if (entry.Source != "Egg") return -1;
+        if (_activeIsPet) return -1;
+        var entry = SelectedEntry;
+        if (entry.Source != "Egg" || entry.IsEmpty) return -1;
         return entry.OriginalIndex;
     }
 
@@ -3101,6 +3965,36 @@ public partial class CompanionPanel : UserControl
         // Button labels
         _exportCompanionBtn.Text = UiStrings.Get("common.export");
         _importCompanionBtn.Text = UiStrings.Get("common.import");
+
+        // Pet and egg lists
+        _petGroup.Text = UiStrings.Get("companion.pets_header");
+        _eggGroup.Text = UiStrings.Get("companion.eggs_header");
+        _petSortAzBtn.Text = UiStrings.Get("companion.sort_az");
+        _petSortZaBtn.Text = UiStrings.Get("companion.sort_za");
+        _petUpBtn.Text = UiStrings.Get("companion.move_up");
+        _petDownBtn.Text = UiStrings.Get("companion.move_down");
+        _eggSortAzBtn.Text = UiStrings.Get("companion.sort_az");
+        _eggSortZaBtn.Text = UiStrings.Get("companion.sort_za");
+        _eggUpBtn.Text = UiStrings.Get("companion.move_up");
+        _eggDownBtn.Text = UiStrings.Get("companion.move_down");
+        _showLockedCheck.Text = UiStrings.Get("companion.show_locked_slots");
+        var currentEntry = SelectedEntry;
+        _lockedUnlockHint.Text = UiStrings.Get(
+            currentEntry.Source == "Pet" && !currentEntry.IsEmpty && IsPetSlotLocked(currentEntry.OriginalIndex)
+                ? "companion.pet_locked_warning"
+                : "companion.locked_unlock_hint");
+        _lockedUnlockHint.ForeColor = ThemeManager.Effective == AppTheme.Dark
+            ? Color.FromArgb(255, 180, 80)
+            : Color.FromArgb(170, 80, 0);
+        _slotToolTip.SetToolTip(_petSortAzBtn, UiStrings.Get("companion.sort_tooltip"));
+        _slotToolTip.SetToolTip(_petSortZaBtn, UiStrings.Get("companion.sort_tooltip"));
+        _slotToolTip.SetToolTip(_eggSortAzBtn, UiStrings.Get("companion.sort_tooltip"));
+        _slotToolTip.SetToolTip(_eggSortZaBtn, UiStrings.Get("companion.sort_tooltip"));
+        _slotToolTip.SetToolTip(_petUpBtn, UiStrings.Get("companion.move_tooltip"));
+        _slotToolTip.SetToolTip(_petDownBtn, UiStrings.Get("companion.move_tooltip"));
+        _slotToolTip.SetToolTip(_eggUpBtn, UiStrings.Get("companion.move_tooltip"));
+        _slotToolTip.SetToolTip(_eggDownBtn, UiStrings.Get("companion.move_tooltip"));
+        UpdateSummaries();
 
         // Seed "Gen" buttons
         foreach (var btn in _seedGenButtons)

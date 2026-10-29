@@ -43,7 +43,7 @@ partial class CompanionPanel
             RowCount = 2,
             Padding = new Padding(10)
         };
-        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220));
         mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -93,9 +93,28 @@ partial class CompanionPanel
         headerStrip.Controls.Add(gotoButtonPanel, 2, 0);
         headerStrip.Padding = new Padding(0, 0, 10, 0);
 
-        _companionList = new ListBox { Dock = DockStyle.Fill };
-        _companionList.SelectedIndexChanged += OnCompanionSelected;
-        leftLayout.Controls.Add(_companionList, 0, 1);
+        var listSplit = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Horizontal,
+            SplitterWidth = 4,
+            Panel1MinSize = 80,
+            Panel2MinSize = 70,
+        };
+        listSplit.Panel1.Controls.Add(BuildPetListGroup());
+        listSplit.Panel2.Controls.Add(BuildEggListGroup());
+        listSplit.SizeChanged += (_, _) =>
+        {
+            if (listSplit.Height > 260)
+            {
+                int target = (int)(listSplit.Height * 0.55);
+                target = Math.Clamp(target, listSplit.Panel1MinSize,
+                    listSplit.Height - listSplit.Panel2MinSize - listSplit.SplitterWidth);
+                if (listSplit.SplitterDistance != target)
+                    listSplit.SplitterDistance = target;
+            }
+        };
+        leftLayout.Controls.Add(listSplit, 0, 1);
 
         var btnPanel = new FlowLayoutPanel
         {
@@ -103,7 +122,6 @@ partial class CompanionPanel
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight
         };
-        _countLabel = new Label { Text = "Total: 0 slots", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 5, 0, 0) };
         _deleteBtn = new Button { Text = "Delete", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(75, 0) };
         _deleteBtn.Click += OnDelete;
         _exportCompanionBtn = new Button { Text = "Export", AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, MinimumSize = new Size(75, 0) };
@@ -173,7 +191,6 @@ partial class CompanionPanel
         btnPanel.Controls.Add(_deleteBtn);
         btnPanel.Controls.Add(_exportCompanionBtn);
         btnPanel.Controls.Add(_importCompanionBtn);
-        btnPanel.Controls.Add(_countLabel);
         leftLayout.Controls.Add(btnPanel, 0, 2);
 
         mainLayout.Controls.Add(headerStrip, 0, 0);
@@ -331,17 +348,7 @@ partial class CompanionPanel
 
         // Slot Unlocked checkbox
         _unlockedCheck = new CheckBox { Text = "", AutoSize = true };
-        _unlockedCheck.CheckedChanged += (s, e) =>
-        {
-            if (_loading || _playerState == null) return;
-            int idx = _companionList.SelectedIndex;
-            if (idx < 0 || idx >= _entries.Count) return;
-            var entry = _entries[idx];
-            if (entry.Source != "Pet") return;
-            CompanionLogic.SetSlotUnlocked(_playerState, entry.OriginalIndex, _unlockedCheck.Checked);
-            RefreshListEntry();
-            RaiseDataModified();
-        };
+        _unlockedCheck.CheckedChanged += (s, e) => OnSlotUnlockedChanged();
 
         // DateTimePickers
         _birthTimePicker = new DateTimePicker
@@ -467,6 +474,17 @@ partial class CompanionPanel
         int lRow = 0;
         _leftColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _slotUnlockedLabel = AddRow(_leftColumn, "Slot Unlocked:", _unlockedCheck, lRow++);
+        _leftColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _lockedUnlockHint = new Label
+        {
+            Text = "",
+            AutoSize = true,
+            MaximumSize = new Size(320, 0),
+            Margin = new Padding(0, 2, 0, 4),
+            Visible = false,
+        };
+        _leftColumn.Controls.Add(new Label { Text = "", AutoSize = true }, 0, lRow);
+        _leftColumn.Controls.Add(_lockedUnlockHint, 1, lRow++);
         _leftColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _speciesLabel = AddRow(_leftColumn, "Species:", _typeField, lRow++);
         _leftColumn.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -1200,8 +1218,23 @@ partial class CompanionPanel
         battleScroll.Controls.Add(battleLayout);
     }
 
-    private ListBox _companionList = null!;
-    private Label _countLabel = null!;
+    private GroupBox _petGroup = null!;
+    private GroupBox _eggGroup = null!;
+    private ListBox _petList = null!;
+    private ListBox _eggList = null!;
+    private Label _petSummaryLabel = null!;
+    private Label _eggSummaryLabel = null!;
+    private Label _petLockedHint = null!;
+    private Label _lockedUnlockHint = null!;
+    private CheckBox _showLockedCheck = null!;
+    private Button _petSortAzBtn = null!;
+    private Button _petSortZaBtn = null!;
+    private Button _petUpBtn = null!;
+    private Button _petDownBtn = null!;
+    private Button _eggSortAzBtn = null!;
+    private Button _eggSortZaBtn = null!;
+    private Button _eggUpBtn = null!;
+    private Button _eggDownBtn = null!;
     private Panel _detailPanel = null!;
     private DoubleBufferedTabControl _tabControl = null!;
     private TabPage _statsPage = null!;

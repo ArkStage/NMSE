@@ -180,6 +180,24 @@ internal static class CompanionLogic
     internal const int MaxPetSlots = 30;
 
     /// <summary>
+    /// Returns whether a companion slot is occupied (its <c>CreatureSeed</c> active flag is set).
+    /// </summary>
+    /// <param name="companion">The companion or egg object, or null.</param>
+    internal static bool IsSlotOccupied(JsonObject? companion)
+    {
+        if (companion == null) return false;
+        try
+        {
+            var seed = companion.GetArray("CreatureSeed");
+            return seed != null && seed.Length >= 2 && seed.GetBool(0);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Sets the unlocked state for a companion slot in the UnlockedPetSlots array.
     /// </summary>
     /// <param name="playerState">The PlayerStateData JSON object.</param>
